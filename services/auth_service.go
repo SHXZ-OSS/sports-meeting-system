@@ -196,3 +196,68 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 	// 返回所有学生信息和对应的token
 	return "", studentsData, nil
 }
+
+// DingTalkSSOLogin 钉钉SSO登录（用于非钉钉客户端环境）
+// 通过SSO OAuth2方式获取用户信息后进行登录
+func DingTalkSSOLogin(userID, name string) (string, interface{}, error) {
+	if userID == "" {
+		return "", nil, errors.New("用户ID为空")
+	}
+
+	// 先尝试查找学生
+	student, err := models.GetStudentByDingTalkID(userID)
+	if err == nil {
+		// 学生找到，生成学生 token
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, student, nil
+	}
+
+	// 如果找不到学生，尝试查找管理员
+	user, err := models.GetUserByDingTalkID(userID)
+	if err == nil {
+		// 生成 token
+		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, user, nil
+	}
+
+	// 如果前面都找不到，可能是家长，尝试获取关联的学生
+	relations, err := models.GetStudentsByParentID(userID)
+	if err != nil || len(relations) == 0 {
+		return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userID)
+	}
+
+	// 获取学生的详细信息
+	var studentsData []StudentData
+	for _, relation := range relations {
+		student, err := models.GetStudentByDingTalkID(relation.StudentID)
+		if err != nil {
+			continue
+		}
+
+		// 为每个学生生成token
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
+		if err != nil {
+			continue
+		}
+
+		studentsData = append(studentsData, StudentData{
+			ID:       student.ID,
+			Username: student.Username,
+			FullName: student.FullName,
+			Token:    token,
+		})
+	}
+
+	if len(studentsData) == 0 {
+		return "", nil, errors.New("无法生成学生登录凭证，请联系系统管理员")
+	}
+
+	// 返回所有学生信息和对应的token
+	return "", studentsData, nil
+}

@@ -622,6 +622,105 @@ func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, 
 	return fmt.Errorf("发送钉钉卡片消息失败，已重试 %d 次: %v", maxRetries, lastErr)
 }
 
+// GetDingTalkSSOUserInfo 通过SSO OAuth2授权码获取钉钉用户信息
+// 用于非钉钉客户端环境下的登录
+func GetDingTalkSSOUserInfo(code string) (*DingTalkUserInfo, error) {
+	cfg := config.Get()
+	clientID := cfg.DingTalk.AppKey       // AppKey 即为 ClientID
+	clientSecret := cfg.DingTalk.AppSecret // AppSecret 即为 ClientSecret
+
+	if clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("钉钉SSO配置不完整")
+	}
+
+	// Step 1: 获取用户访问令牌
+	tokenURL := "https://api.dingtalk.com/v1.0/oauth2/userAccessToken"
+	tokenBody := map[string]string{
+		"clientId":     clientID,
+		"clientSecret": clientSecret,
+		"code":         code,
+		"grantType":    "authorization_code",
+	}
+	tokenBodyBytes, _ := json.Marshal(tokenBody)
+
+	req, err := http.NewRequest("POST", tokenURL, bytes.NewBuffer(tokenBodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求用户令牌失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	var tokenResult struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+		ExpireIn     int    `json:"expireIn"`
+		CorpId       string `json:"corpId"`
+	}
+	if err := json.Unmarshal(body, &tokenResult); err != nil {
+		return nil, fmt.Errorf("解析令牌响应失败: %v", err)
+	}
+
+	if tokenResult.AccessToken == "" {
+		// 检查是否有错误信息
+		var errResult struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(body, &errResult); err == nil && errResult.Message != "" {
+			return nil, fmt.Errorf("获取访问令牌失败: %s", errResult.Message)
+		}
+		return nil, fmt.Errorf("获取访问令牌失败")
+	}
+
+	// Step 2: 获取用户信息
+	userURL := "https://api.dingtalk.com/v1.0/contact/users/me"
+	userReq, err := http.NewRequest("GET", userURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建用户请求失败: %v", err)
+	}
+	userReq.Header.Set("x-acs-dingtalk-access-token", tokenResult.AccessToken)
+
+	userResp, err := client.Do(userReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求用户信息失败: %v", err)
+	}
+	defer userResp.Body.Close()
+
+	userBody, err := io.ReadAll(userResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取用户信息响应失败: %v", err)
+	}
+
+	var userResult struct {
+		Nick    string `json:"nick"`
+		UnionId string `json:"unionId"`
+		OpenId  string `json:"openId"`
+	}
+	if err := json.Unmarshal(userBody, &userResult); err != nil {
+		return nil, fmt.Errorf("解析用户信息失败: %v", err)
+	}
+
+	if userResult.UnionId == "" {
+		return nil, fmt.Errorf("获取用户信息失败: unionId为空")
+	}
+
+	return &DingTalkUserInfo{
+		UserID: userResult.UnionId,
+		Name:   userResult.Nick,
+	}, nil
+}
+
 // LogError 记录错误信息到日志
 func LogError(message string) {
 	log.Printf("ERROR: %s", message)

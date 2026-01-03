@@ -35,6 +35,9 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	// 公开API路由（游客访问）
 	public := api.Group("/public")
 	public.GET("/website_info", handlers.GetWebsiteInfo)
+	// 钉钉SSO登录路由
+	public.GET("/dingtalk/sso_redirect", handlers.DingTalkSSORedirect)
+	public.GET("/dingtalk/sso_callback", handlers.DingTalkSSOCallback)
 
 	// 看板相关API路由
 	dashboard := public.Group("")
