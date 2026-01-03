@@ -33,6 +33,7 @@ import { PERMISSIONS } from "../types";
 import { useIsMobile } from "../utils";
 import Footer from "../components/Footer";
 import LoadingSpinner from "../components/Spinner";
+import NotFound from "../components/NotFound";
 
 // Admin 懒加载组件
 const AdminDashboard = React.lazy(() => import("../pages/admin/Dashboard"));
@@ -310,6 +311,8 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           {hasPermission(PERMISSIONS.WEBSITE_MANAGEMENT) && (
             <Route path="/settings" element={<Settings />} />
           )}
+          {/* 404处理 - 未匹配的管理员路由 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       );
     } else {
@@ -320,6 +323,8 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           <Route path="/submit" element={<SubmitCompetition />} />
           <Route path="/registrations" element={<StudentRegistrations />} />
           <Route path="/scores" element={<StudentScores />} />
+          {/* 404处理 - 未匹配的学生路由 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       );
     }
