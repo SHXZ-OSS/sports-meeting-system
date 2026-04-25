@@ -6,9 +6,13 @@ export interface CreateCompetitionRequest {
   description: string;
   ranking_mode: "higher_first" | "lower_first";
   gender: number;
-  competition_type: "individual" | "team"; // 比赛类型
-  min_participants_per_class: number; // 每班最少报名人数
-  max_participants_per_class: number; // 每班最多报名人数
+  competition_type: "individual" | "team";
+  min_participants_per_class: number;
+  max_participants_per_class: number;
+  min_female_per_class?: number;
+  max_female_per_class?: number;
+  min_male_per_class?: number;
+  max_male_per_class?: number;
   image?: string;
   unit: string;
   start_time?: string;
@@ -19,9 +23,13 @@ export interface UpdateCompetitionRequest {
   name?: string;
   description?: string;
   ranking_mode?: "higher_first" | "lower_first";
-  competition_type?: "individual" | "team"; // 比赛类型
-  min_participants_per_class?: number; // 每班最少报名人数
-  max_participants_per_class?: number; // 每班最多报名人数
+  competition_type?: "individual" | "team";
+  min_participants_per_class?: number;
+  max_participants_per_class?: number;
+  min_female_per_class?: number;
+  max_female_per_class?: number;
+  min_male_per_class?: number;
+  max_male_per_class?: number;
   image?: string;
   unit?: string;
   gender?: number;
