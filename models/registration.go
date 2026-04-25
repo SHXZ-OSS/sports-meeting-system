@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
@@ -141,9 +142,11 @@ func GetStudentRegistrationsByStudentID(studentID int) ([]*types.Competition, er
 func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 	db := database.GetDB()
 
-	// 获取所有比赛项目
+	// 获取当前届次的所有比赛项目
+	cfg := config.Get()
+	currentEventID := cfg.CurrentEventID
 	var competitions []types.Competition
-	if err := db.Find(&competitions).Error; err != nil {
+	if err := db.Where("event_id = ?", currentEventID).Find(&competitions).Error; err != nil {
 		return nil, err
 	}
 
@@ -243,9 +246,10 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]any {
 	var issues []map[string]any
 
-	// 获取所有有时间信息的比赛
+	// 获取当前届次所有有时间信息的比赛
+	cfg := config.Get()
 	var competitions []types.Competition
-	if err := db.Where("start_time IS NOT NULL AND end_time IS NOT NULL").Find(&competitions).Error; err != nil {
+	if err := db.Where("event_id = ? AND start_time IS NOT NULL AND end_time IS NOT NULL", cfg.CurrentEventID).Find(&competitions).Error; err != nil {
 		return issues
 	}
 
