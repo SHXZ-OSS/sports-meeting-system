@@ -1087,10 +1087,13 @@ const RegistrationManagement: React.FC = () => {
               {/* 显示当前班级的报名情况 */}
               {currentCompetition &&
                 (() => {
-                  const classRegistrationCount = registrations.filter(
+                  const classRegs = registrations.filter(
                     (reg) => reg.class_id === selectedClass,
-                  ).length;
-                  // 计算报名后的总人数（已报名 + 当前选择）
+                  );
+                  const classRegistrationCount = classRegs.length;
+                  const selectedStudentObjs = students.filter((s) =>
+                    selectedStudents.includes(s.id),
+                  );
                   const totalAfterSelection =
                     classRegistrationCount + selectedStudents.length;
                   const minLimit =
@@ -1118,6 +1121,58 @@ const RegistrationManagement: React.FC = () => {
                           ? `≤${maxLimit}`
                           : "无限制";
 
+                  // 性别限额（仅混合性别项目）
+                  const hasFemaleLimit =
+                    currentCompetition.gender === 3 &&
+                    (currentCompetition.min_female_per_class > 0 ||
+                      currentCompetition.max_female_per_class > 0);
+                  const hasMaleLimit =
+                    currentCompetition.gender === 3 &&
+                    (currentCompetition.min_male_per_class > 0 ||
+                      currentCompetition.max_male_per_class > 0);
+
+                  const femaleRegistered = classRegs.filter(
+                    (r) => r.student_gender === 1,
+                  ).length;
+                  const maleRegistered = classRegs.filter(
+                    (r) => r.student_gender === 2,
+                  ).length;
+                  const femaleSelected = selectedStudentObjs.filter(
+                    (s) => s.gender === 1,
+                  ).length;
+                  const maleSelected = selectedStudentObjs.filter(
+                    (s) => s.gender === 2,
+                  ).length;
+                  const femaleTotal = femaleRegistered + femaleSelected;
+                  const maleTotal = maleRegistered + maleSelected;
+
+                  const genderLimitText = (min: number, max: number) =>
+                    min > 0 && max > 0
+                      ? `${min}-${max}`
+                      : min > 0
+                        ? `≥${min}`
+                        : max > 0
+                          ? `≤${max}`
+                          : "无限制";
+
+                  const femaleStatusColor =
+                    hasFemaleLimit &&
+                    ((currentCompetition.min_female_per_class > 0 &&
+                      femaleTotal < currentCompetition.min_female_per_class) ||
+                      (currentCompetition.max_female_per_class > 0 &&
+                        femaleTotal > currentCompetition.max_female_per_class))
+                      ? "red"
+                      : "green";
+
+                  const maleStatusColor =
+                    hasMaleLimit &&
+                    ((currentCompetition.min_male_per_class > 0 &&
+                      maleTotal < currentCompetition.min_male_per_class) ||
+                      (currentCompetition.max_male_per_class > 0 &&
+                        maleTotal > currentCompetition.max_male_per_class))
+                      ? "red"
+                      : "green";
+
                   return (
                     <div
                       style={{
@@ -1125,14 +1180,39 @@ const RegistrationManagement: React.FC = () => {
                         padding: "8px 12px",
                         backgroundColor: "#f5f5f5",
                         borderRadius: 4,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 16,
                       }}
                     >
-                      <span style={{ color: statusColor, fontWeight: "bold" }}>
-                        {statusText}
+                      <span>
+                        <span style={{ color: statusColor, fontWeight: "bold" }}>
+                          {statusText}
+                        </span>
+                        <span style={{ marginLeft: 8, color: "#666" }}>
+                          总计 {totalAfterSelection}人/{limitText}
+                        </span>
                       </span>
-                      <span style={{ marginLeft: 8, color: "#666" }}>
-                        {totalAfterSelection}人/{limitText}
-                      </span>
+                      {hasFemaleLimit && (
+                        <span>
+                          <span style={{ color: femaleStatusColor, fontWeight: "bold" }}>
+                            女
+                          </span>
+                          <span style={{ marginLeft: 4, color: "#666" }}>
+                            {femaleTotal}人/{genderLimitText(currentCompetition.min_female_per_class, currentCompetition.max_female_per_class)}
+                          </span>
+                        </span>
+                      )}
+                      {hasMaleLimit && (
+                        <span>
+                          <span style={{ color: maleStatusColor, fontWeight: "bold" }}>
+                            男
+                          </span>
+                          <span style={{ marginLeft: 4, color: "#666" }}>
+                            {maleTotal}人/{genderLimitText(currentCompetition.min_male_per_class, currentCompetition.max_male_per_class)}
+                          </span>
+                        </span>
+                      )}
                     </div>
                   );
                 })()}

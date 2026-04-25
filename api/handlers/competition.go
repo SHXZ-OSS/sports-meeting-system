@@ -50,13 +50,17 @@ type CreateCompetitionRequest struct {
 	Description             string                `json:"description"`
 	RankingMode             types.RankingMode     `json:"ranking_mode" binding:"required,oneof=higher_first lower_first"`
 	Gender                  int                   `json:"gender" binding:"required,min=1,max=3"`
-	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"` // 比赛类型：individual 或 team
-	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`                // 每班最少报名人数
-	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`                // 每班最多报名人数
-	Image                   string                `json:"image"`                                                     // Base64编码的图片
-	Unit                    string                `json:"unit" binding:"required"`                                   // 成绩单位
-	StartTime               *time.Time            `json:"start_time"`                                                // 比赛开始时间
-	EndTime                 *time.Time            `json:"end_time"`                                                  // 比赛结束时间
+	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"`
+	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
+	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
+	MinFemalePerClass       int                   `json:"min_female_per_class" binding:"min=0"`
+	MaxFemalePerClass       int                   `json:"max_female_per_class" binding:"min=0"`
+	MinMalePerClass         int                   `json:"min_male_per_class" binding:"min=0"`
+	MaxMalePerClass         int                   `json:"max_male_per_class" binding:"min=0"`
+	Image                   string                `json:"image"`
+	Unit                    string                `json:"unit" binding:"required"`
+	StartTime               *time.Time            `json:"start_time"`
+	EndTime                 *time.Time            `json:"end_time"`
 }
 
 // UpdateCompetitionRequest 更新比赛项目请求
@@ -64,14 +68,18 @@ type UpdateCompetitionRequest struct {
 	Name                    string                `json:"name" binding:"required"`
 	Description             string                `json:"description"`
 	RankingMode             types.RankingMode     `json:"ranking_mode" binding:"required,oneof=higher_first lower_first"`
-	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"` // 比赛类型：individual 或 team
-	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`                // 每班最少报名人数
-	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`                // 每班最多报名人数
-	Image                   string                `json:"image"`                                                     // Base64编码的图片
-	Unit                    string                `json:"unit" binding:"required"`                                   // 成绩单位
+	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"`
+	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
+	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
+	MinFemalePerClass       int                   `json:"min_female_per_class" binding:"min=0"`
+	MaxFemalePerClass       int                   `json:"max_female_per_class" binding:"min=0"`
+	MinMalePerClass         int                   `json:"min_male_per_class" binding:"min=0"`
+	MaxMalePerClass         int                   `json:"max_male_per_class" binding:"min=0"`
+	Image                   string                `json:"image"`
+	Unit                    string                `json:"unit" binding:"required"`
 	Gender                  int                   `json:"gender" binding:"required,min=1,max=3"`
-	StartTime               *time.Time            `json:"start_time"`  // 比赛开始时间
-	EndTime                 *time.Time            `json:"end_time"`    // 比赛结束时间
+	StartTime               *time.Time            `json:"start_time"`
+	EndTime                 *time.Time            `json:"end_time"`
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -346,9 +354,9 @@ func CreateCompetition(c *gin.Context) {
 	// 创建比赛项目
 	var err error
 	if role == services.RoleStudent {
-		err = models.CreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, studentID, req.StartTime, req.EndTime)
+		err = models.CreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, studentID, req.StartTime, req.EndTime)
 	} else {
-		err = models.AdminCreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, ID, req.StartTime, req.EndTime)
+		err = models.AdminCreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, ID, req.StartTime, req.EndTime)
 	}
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建比赛项目失败: "+err.Error())
@@ -398,6 +406,10 @@ func UpdateCompetition(c *gin.Context) {
 	competition.CompetitionType = req.CompetitionType
 	competition.MinParticipantsPerClass = req.MinParticipantsPerClass
 	competition.MaxParticipantsPerClass = req.MaxParticipantsPerClass
+	competition.MinFemalePerClass = req.MinFemalePerClass
+	competition.MaxFemalePerClass = req.MaxFemalePerClass
+	competition.MinMalePerClass = req.MinMalePerClass
+	competition.MaxMalePerClass = req.MaxMalePerClass
 	competition.StartTime = req.StartTime
 	competition.EndTime = req.EndTime
 

@@ -161,68 +161,116 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 	// 检查每个项目
 	var results []map[string]any
 	for _, comp := range competitions {
-		// 查询该项目的报名情况
+		// 查询该项目的报名情况（混合性别时需要 Preload Student 以获取性别）
 		var registrations []types.Registration
 		query := db.Where("competition_id = ?", comp.ID)
-
-		// 如果提供了scopeClassIDs，只查询scope内的报名
 		if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
 			query = query.Where("class_id IN ?", *scopeClassIDs)
 		}
-
+		needGender := comp.Gender == 3 && (comp.MinFemalePerClass > 0 || comp.MaxFemalePerClass > 0 || comp.MinMalePerClass > 0 || comp.MaxMalePerClass > 0)
+		if needGender {
+			query = query.Preload("Student")
+		}
 		if err := query.Find(&registrations).Error; err != nil {
 			continue
 		}
 
-		// 按班级统计报名人数
-		classRegistrationCount := make(map[int]int)
+		// 按班级统计总人数及性别人数
+		classTotal := make(map[int]int)
+		classFemale := make(map[int]int) // gender=1 为女
+		classMale := make(map[int]int)   // gender=2 为男
 		for _, reg := range registrations {
-			if reg.ClassID != nil {
-				classRegistrationCount[*reg.ClassID]++
+			if reg.ClassID == nil {
+				continue
+			}
+			classTotal[*reg.ClassID]++
+			if needGender && reg.Student != nil {
+				switch reg.Student.Gender {
+				case 1:
+					classFemale[*reg.ClassID]++
+				case 2:
+					classMale[*reg.ClassID]++
+				}
 			}
 		}
 
 		// 检查每个班级是否符合要求
 		var classes []types.Class
 		if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
-			// 只检查scope内的班级
 			db.Where("id IN ?", *scopeClassIDs).Find(&classes)
 		} else {
-			// 检查所有班级
 			db.Find(&classes)
 		}
 
-		// 收集所有不符合要求的班级
 		var issues []map[string]any
 		allOk := true
 
 		for _, class := range classes {
-			count := classRegistrationCount[class.ID]
+			total := classTotal[class.ID]
 
-			// 检查最少报名人数
-			if comp.MinParticipantsPerClass > 0 && count < comp.MinParticipantsPerClass {
+			// 检查总人数
+			if comp.MinParticipantsPerClass > 0 && total < comp.MinParticipantsPerClass {
 				allOk = false
 				issues = append(issues, map[string]any{
 					"competition_id":   comp.ID,
 					"competition_name": comp.Name,
 					"status":           "error",
-					"message":          fmt.Sprintf("班级 %s 报名人数不足（%d/%d）", class.Name, count, comp.MinParticipantsPerClass),
+					"message":          fmt.Sprintf("班级 %s 报名人数不足（%d/%d）", class.Name, total, comp.MinParticipantsPerClass),
+				})
+			}
+			if comp.MaxParticipantsPerClass > 0 && total > comp.MaxParticipantsPerClass {
+				allOk = false
+				issues = append(issues, map[string]any{
+					"competition_id":   comp.ID,
+					"competition_name": comp.Name,
+					"status":           "error",
+					"message":          fmt.Sprintf("班级 %s 报名人数超出上限（%d/%d）", class.Name, total, comp.MaxParticipantsPerClass),
 				})
 			}
 
-			// 检查最多报名人数
-			if comp.MaxParticipantsPerClass > 0 && count > comp.MaxParticipantsPerClass {
-				allOk = false
-				issues = append(issues, map[string]any{
-					"competition_id":   comp.ID,
-					"competition_name": comp.Name,
-					"status":           "error",
-					"message":          fmt.Sprintf("班级 %s 报名人数超出上限（%d/%d）", class.Name, count, comp.MaxParticipantsPerClass),
-				})
+			// 检查性别人数（仅混合性别项目）
+			if needGender {
+				female := classFemale[class.ID]
+				male := classMale[class.ID]
+				if comp.MinFemalePerClass > 0 && female < comp.MinFemalePerClass {
+					allOk = false
+					issues = append(issues, map[string]any{
+						"competition_id":   comp.ID,
+						"competition_name": comp.Name,
+						"status":           "error",
+						"message":          fmt.Sprintf("班级 %s 女生人数不足（%d/%d）", class.Name, female, comp.MinFemalePerClass),
+					})
+				}
+				if comp.MaxFemalePerClass > 0 && female > comp.MaxFemalePerClass {
+					allOk = false
+					issues = append(issues, map[string]any{
+						"competition_id":   comp.ID,
+						"competition_name": comp.Name,
+						"status":           "error",
+						"message":          fmt.Sprintf("班级 %s 女生人数超出上限（%d/%d）", class.Name, female, comp.MaxFemalePerClass),
+					})
+				}
+				if comp.MinMalePerClass > 0 && male < comp.MinMalePerClass {
+					allOk = false
+					issues = append(issues, map[string]any{
+						"competition_id":   comp.ID,
+						"competition_name": comp.Name,
+						"status":           "error",
+						"message":          fmt.Sprintf("班级 %s 男生人数不足（%d/%d）", class.Name, male, comp.MinMalePerClass),
+					})
+				}
+				if comp.MaxMalePerClass > 0 && male > comp.MaxMalePerClass {
+					allOk = false
+					issues = append(issues, map[string]any{
+						"competition_id":   comp.ID,
+						"competition_name": comp.Name,
+						"status":           "error",
+						"message":          fmt.Sprintf("班级 %s 男生人数超出上限（%d/%d）", class.Name, male, comp.MaxMalePerClass),
+					})
+				}
 			}
 		}
 
-		// 如果所有班级都符合要求，添加一条"所有班级符合要求"的记录
 		if allOk {
 			results = append(results, map[string]any{
 				"competition_id":   comp.ID,
@@ -231,7 +279,6 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 				"message":          "所有班级报名人数符合要求",
 			})
 		} else {
-			// 否则添加所有不符合要求的记录
 			results = append(results, issues...)
 		}
 	}

@@ -54,6 +54,7 @@ const { TextArea } = Input;
 const CompetitionManagement: React.FC = () => {
   const [form] = Form.useForm();
   const isMobile = useIsMobile();
+  const genderValue = Form.useWatch("gender", form);
 
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -304,6 +305,10 @@ const CompetitionManagement: React.FC = () => {
         unit: competition.unit,
         min_participants_per_class: competition.min_participants_per_class || 0,
         max_participants_per_class: competition.max_participants_per_class || 0,
+        min_female_per_class: competition.min_female_per_class || 0,
+        max_female_per_class: competition.max_female_per_class || 0,
+        min_male_per_class: competition.min_male_per_class || 0,
+        max_male_per_class: competition.max_male_per_class || 0,
         start_time: competition.start_time ? dayjs(competition.start_time) : null,
         end_time: competition.end_time ? dayjs(competition.end_time) : null,
       });
@@ -334,6 +339,7 @@ const CompetitionManagement: React.FC = () => {
       });
     }
 
+    const isMixed = values.gender === 3;
     if (editingCompetition) {
       const response = await adminCompetitionAPI.updateCompetition(
         editingCompetition.id,
@@ -346,6 +352,10 @@ const CompetitionManagement: React.FC = () => {
           unit: values.unit,
           min_participants_per_class: values.min_participants_per_class,
           max_participants_per_class: values.max_participants_per_class,
+          min_female_per_class: isMixed ? (values.min_female_per_class ?? 0) : 0,
+          max_female_per_class: isMixed ? (values.max_female_per_class ?? 0) : 0,
+          min_male_per_class: isMixed ? (values.min_male_per_class ?? 0) : 0,
+          max_male_per_class: isMixed ? (values.max_male_per_class ?? 0) : 0,
           image: imageBase64,
           start_time: values.start_time?.toISOString(),
           end_time: values.end_time?.toISOString(),
@@ -365,6 +375,10 @@ const CompetitionManagement: React.FC = () => {
         unit: values.unit,
         min_participants_per_class: values.min_participants_per_class,
         max_participants_per_class: values.max_participants_per_class,
+        min_female_per_class: isMixed ? (values.min_female_per_class ?? 0) : 0,
+        max_female_per_class: isMixed ? (values.max_female_per_class ?? 0) : 0,
+        min_male_per_class: isMixed ? (values.min_male_per_class ?? 0) : 0,
+        max_male_per_class: isMixed ? (values.max_male_per_class ?? 0) : 0,
         image: imageBase64,
         start_time: values.start_time?.toISOString(),
         end_time: values.end_time?.toISOString(),
@@ -890,6 +904,35 @@ const CompetitionManagement: React.FC = () => {
           >
             <InputNumber min={0} style={{ width: "100%" }} />
           </Form.Item>
+
+          {genderValue === 3 && (
+            <>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="每班最少女生人数" name="min_female_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="每班最多女生人数" name="max_female_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="每班最少男生人数" name="min_male_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="每班最多男生人数" name="max_male_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          )}
 
           <Row gutter={16}>
             <Col span={12}>

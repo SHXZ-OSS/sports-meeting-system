@@ -43,8 +43,12 @@ type Competition struct {
 	Unit                    string            `json:"unit" gorm:"default:'points'"`
 	Gender                  int               `json:"gender" gorm:"default:3"`                      // 1: 女, 2: 男, 3: 混合
 	CompetitionType         CompetitionType   `json:"competition_type" gorm:"default:'individual'"` // 比赛类型：个人或团体
-	MinParticipantsPerClass int               `json:"min_participants_per_class" gorm:"default:0"`  // 每班最少报名人数，0表示无限制
-	MaxParticipantsPerClass int               `json:"max_participants_per_class" gorm:"default:0"`  // 每班最多报名人数，0表示无限制
+	MinParticipantsPerClass int               `json:"min_participants_per_class" gorm:"default:0"`  // 每班最少报名总人数，0表示无限制
+	MaxParticipantsPerClass int               `json:"max_participants_per_class" gorm:"default:0"`  // 每班最多报名总人数，0表示无限制
+	MinFemalePerClass       int               `json:"min_female_per_class" gorm:"default:0"`        // 每班最少女生人数，gender=3时有效，0表示无限制
+	MaxFemalePerClass       int               `json:"max_female_per_class" gorm:"default:0"`        // 每班最多女生人数，gender=3时有效，0表示无限制
+	MinMalePerClass         int               `json:"min_male_per_class" gorm:"default:0"`          // 每班最少男生人数，gender=3时有效，0表示无限制
+	MaxMalePerClass         int               `json:"max_male_per_class" gorm:"default:0"`          // 每班最多男生人数，gender=3时有效，0表示无限制
 	SubmitterID             *int              `json:"submitter_id,omitempty" gorm:"index"`
 	SubmitterName           *string           `json:"submitter_name,omitempty" gorm:"-"` // 忽略该字段，通过join获取
 	ReviewerID              *int              `json:"reviewer_id,omitempty"`

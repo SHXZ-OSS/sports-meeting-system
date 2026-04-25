@@ -12,7 +12,7 @@ import (
 )
 
 // CreateCompetition 创建比赛项目（学生提交）
-func CreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, submitterID int, startTime, endTime *time.Time) error {
+func CreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int, startTime, endTime *time.Time) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
@@ -38,6 +38,10 @@ func CreateCompetition(name, description, imagePath, unit string, gender int, ra
 		CompetitionType:         competitionType,
 		MinParticipantsPerClass: minParticipantsPerClass,
 		MaxParticipantsPerClass: maxParticipantsPerClass,
+		MinFemalePerClass:       minFemalePerClass,
+		MaxFemalePerClass:       maxFemalePerClass,
+		MinMalePerClass:         minMalePerClass,
+		MaxMalePerClass:         maxMalePerClass,
 		Status:                  types.StatusPendingApproval,
 		SubmitterID:             &submitterID,
 		StartTime:               startTime,
@@ -67,7 +71,7 @@ func UpdateCompetition(competition *types.Competition) error {
 
 	// 使用事务更新比赛数据
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Model(competition).Select("name", "description", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "start_time", "end_time").Updates(map[string]interface{}{
+		return tx.Model(competition).Select("name", "description", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time").Updates(map[string]interface{}{
 			"name":                       competition.Name,
 			"description":                competition.Description,
 			"image_path":                 competition.ImagePath,
@@ -77,6 +81,10 @@ func UpdateCompetition(competition *types.Competition) error {
 			"competition_type":           competition.CompetitionType,
 			"min_participants_per_class": competition.MinParticipantsPerClass,
 			"max_participants_per_class": competition.MaxParticipantsPerClass,
+			"min_female_per_class":       competition.MinFemalePerClass,
+			"max_female_per_class":       competition.MaxFemalePerClass,
+			"min_male_per_class":         competition.MinMalePerClass,
+			"max_male_per_class":         competition.MaxMalePerClass,
 			"start_time":                 competition.StartTime,
 			"end_time":                   competition.EndTime,
 		}).Error
@@ -135,7 +143,7 @@ func RejectCompetitionByID(id, reviewerID int) error {
 }
 
 // AdminCreateCompetition 管理员创建比赛项目（不受时间限制）
-func AdminCreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, submitterID int, startTime, endTime *time.Time) error {
+func AdminCreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int, startTime, endTime *time.Time) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
@@ -162,6 +170,10 @@ func AdminCreateCompetition(name, description, imagePath, unit string, gender in
 		CompetitionType:         competitionType,
 		MinParticipantsPerClass: minParticipantsPerClass,
 		MaxParticipantsPerClass: maxParticipantsPerClass,
+		MinFemalePerClass:       minFemalePerClass,
+		MaxFemalePerClass:       maxFemalePerClass,
+		MinMalePerClass:         minMalePerClass,
+		MaxMalePerClass:         maxMalePerClass,
 		Status:                  types.StatusApproved,
 		ReviewedAt:              &now,
 		ReviewerID:              &submitterID,

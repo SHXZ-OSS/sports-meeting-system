@@ -33,6 +33,7 @@ const { Option } = Select;
 const SubmitCompetition: React.FC = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const genderValue = Form.useWatch("gender", form);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [countdown, setCountdown] = useState(10);
@@ -77,6 +78,7 @@ const SubmitCompetition: React.FC = () => {
         });
       }
 
+      const isMixed = formValues.gender === 3;
       const response = await studentAPI.createCompetition({
         name: formValues.name,
         description: formValues.description || "",
@@ -86,6 +88,10 @@ const SubmitCompetition: React.FC = () => {
         unit: formValues.unit,
         min_participants_per_class: formValues.min_participants_per_class || 0,
         max_participants_per_class: formValues.max_participants_per_class || 0,
+        min_female_per_class: isMixed ? (formValues.min_female_per_class ?? 0) : 0,
+        max_female_per_class: isMixed ? (formValues.max_female_per_class ?? 0) : 0,
+        min_male_per_class: isMixed ? (formValues.min_male_per_class ?? 0) : 0,
+        max_male_per_class: isMixed ? (formValues.max_male_per_class ?? 0) : 0,
         image: imageBase64,
       });
 
@@ -260,6 +266,35 @@ const SubmitCompetition: React.FC = () => {
           >
             <InputNumber min={0} style={{ width: "100%" }} />
           </Form.Item>
+
+          {genderValue === 3 && (
+            <>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="每班最少女生人数" name="min_female_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="每班最多女生人数" name="max_female_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item label="每班最少男生人数" name="min_male_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="每班最多男生人数" name="max_male_per_class" initialValue={0} extra="0表示无限制">
+                    <InputNumber min={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          )}
 
           <Form.Item
             label="项目图片"

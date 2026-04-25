@@ -37,8 +37,12 @@ export interface Competition {
   unit: string;
   gender: number;
   competition_type: "individual" | "team"; // 比赛类型：个人或团体
-  min_participants_per_class: number; // 每班最少报名人数，0表示无限制
-  max_participants_per_class: number; // 每班最多报名人数，0表示无限制
+  min_participants_per_class: number;
+  max_participants_per_class: number;
+  min_female_per_class: number;
+  max_female_per_class: number;
+  min_male_per_class: number;
+  max_male_per_class: number;
   submitter_id?: number;
   submitter_name?: string;
   reviewer_id?: number;
