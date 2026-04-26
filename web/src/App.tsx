@@ -1,10 +1,11 @@
 import { BrowserRouter } from "react-router-dom";
-import { ConfigProvider, theme } from "antd";
+import { ConfigProvider, theme, App as AntdApp } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WebsiteProvider } from "./contexts/WebsiteContext";
 import AppRouter from "./router/AppRouter";
 import "./App.css";
+
 
 // 打印项目信息：D
 console.log(
@@ -34,15 +35,31 @@ const App: React.FC = () => {
       locale={zhCN}
       theme={{
         algorithm: theme.defaultAlgorithm,
+        token: {
+          borderRadius: 8,
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        },
+        components: {
+          Layout: {
+            colorBgHeader: "#ffffff",
+          },
+          Button: {
+            borderRadius: 6,
+            controlHeight: 36,
+          },
+        },
       }}
     >
-      <BrowserRouter>
-        <WebsiteProvider>
-          <AuthProvider>
-            <AppRouter />
-          </AuthProvider>
-        </WebsiteProvider>
-      </BrowserRouter>
+      <AntdApp>
+        <BrowserRouter>
+          <WebsiteProvider>
+            <AuthProvider>
+              <AppRouter />
+            </AuthProvider>
+          </WebsiteProvider>
+        </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   );
 };

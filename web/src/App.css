@@ -33,6 +33,23 @@
   }
 }
 
+/* 卡片样式 */
+.ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.ant-card-head {
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-card-head-title {
+  color: #262626;
+  font-weight: 600;
+}
+
 /* 悬停效果卡片 */
 .hover-card {
   cursor: pointer;
@@ -72,45 +89,18 @@
   color: white;
 }
 
-/* 侧边栏样式优化 */
-.ant-layout-sider {
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-}
-
-.ant-layout-header {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* 表格行悬停效果 */
-.ant-table-tbody > tr:hover > td {
-  background: #f5f5f5 !important;
-}
-
-/* 按钮组间距 */
-.ant-space-item {
-  margin-right: 8px;
-}
-
-/* 页面标题样式 */
-h1.ant-typography,
-h2.ant-typography {
-  color: #262626;
-  font-weight: 600;
-}
-
-/* 卡片标题样式 */
-.ant-card-head-title {
-  color: #262626;
-  font-weight: 600;
-}
-
 /* 统计数值样式 */
 .ant-statistic-content-value {
   color: #262626;
   font-weight: 600;
 }
 
-/* 表格头部样式 */
+/* 表格样式 */
+.ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 .ant-table-thead > tr > th {
   background: #fafafa;
   border-bottom: 2px solid #f0f0f0;
@@ -118,13 +108,18 @@ h2.ant-typography {
   color: #262626;
 }
 
-/* 标签样式优化 */
-.ant-tag {
-  border-radius: 4px;
-  font-weight: 500;
+/* 表格行悬停效果 */
+.ant-table-tbody > tr:hover > td {
+  background: #f5f5f5 !important;
 }
 
-/* 模态框样式优化 */
+/* 表单标签样式 */
+.ant-form-item-label > label {
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 模态框样式 */
 .ant-modal-header {
   border-bottom: 1px solid #f0f0f0;
   background: #fafafa;
@@ -135,10 +130,23 @@ h2.ant-typography {
   font-weight: 600;
 }
 
-/* 表单标签样式 */
-.ant-form-item-label > label {
-  font-weight: 600;
+/* 标签样式优化 */
+.ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 按钮组间距 */
+.ant-space-item {
+  margin-right: 8px;
+}
+
+/* 页面标题样式 */
+h1.ant-typography,
+h2.ant-typography,
+h3.ant-typography {
   color: #262626;
+  font-weight: 600;
 }
 
 /* 分页器样式 */
@@ -172,6 +180,27 @@ h2.ant-typography {
 .ant-descriptions-item-label {
   font-weight: 600;
   color: #595959;
+}
+
+/* 页面头部操作区域 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* 自定义滚动条 */
@@ -242,6 +271,12 @@ h2.ant-typography {
   }
 
   /* 页面头部布局优化 */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
   .page-header-actions {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -258,3 +293,4 @@ h2.ant-typography {
     flex-shrink: 0 !important;
   }
 }
+

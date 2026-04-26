@@ -340,9 +340,12 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           top: 0,
           width: "100%",
           zIndex: 1000,
-          padding: "0 24px",
-          background: "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          padding: "0 16px",
+          background: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
+          boxShadow: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -351,9 +354,15 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
           <Button
             type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            icon={
+              collapsed || isMobile ? (
+                <MenuUnfoldOutlined />
+              ) : (
+                <MenuFoldOutlined />
+              )
+            }
             onClick={handleMenuToggle}
-            style={{ marginRight: 16 }}
+            style={{ marginRight: 16, color: "#666" }}
           />
           <Title
             level={4}
@@ -362,7 +371,9 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
               whiteSpace: "nowrap",
               fontSize: isMobile ? "16px" : "20px",
               textAlign: "left",
-              flex: 1,
+              color: "#1f2937",
+              fontWeight: 700,
+              letterSpacing: "-0.5px",
             }}
           >
             {websiteName}
@@ -371,8 +382,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
 
         <Dropdown menu={userMenu} placement="bottomRight">
           <Space style={{ cursor: "pointer" }}>
-            {isMobile ? null : <Avatar icon={<UserOutlined />} />}
-            <div>
+            <div style={{ textAlign: "right" }}>
               <div style={{ lineHeight: "20px" }}>
                 <Text strong style={{ fontSize: "14px", whiteSpace: "nowrap" }}>
                   {user?.full_name}
@@ -387,6 +397,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
                 </Text>
               </div>
             </div>
+            {isMobile ? null : <Avatar icon={<UserOutlined />} />}
           </Space>
         </Dropdown>
       </Header>
@@ -418,9 +429,14 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
             collapsed={collapsed}
             trigger={null}
             width={256}
+            collapsedWidth={64}
             theme="light"
             style={{
-              boxShadow: "2px 0 8px rgba(0,0,0,0.1)",
+              background: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              borderRight: "1px solid rgba(226, 232, 240, 0.8)",
+              boxShadow: "none",
               height: "calc(100vh - 64px)",
               overflow: "auto",
               position: "fixed",
@@ -442,14 +458,14 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
 
         <AntLayout
           style={{
-            marginLeft: isMobile ? 0 : collapsed ? 80 : 256,
+            marginLeft: isMobile ? 0 : collapsed ? 64 : 256,
             transition: "margin-left 0.2s",
           }}
         >
           <Content
             style={{
               padding: isMobile ? "16px" : "24px",
-              background: "#f5f5f5",
+              background: "#F7F8F9",
               minHeight: "calc(100vh - 64px - 70px)",
             }}
           >
