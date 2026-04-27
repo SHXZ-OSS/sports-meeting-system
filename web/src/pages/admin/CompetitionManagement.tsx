@@ -207,6 +207,8 @@ const CompetitionManagement: React.FC = () => {
           max_female_per_class: gender === 3 ? Number(row["每班最多女生人数"]) || 0 : 0,
           min_male_per_class: gender === 3 ? Number(row["每班最少男生人数"]) || 0 : 0,
           max_male_per_class: gender === 3 ? Number(row["每班最多男生人数"]) || 0 : 0,
+          start_time: row["开始时间"] ? dayjs(row["开始时间"]).toISOString() : undefined,
+          end_time: row["结束时间"] ? dayjs(row["结束时间"]).toISOString() : undefined,
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -1007,6 +1009,7 @@ const CompetitionManagement: React.FC = () => {
               [
                 "名称",
                 "描述",
+                "比赛类型",
                 "排名模式",
                 "单位",
                 "性别",
@@ -1016,10 +1019,13 @@ const CompetitionManagement: React.FC = () => {
                 "每班最多女生人数",
                 "每班最少男生人数",
                 "每班最多男生人数",
+                "开始时间",
+                "结束时间",
               ],
               [
                 "混合接力",
                 "男女混合接力",
+                "团体",
                 "越低越好",
                 "秒",
                 "不限",
@@ -1029,13 +1035,14 @@ const CompetitionManagement: React.FC = () => {
                 "4",
                 "1",
                 "4",
+                "2026-05-01 09:00",
+                "2026-05-01 10:00",
               ],
-              ["跳远", "跳远比赛", "越高越好", "米", "男", "1", "2", "0", "0", "0", "0"],
+              ["跳远", "", "个人", "越高越好", "米", "男", "1", "2", "0", "0", "0", "0", "", ""],
             ],
             importTemplateFilename: "比赛导入模板.xlsx",
             importRequiredFields: [
               "名称",
-              "描述",
               "排名模式",
               "单位",
               "性别",
@@ -1049,6 +1056,7 @@ const CompetitionManagement: React.FC = () => {
               data.map((c: any) => ({
                 名称: c.name,
                 描述: c.description,
+                比赛类型: c.competition_type === "team" ? "团体" : "个人",
                 排名模式:
                   c.ranking_mode === "higher_first" ? "越高越好" : "越低越好",
                 单位: c.unit,
@@ -1059,6 +1067,8 @@ const CompetitionManagement: React.FC = () => {
                 每班最多女生人数: c.gender === 3 ? c.max_female_per_class : "",
                 每班最少男生人数: c.gender === 3 ? c.min_male_per_class : "",
                 每班最多男生人数: c.gender === 3 ? c.max_male_per_class : "",
+                开始时间: c.start_time ? dayjs(c.start_time).format("YYYY-MM-DD HH:mm") : "",
+                结束时间: c.end_time ? dayjs(c.end_time).format("YYYY-MM-DD HH:mm") : "",
                 状态: c.status,
               })),
             exportFilename: "比赛数据.xlsx",
