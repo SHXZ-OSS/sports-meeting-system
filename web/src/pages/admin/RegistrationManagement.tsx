@@ -1115,13 +1115,16 @@ const RegistrationManagement: React.FC = () => {
 
                   let statusColor = "green";
                   let statusText = "符合要求";
+                  let status = true;
 
                   if (minLimit > 0 && totalAfterSelection < minLimit) {
                     statusColor = "red";
                     statusText = "未达到最小人数";
+                    status = false;
                   } else if (maxLimit > 0 && totalAfterSelection > maxLimit) {
                     statusColor = "red";
                     statusText = "超过最大人数";
+                    status = false;
                   }
 
                   const limitText =
@@ -1167,23 +1170,27 @@ const RegistrationManagement: React.FC = () => {
                           ? `≤${max}`
                           : "无限制";
 
-                  const femaleStatusColor =
+                  const hasFemaleViolation =
                     hasFemaleLimit &&
                     ((currentCompetition.min_female_per_class > 0 &&
                       femaleTotal < currentCompetition.min_female_per_class) ||
                       (currentCompetition.max_female_per_class > 0 &&
-                        femaleTotal > currentCompetition.max_female_per_class))
-                      ? "red"
-                      : "green";
+                        femaleTotal > currentCompetition.max_female_per_class));
 
-                  const maleStatusColor =
+                  const hasMaleViolation =
                     hasMaleLimit &&
                     ((currentCompetition.min_male_per_class > 0 &&
                       maleTotal < currentCompetition.min_male_per_class) ||
                       (currentCompetition.max_male_per_class > 0 &&
-                        maleTotal > currentCompetition.max_male_per_class))
-                      ? "red"
-                      : "green";
+                        maleTotal > currentCompetition.max_male_per_class));
+
+                  const femaleStatusColor = hasFemaleViolation ? "red" : "green";
+                  const maleStatusColor = hasMaleViolation ? "red" : "green";
+
+                  if ((hasFemaleViolation || hasMaleViolation) && status) {
+                    statusColor = "red";
+                    statusText = "性别人数不符合要求";
+                  }
 
                   return (
                     <div
