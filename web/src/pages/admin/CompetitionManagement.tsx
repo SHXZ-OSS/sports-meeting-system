@@ -466,8 +466,13 @@ const CompetitionManagement: React.FC = () => {
           )}
           <div>
             <div style={{ fontWeight: 500 }}>{record.name}</div>
+            {record.description && (
+              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                {record.description}
+              </div>
+            )}
             {record.start_time && record.end_time && (
-              <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>
                 {dayjs(record.start_time).format("MM-DD HH:mm")} - {dayjs(record.end_time).format("HH:mm")}
               </div>
             )}

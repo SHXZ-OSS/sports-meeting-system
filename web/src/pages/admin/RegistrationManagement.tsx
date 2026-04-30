@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import {
   Card,
-  Table,
   Button,
   Space,
   Tag,
@@ -12,6 +11,8 @@ import {
   Popconfirm,
   Input,
   message,
+  List,
+  Spin,
 } from "antd";
 import {
   PlusOutlined,
@@ -95,6 +96,7 @@ const RegistrationManagement: React.FC = () => {
   const checklistTableRef = useRef<HTMLDivElement>(null);
   const [exportingImage, setExportingImage] = useState(false);
   const [randomDrawVisible, setRandomDrawVisible] = useState(false);
+  const [registrationClassFilter, setRegistrationClassFilter] = useState<string | null>(null);
 
   const fetchCompetitions = async (
     page = currentPage,
@@ -198,38 +200,60 @@ const RegistrationManagement: React.FC = () => {
     if (!currentCompetition || selectedStudents.length === 0 || !selectedClass)
       return;
 
-    // 检查报名人数是否符合要求
-    const classRegistrationCount = registrations.filter(
-      (reg) => reg.class_id === selectedClass,
-    ).length;
-    const totalAfterSelection =
-      classRegistrationCount + selectedStudents.length;
-    const minLimit = currentCompetition.min_participants_per_class;
-    const maxLimit = currentCompetition.max_participants_per_class;
+    const comp = currentCompetition;
+    const classRegs = registrations.filter((reg) => reg.class_id === selectedClass);
+    const selectedObjs = students.filter((s) => selectedStudents.includes(s.id));
 
-    let warningMessage = "";
+    // 总人数检查
+    const totalAfterSelection = classRegs.length + selectedStudents.length;
+    const minLimit = comp.min_participants_per_class;
+    const maxLimit = comp.max_participants_per_class;
+
+    const warnings: string[] = [];
 
     if (minLimit > 0 && totalAfterSelection < minLimit) {
-      warningMessage = `报名后总人数为 ${totalAfterSelection} 人，未达到最小要求 ${minLimit} 人，是否继续提交？`;
+      warnings.push(`总人数 ${totalAfterSelection} 人，未达到最小要求 ${minLimit} 人`);
     } else if (maxLimit > 0 && totalAfterSelection > maxLimit) {
-      warningMessage = `报名后总人数为 ${totalAfterSelection} 人，超过最大限制 ${maxLimit} 人，是否继续提交？`;
+      warnings.push(`总人数 ${totalAfterSelection} 人，超过最大限制 ${maxLimit} 人`);
     }
 
-    // 如果不符合要求，弹出确认提示
-    if (warningMessage) {
+    // 混合性别项目：分别检查男女人数
+    if (comp.gender === 3) {
+      const femaleRegistered = classRegs.filter((r) => r.student_gender === 2).length;
+      const maleRegistered = classRegs.filter((r) => r.student_gender === 1).length;
+      const femaleSelected = selectedObjs.filter((s) => s.gender === 2).length;
+      const maleSelected = selectedObjs.filter((s) => s.gender === 1).length;
+      const femaleTotal = femaleRegistered + femaleSelected;
+      const maleTotal = maleRegistered + maleSelected;
+
+      if (comp.min_female_per_class > 0 && femaleTotal < comp.min_female_per_class) {
+        warnings.push(`女生人数 ${femaleTotal} 人，未达到最小要求 ${comp.min_female_per_class} 人`);
+      } else if (comp.max_female_per_class > 0 && femaleTotal > comp.max_female_per_class) {
+        warnings.push(`女生人数 ${femaleTotal} 人，超过最大限制 ${comp.max_female_per_class} 人`);
+      }
+
+      if (comp.min_male_per_class > 0 && maleTotal < comp.min_male_per_class) {
+        warnings.push(`男生人数 ${maleTotal} 人，未达到最小要求 ${comp.min_male_per_class} 人`);
+      } else if (comp.max_male_per_class > 0 && maleTotal > comp.max_male_per_class) {
+        warnings.push(`男生人数 ${maleTotal} 人，超过最大限制 ${comp.max_male_per_class} 人`);
+      }
+    }
+
+    if (warnings.length > 0) {
       Modal.confirm({
         title: "报名人数不符合要求",
-        content: warningMessage,
+        content: (
+          <ul style={{ paddingLeft: 16, margin: 0 }}>
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        ),
         okText: "继续提交",
         cancelText: "取消",
-        onOk: () => {
-          performBatchRegistration();
-        },
+        onOk: () => performBatchRegistration(),
       });
       return;
     }
 
-    // 符合要求，直接提交
     performBatchRegistration();
   };
 
@@ -321,6 +345,7 @@ const RegistrationManagement: React.FC = () => {
     setStudents([]);
     setClasses([]);
     setSelectedStudents([]);
+    setRegistrationClassFilter(null);
   };
 
   // 处理班级选择
@@ -711,73 +736,63 @@ const RegistrationManagement: React.FC = () => {
     );
   };
 
-  const columns = [
-    {
-      title: "项目名称",
-      dataIndex: "name",
-      key: "name",
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value: boolean | React.Key, record: Competition) =>
-        record.name.toLowerCase().includes(value.toString().toLowerCase()),
-      render: (name: string, record: Competition) => (
-        <div>
-          <div>{name}</div>
-          {record.start_time && record.end_time && (
-            <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-              {dayjs(record.start_time).format("MM-DD HH:mm")} - {dayjs(record.end_time).format("HH:mm")}
-            </div>
-          )}
+  const renderCompetitionCard = (competition: Competition) => {
+    const limitText = (() => {
+      const min = competition.min_participants_per_class;
+      const max = competition.max_participants_per_class;
+      if (min > 0 && max > 0) return `${min}–${max} 人/班`;
+      if (min > 0) return `≥${min} 人/班`;
+      if (max > 0) return `≤${max} 人/班`;
+      return "无人数限制";
+    })();
+
+    return (
+      <Card
+        key={competition.id}
+        hoverable
+        size="small"
+        styles={{ body: { padding: "12px 16px" } }}
+        onClick={() => openRegistrationModal(competition)}
+        style={{ cursor: "pointer", height: "100%" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, flex: 1, marginRight: 8 }}>{competition.name}</div>
+          {getStatusTag(competition.status)}
         </div>
-      ),
-    },
-    {
-      title: "状态",
-      dataIndex: "status",
-      key: "status",
-      render: getStatusTag,
-    },
-    {
-      title: "类型",
-      dataIndex: "competition_type",
-      key: "competition_type",
-      render: (type: string) => (
-        <Tag color={type === "team" ? "blue" : "green"}>
-          {type === "team" ? "团体" : "个人"}
-        </Tag>
-      ),
-    },
-    {
-      title: "性别",
-      dataIndex: "gender",
-      key: "gender",
-      render: getGenderTag,
-    },
-    {
-      title: "最小报名",
-      dataIndex: "min_participants_per_class",
-      key: "min_participants_per_class",
-      render: (min: number) => (min === 0 ? "无限制" : `${min} 人/班`),
-    },
-    {
-      title: "最大报名",
-      dataIndex: "max_participants_per_class",
-      key: "max_participants_per_class",
-      render: (max: number) => (max === 0 ? "无限制" : `${max} 人/班`),
-    },
-    {
-      title: "操作",
-      key: "action",
-      render: (record: Competition) => (
-        <Button
-          size="small"
-          icon={<UserOutlined />}
-          onClick={() => openRegistrationModal(record)}
-        >
-          管理报名
-        </Button>
-      ),
-    },
-  ];
+
+        {competition.description && (
+          <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{competition.description}</div>
+        )}
+
+        {competition.start_time && competition.end_time && (
+          <div style={{ fontSize: 12, color: "#999", marginBottom: 10 }}>
+            {dayjs(competition.start_time).format("MM-DD HH:mm")} – {dayjs(competition.end_time).format("HH:mm")}
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+          <Tag color={competition.competition_type === "team" ? "blue" : "green"} style={{ margin: 0 }}>
+            {competition.competition_type === "team" ? "团体" : "个人"}
+          </Tag>
+          {getGenderTag(competition.gender)}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#888" }}>
+            {limitText} · 已报名 {competition.registration_count ?? 0} 人
+          </span>
+          <Button
+            type="primary"
+            size="small"
+            icon={<UserOutlined />}
+            onClick={(e) => { e.stopPropagation(); openRegistrationModal(competition); }}
+          >
+            管理报名
+          </Button>
+        </div>
+      </Card>
+    );
+  };
 
   return (
     <div>
@@ -907,42 +922,35 @@ const RegistrationManagement: React.FC = () => {
         )}
       </div>
 
-      <Card>
-        <Table
-          columns={columns}
+      <Spin spinning={loading}>
+        <List
           dataSource={competitions}
           rowKey="id"
-          loading={loading}
-          tableLayout="auto"
-          scroll={{ x: "max-content" }}
+          grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 3, xxl: 3, xxxl: 3 }}
+          renderItem={(competition) => (
+            <List.Item style={{ marginBottom: 16 }}>
+              {renderCompetitionCard(competition)}
+            </List.Item>
+          )}
           pagination={
-            isMobile
+            total > pageSize
               ? {
                   current: currentPage,
                   pageSize,
                   total,
-                  simple: true,
-                  size: "small",
+                  simple: isMobile,
+                  showSizeChanger: !isMobile,
+                  showTotal: isMobile ? undefined : (t) => `共 ${t} 条`,
                   onChange: (page, size) => {
                     setCurrentPage(page);
                     setPageSize(size || 100);
                   },
                 }
-              : {
-                  current: currentPage,
-                  pageSize,
-                  total,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total) => `共 ${total} 条记录`,
-                  onChange: (page, size) => {
-                    setCurrentPage(page);
-                    setPageSize(size || 100);
-                  },
-                }
+              : false
           }
+          locale={{ emptyText: "暂无比赛项目" }}
         />
-      </Card>
+      </Spin>
 
       {/* 报名管理模态框 */}
       <Modal
@@ -954,6 +962,11 @@ const RegistrationManagement: React.FC = () => {
         zIndex={1001}
       >
         <div>
+          {currentCompetition?.description && (
+            <div style={{ marginBottom: 12, color: "#666", fontSize: 14 }}>
+              {currentCompetition.description}
+            </div>
+          )}
           <div style={{ marginBottom: 16 }}>
             <Space>
               <Button
@@ -976,64 +989,63 @@ const RegistrationManagement: React.FC = () => {
             </Space>
           </div>
 
-          <Table
-            dataSource={registrations}
-            rowKey="id"
-            loading={registrationLoading}
-            pagination={false}
-            size="small"
-            columns={[
-              {
-                title: "学生姓名",
-                dataIndex: "student_name",
-                key: "student_name",
-              },
-              {
-                title: "班级",
-                dataIndex: "class_name",
-                key: "class_name",
-                filters: Array.from(
-                  new Set(registrations.map((r) => r.class_name)),
-                ).map((className) => ({
-                  text: className,
-                  value: className,
-                })),
-                onFilter: (value, record) => record.class_name === value,
-              },
-              ...(currentCompetition?.gender === 3
-                ? [
-                    {
-                      title: "性别",
-                      dataIndex: "student_gender",
-                      key: "student_gender",
-                      render: getGenderText,
-                    },
-                  ]
-                : []),
-              {
-                title: "报名时间",
-                dataIndex: "created_at",
-                key: "created_at",
-                render: (date: string) => new Date(date).toLocaleString(),
-              },
-              {
-                title: "操作",
-                key: "action",
-                render: (record: Registration) => (
-                  <Popconfirm
-                    title="确定取消此学生的报名吗？"
-                    onConfirm={() => handleRemoveRegistration(record)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Button size="small" danger icon={<DeleteOutlined />}>
-                      取消报名
-                    </Button>
-                  </Popconfirm>
-                ),
-              },
-            ]}
-          />
+          {/* 班级筛选 */}
+          {registrations.length > 0 && (() => {
+            const classNames = Array.from(new Set(registrations.map((r) => r.class_name)));
+            return classNames.length > 1 ? (
+              <div style={{ marginBottom: 12 }}>
+                <Select
+                  placeholder="筛选班级"
+                  allowClear
+                  style={{ width: 160 }}
+                  onChange={(v) => setRegistrationClassFilter(v ?? null)}
+                >
+                  {classNames.map((c) => <Option key={c} value={c}>{c}</Option>)}
+                </Select>
+              </div>
+            ) : null;
+          })()}
+
+          <Spin spinning={registrationLoading}>
+            {registrations.length === 0 && !registrationLoading ? (
+              <div style={{ textAlign: "center", color: "#999", padding: "24px 0" }}>暂无报名数据</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {registrations
+                  .filter((r) => !registrationClassFilter || r.class_name === registrationClassFilter)
+                  .map((reg) => (
+                    <Card
+                      key={reg.id}
+                      size="small"
+                      styles={{ body: { padding: "8px 14px" } }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <span style={{ fontWeight: 500, minWidth: 60 }}>{reg.student_name}</span>
+                          <span style={{ fontSize: 12, color: "#666" }}>{reg.class_name}</span>
+                          {currentCompetition?.gender === 3 && (
+                            <span style={{ fontSize: 12, color: "#666" }}>{getGenderText(reg.student_gender)}</span>
+                          )}
+                          <span style={{ fontSize: 12, color: "#bbb" }}>
+                            {isMobile
+                              ? dayjs(reg.created_at).format("MM-DD HH:mm")
+                              : new Date(reg.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <Popconfirm
+                          title="确定取消此学生的报名吗？"
+                          onConfirm={() => handleRemoveRegistration(reg)}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <Button size="small" danger icon={<DeleteOutlined />}>取消报名</Button>
+                        </Popconfirm>
+                      </div>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </Spin>
         </div>
       </Modal>
 
@@ -1230,48 +1242,42 @@ const RegistrationManagement: React.FC = () => {
               ) : (
                 <div>
                   <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                    <Table
-                      dataSource={students.filter(
-                        (student) =>
-                          !registrations.some(
-                            (reg) => reg.student_id === student.id,
-                          ),
-                      )}
-                      rowKey="id"
-                      pagination={false}
-                      size="small"
-                      rowSelection={{
-                        selectedRowKeys: selectedStudents,
-                        onChange: handleStudentSelect,
-                        getCheckboxProps: (record: Student) => ({
-                          disabled: !isStudentGenderMatch(record),
-                          name: record.full_name,
-                        }),
+                    <List
+                      grid={{ gutter: 8, xs: 3, sm: 4, md: 4, lg: 4, xl: 4, xxl: 5, xxxl: 6 }}
+                      dataSource={students}
+                      renderItem={(student) => {
+                        const alreadyRegistered = registrations.some((r) => r.student_id === student.id);
+                        const genderMatch = isStudentGenderMatch(student);
+                        const canSelect = !alreadyRegistered && genderMatch;
+                        const isSelected = selectedStudents.includes(student.id);
+                        return (
+                          <List.Item style={{ marginBottom: 8 }}>
+                            <Card
+                              size="small"
+                              styles={{ body: { padding: "6px 10px" } }}
+                              style={{
+                                cursor: canSelect ? "pointer" : "not-allowed",
+                                opacity: canSelect ? 1 : 0.5,
+                                border: isSelected ? "1px solid #1677ff" : undefined,
+                                background: isSelected ? "#e6f4ff" : undefined,
+                              }}
+                              onClick={() => {
+                                if (!canSelect) return;
+                                handleStudentSelect(
+                                  isSelected
+                                    ? selectedStudents.filter((id) => id !== student.id)
+                                    : [...selectedStudents, student.id],
+                                );
+                              }}
+                            >
+                              <div style={{ fontWeight: 500, fontSize: 13 }}>{student.full_name}</div>
+                              <div style={{ fontSize: 11, color: "#999" }}>{getGenderText(student.gender)}</div>
+                              {alreadyRegistered && <div style={{ fontSize: 11, color: "#52c41a" }}>已报名</div>}
+                              {!genderMatch && <div style={{ fontSize: 11, color: "#ff4d4f" }}>性别不符</div>}
+                            </Card>
+                          </List.Item>
+                        );
                       }}
-                      columns={[
-                        {
-                          title: "学生姓名",
-                          dataIndex: "full_name",
-                          key: "full_name",
-                        },
-                        {
-                          title: "性别",
-                          dataIndex: "gender",
-                          key: "gender",
-                          render: getGenderText,
-                        },
-                        {
-                          title: "状态",
-                          key: "status",
-                          render: (record: Student) => {
-                            const isGenderMatch = isStudentGenderMatch(record);
-                            if (!isGenderMatch) {
-                              return <Tag color="red">性别不符</Tag>;
-                            }
-                            return <Tag color="green">可报名</Tag>;
-                          },
-                        },
-                      ]}
                     />
                   </div>
 
@@ -1341,65 +1347,72 @@ const RegistrationManagement: React.FC = () => {
         width={800}
       >
         <div ref={checklistTableRef} style={{ padding: "20px" }}>
-          <div
-            style={{
-              marginBottom: 16,
-              fontSize: 18,
-              fontWeight: "bold",
-              textAlign: "center",
-            }}
-          >
+          <div style={{ marginBottom: 16, fontSize: 18, fontWeight: "bold", textAlign: "center" }}>
             报名检查清单
           </div>
-          <Table
-            loading={checklistLoading}
-            dataSource={checklistResults}
-            rowKey={(record) => `${record.competition_id}_${record.message}`}
-            pagination={false}
-            columns={[
-              {
-                title: "项目名称",
-                dataIndex: "competition_name",
-                key: "competition_name",
-                render: (name: string, record: any) => (
-                  <Button
-                    type="link"
-                    style={{ padding: 0 }}
-                    onClick={async () => {
-                      // 从比赛列表中找到对应的比赛对象
-                      const competition = competitions.find(
-                        (c) => c.id === record.competition_id,
-                      );
-                      if (competition) {
-                        await openRegistrationModal(competition);
-                      }
-                    }}
-                  >
-                    {name}
-                  </Button>
-                ),
-              },
-              {
-                title: "状态",
-                dataIndex: "status",
-                key: "status",
-                render: (status: string) => {
-                  if (status === "ok") {
-                    return <Tag color="success">符合要求</Tag>;
-                  } else if (status === "warning") {
-                    return <Tag color="warning">警告</Tag>;
-                  } else {
-                    return <Tag color="error">不符合要求</Tag>;
-                  }
-                },
-              },
-              {
-                title: "说明",
-                dataIndex: "message",
-                key: "message",
-              },
-            ]}
-          />
+          <Spin spinning={checklistLoading}>
+            {(() => {
+              // 按项目分组
+              const grouped = checklistResults.reduce<Record<number, typeof checklistResults>>((acc, item) => {
+                if (!acc[item.competition_id]) acc[item.competition_id] = [];
+                acc[item.competition_id].push(item);
+                return acc;
+              }, {});
+
+              const statusTag = (status: string) => {
+                if (status === "ok") return <Tag color="success">符合要求</Tag>;
+                if (status === "warning") return <Tag color="warning">警告</Tag>;
+                return <Tag color="error">不符合要求</Tag>;
+              };
+
+              const borderColor = (s: string) =>
+                s === "error" ? "#ff4d4f" : s === "warning" ? "#faad14" : "#52c41a";
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {Object.entries(grouped).map(([compId, items]) => {
+                    const worstStatus = items.some((i) => i.status === "error")
+                      ? "error"
+                      : items.some((i) => i.status === "warning")
+                        ? "warning"
+                        : "ok";
+                    const hasDetails = !(items.length === 1 && items[0].status === "ok");
+                    return (
+                      <Card
+                        key={compId}
+                        styles={{ body: { padding: "20px 24px" } }}
+                        style={{ borderLeft: `4px solid ${borderColor(worstStatus)}` }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: hasDetails ? 16 : 0 }}>
+                          <Button
+                            type="link"
+                            style={{ padding: 0, fontWeight: 600, fontSize: 16, height: "auto" }}
+                            onClick={async () => {
+                              const competition = competitions.find((c) => c.id === Number(compId));
+                              if (competition) await openRegistrationModal(competition);
+                            }}
+                          >
+                            {items[0].competition_name}
+                          </Button>
+                          {statusTag(worstStatus)}
+                        </div>
+                        {hasDetails && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {items.map((item, i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "#555" }}>
+                                {statusTag(item.status)}
+                                <span>{item.message}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </Spin>
         </div>
       </Modal>
 
