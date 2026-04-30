@@ -1132,16 +1132,16 @@ const RegistrationManagement: React.FC = () => {
                       currentCompetition.max_male_per_class > 0);
 
                   const femaleRegistered = classRegs.filter(
-                    (r) => r.student_gender === 1,
-                  ).length;
-                  const maleRegistered = classRegs.filter(
                     (r) => r.student_gender === 2,
                   ).length;
+                  const maleRegistered = classRegs.filter(
+                    (r) => r.student_gender === 1,
+                  ).length;
                   const femaleSelected = selectedStudentObjs.filter(
-                    (s) => s.gender === 1,
+                    (s) => s.gender === 2,
                   ).length;
                   const maleSelected = selectedStudentObjs.filter(
-                    (s) => s.gender === 2,
+                    (s) => s.gender === 1,
                   ).length;
                   const femaleTotal = femaleRegistered + femaleSelected;
                   const maleTotal = maleRegistered + maleSelected;

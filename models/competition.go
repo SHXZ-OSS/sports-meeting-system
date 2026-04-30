@@ -18,7 +18,7 @@ func CreateCompetition(name, description, imagePath, unit string, gender int, ra
 	validator := utils.NewCompetitionValidator(db)
 
 	// 使用验证器验证比赛项目提交（学生提交）
-	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, startTime, endTime, false); err != nil {
+	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, startTime, endTime, false); err != nil {
 		return err
 	}
 
@@ -149,7 +149,7 @@ func AdminCreateCompetition(name, description, imagePath, unit string, gender in
 	validator := utils.NewCompetitionValidator(db)
 
 	// 使用验证器验证比赛项目提交（管理员提交）
-	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, startTime, endTime, true); err != nil {
+	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, startTime, endTime, true); err != nil {
 		return err
 	}
 

@@ -177,8 +177,8 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 
 		// 按班级统计总人数及性别人数
 		classTotal := make(map[int]int)
-		classFemale := make(map[int]int) // gender=1 为女
-		classMale := make(map[int]int)   // gender=2 为男
+		classFemale := make(map[int]int) // gender=2 为女
+		classMale := make(map[int]int)   // gender=1 为男
 		for _, reg := range registrations {
 			if reg.ClassID == nil {
 				continue
@@ -186,9 +186,9 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 			classTotal[*reg.ClassID]++
 			if needGender && reg.Student != nil {
 				switch reg.Student.Gender {
-				case 1:
-					classFemale[*reg.ClassID]++
 				case 2:
+					classFemale[*reg.ClassID]++
+				case 1:
 					classMale[*reg.ClassID]++
 				}
 			}

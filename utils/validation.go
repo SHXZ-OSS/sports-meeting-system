@@ -24,14 +24,16 @@ var (
 	ErrMaxRegistrationsReached      = errors.New("已达到个人报名项目数量上限")
 	ErrInvalidRankingMode           = errors.New("比赛项目排名方式无效")
 	ErrMaxLessThanMin               = errors.New("最大报名人数不能小于最小报名人数")
+	ErrFemaleMaxLessThanMin         = errors.New("女生最大人数不能小于最小人数")
+	ErrMaleMaxLessThanMin           = errors.New("男生最大人数不能小于最小人数")
 	ErrInvalidStatusForRegistration = errors.New("当前比赛状态不允许报名或取消报名")
 	ErrEndTimeBeforeStartTime       = errors.New("结束时间不能早于开始时间")
 )
 
 // 性别常量
 const (
-	GenderFemale = 1 // 女
-	GenderMale   = 2 // 男
+	GenderMale   = 1 // 男
+	GenderFemale = 2 // 女
 	GenderMixed  = 3 // 混合
 )
 
@@ -124,6 +126,17 @@ func ValidateParticipantsLimit(minParticipants, maxParticipants int) error {
 	return nil
 }
 
+// ValidateGenderLimits 验证性别人数限制
+func ValidateGenderLimits(minFemale, maxFemale, minMale, maxMale int) error {
+	if maxFemale > 0 && minFemale > 0 && maxFemale < minFemale {
+		return ErrFemaleMaxLessThanMin
+	}
+	if maxMale > 0 && minMale > 0 && maxMale < minMale {
+		return ErrMaleMaxLessThanMin
+	}
+	return nil
+}
+
 // ValidateCompetitionTime 验证比赛时间
 func ValidateCompetitionTime(startTime, endTime *time.Time) error {
 	// 如果都提供了时间，检查结束时间是否早于开始时间
@@ -157,7 +170,7 @@ func ValidateCompetitionStatus(status types.CompetitionStatus) bool {
 }
 
 // ValidateCompetitionSubmission 验证比赛项目提交
-func (cv *CompetitionValidator) ValidateCompetitionSubmission(name, unit string, gender int, rankingMode types.RankingMode, minParticipants, maxParticipants int, startTime, endTime *time.Time, isAdmin bool) error {
+func (cv *CompetitionValidator) ValidateCompetitionSubmission(name, unit string, gender int, rankingMode types.RankingMode, minParticipants, maxParticipants, minFemale, maxFemale, minMale, maxMale int, startTime, endTime *time.Time, isAdmin bool) error {
 	// 获取当前选中的 EventID
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
@@ -179,6 +192,11 @@ func (cv *CompetitionValidator) ValidateCompetitionSubmission(name, unit string,
 
 	// 验证参与人数限制
 	if err := ValidateParticipantsLimit(minParticipants, maxParticipants); err != nil {
+		return err
+	}
+
+	// 验证性别人数限制
+	if err := ValidateGenderLimits(minFemale, maxFemale, minMale, maxMale); err != nil {
 		return err
 	}
 
@@ -217,6 +235,11 @@ func (cv *CompetitionValidator) ValidateCompetitionUpdate(competition *types.Com
 
 	// 验证参与人数限制
 	if err := ValidateParticipantsLimit(competition.MinParticipantsPerClass, competition.MaxParticipantsPerClass); err != nil {
+		return err
+	}
+
+	// 验证性别人数限制
+	if err := ValidateGenderLimits(competition.MinFemalePerClass, competition.MaxFemalePerClass, competition.MinMalePerClass, competition.MaxMalePerClass); err != nil {
 		return err
 	}
 
