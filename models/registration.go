@@ -348,8 +348,9 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 
 				// 检查时间是否重叠
 				if timesOverlap(comp1.StartTime, comp1.EndTime, comp2.StartTime, comp2.EndTime) {
-					time1 := fmt.Sprintf("%s-%s", comp1.StartTime.Format("06-01-02 15:04"), comp1.EndTime.Format("06-01-02 15:04"))
-					time2 := fmt.Sprintf("%s-%s", comp2.StartTime.Format("06-01-02 15:04"), comp2.EndTime.Format("06-01-02 15:04"))
+					cst, _ := time.LoadLocation("Asia/Shanghai")
+					time1 := fmt.Sprintf("%s-%s", comp1.StartTime.In(cst).Format("06-01-02 15:04"), comp1.EndTime.In(cst).Format("06-01-02 15:04"))
+					time2 := fmt.Sprintf("%s-%s", comp2.StartTime.In(cst).Format("06-01-02 15:04"), comp2.EndTime.In(cst).Format("06-01-02 15:04"))
 					issues = append(issues, map[string]any{
 						"competition_id":   comp1.ID,
 						"competition_name": comp1.Name,
