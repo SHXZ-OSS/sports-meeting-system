@@ -354,14 +354,14 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 					issues = append(issues, map[string]any{
 						"competition_id":   comp1.ID,
 						"competition_name": comp1.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"status":           "warning",
+						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间可能冲突：%s（%s）和 %s（%s），请与相关负责老师确认兼项可行性", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
 					})
 					issues = append(issues, map[string]any{
 						"competition_id":   comp2.ID,
 						"competition_name": comp2.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"status":           "warning",
+						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间可能冲突：%s（%s）和 %s（%s），请与相关负责老师确认兼项可行性", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
 					})
 				}
 			}
