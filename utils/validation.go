@@ -298,7 +298,7 @@ func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *i
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status, gender, competition_type").First(&competition, competitionID).Where("event_id = ?", currentEventID).Error; err != nil {
+	if err := rv.db.Select("status, gender, competition_type").Where("id = ? AND event_id = ?", competitionID, currentEventID).First(&competition).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCompetitionNotFound
 		}
@@ -346,7 +346,7 @@ func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *i
 			// 只统计个人比赛的报名数量，团体比赛不计入限制
 			if err := rv.db.Model(&types.Registration{}).
 				Joins("JOIN competitions ON registrations.competition_id = competitions.id").
-				Where("registrations.student_id = ? AND competitions.competition_type = ?", *studentID, types.TypeIndividual).
+				Where("registrations.student_id = ? AND competitions.competition_type = ? AND competitions.event_id = ?", *studentID, types.TypeIndividual, currentEventID).
 				Count(&studentRegistrationCount).Error; err != nil {
 				return err
 			}
@@ -374,7 +374,7 @@ func (rv *RegistrationValidator) ValidateUnregistration(studentID *int, classID 
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status").First(&competition, competitionID).Where("event_id = ?", currentEventID).Error; err != nil {
+	if err := rv.db.Select("status").Where("id = ? AND event_id = ?", competitionID, currentEventID).First(&competition).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCompetitionNotFound
 		}
