@@ -14,6 +14,7 @@ import {
   Space,
   Modal,
   InputNumber,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -93,6 +94,7 @@ const SubmitCompetition: React.FC = () => {
         min_male_per_class: isMixed ? (formValues.min_male_per_class ?? 0) : 0,
         max_male_per_class: isMixed ? (formValues.max_male_per_class ?? 0) : 0,
         image: imageBase64,
+        allow_concurrent: formValues.allow_concurrent ?? false,
       });
 
       handleRespWithNotifySuccess(response, () => {
@@ -295,6 +297,16 @@ const SubmitCompetition: React.FC = () => {
               </Row>
             </>
           )}
+
+          <Form.Item
+            label="允许兼项"
+            name="allow_concurrent"
+            valuePropName="checked"
+            initialValue={false}
+            extra="开启后，该比赛与其他比赛时间冲突时不视为错误"
+          >
+            <Switch />
+          </Form.Item>
 
           <Form.Item
             label="项目图片"

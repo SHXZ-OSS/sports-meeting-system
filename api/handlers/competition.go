@@ -61,6 +61,7 @@ type CreateCompetitionRequest struct {
 	Unit                    string                `json:"unit" binding:"required"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
+	AllowConcurrent         bool                  `json:"allow_concurrent"`
 }
 
 // UpdateCompetitionRequest 更新比赛项目请求
@@ -80,6 +81,7 @@ type UpdateCompetitionRequest struct {
 	Gender                  int                   `json:"gender" binding:"required,min=1,max=3"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
+	AllowConcurrent         bool                  `json:"allow_concurrent"`
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -354,9 +356,9 @@ func CreateCompetition(c *gin.Context) {
 	// 创建比赛项目
 	var err error
 	if role == services.RoleStudent {
-		err = models.CreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, studentID, req.StartTime, req.EndTime)
+		err = models.CreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, studentID, req.StartTime, req.EndTime, req.AllowConcurrent)
 	} else {
-		err = models.AdminCreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, ID, req.StartTime, req.EndTime)
+		err = models.AdminCreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, ID, req.StartTime, req.EndTime, req.AllowConcurrent)
 	}
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建比赛项目失败: "+err.Error())
@@ -412,6 +414,7 @@ func UpdateCompetition(c *gin.Context) {
 	competition.MaxMalePerClass = req.MaxMalePerClass
 	competition.StartTime = req.StartTime
 	competition.EndTime = req.EndTime
+	competition.AllowConcurrent = req.AllowConcurrent
 
 	// 确保图片目录存在
 	uploadDir := "./data/uploads"

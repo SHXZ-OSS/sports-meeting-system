@@ -346,22 +346,22 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 					continue
 				}
 
-				// 检查时间是否重叠
-				if timesOverlap(comp1.StartTime, comp1.EndTime, comp2.StartTime, comp2.EndTime) {
+				// 检查时间是否重叠，且两个比赛都不允许兼项时才报错
+				if timesOverlap(comp1.StartTime, comp1.EndTime, comp2.StartTime, comp2.EndTime) && !comp1.AllowConcurrent && !comp2.AllowConcurrent {
 					cst, _ := time.LoadLocation("Asia/Shanghai")
 					time1 := fmt.Sprintf("%s-%s", comp1.StartTime.In(cst).Format("06-01-02 15:04"), comp1.EndTime.In(cst).Format("06-01-02 15:04"))
 					time2 := fmt.Sprintf("%s-%s", comp2.StartTime.In(cst).Format("06-01-02 15:04"), comp2.EndTime.In(cst).Format("06-01-02 15:04"))
 					issues = append(issues, map[string]any{
 						"competition_id":   comp1.ID,
 						"competition_name": comp1.Name,
-						"status":           "warning",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间可能冲突：%s（%s）和 %s（%s），请与相关负责老师确认兼项可行性", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"status":           "error",
+						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
 					})
 					issues = append(issues, map[string]any{
 						"competition_id":   comp2.ID,
 						"competition_name": comp2.Name,
-						"status":           "warning",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间可能冲突：%s（%s）和 %s（%s），请与相关负责老师确认兼项可行性", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"status":           "error",
+						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
 					})
 				}
 			}

@@ -59,6 +59,7 @@ export interface Competition {
   created_at?: string;
   start_time?: string;
   end_time?: string;
+  allow_concurrent?: boolean;
   scores?: Score[];
 }
 

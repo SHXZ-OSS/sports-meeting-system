@@ -21,6 +21,7 @@ export interface CreateCompetitionRequest {
   max_male_per_class?: number;
   image?: string;
   unit: string;
+  allow_concurrent?: boolean;
 }
 
 export interface RegisterCompetitionRequest {

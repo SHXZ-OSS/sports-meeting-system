@@ -17,6 +17,7 @@ export interface CreateCompetitionRequest {
   unit: string;
   start_time?: string;
   end_time?: string;
+  allow_concurrent?: boolean;
 }
 
 export interface UpdateCompetitionRequest {
@@ -35,6 +36,7 @@ export interface UpdateCompetitionRequest {
   gender?: number;
   start_time?: string;
   end_time?: string;
+  allow_concurrent?: boolean;
 }
 
 /**

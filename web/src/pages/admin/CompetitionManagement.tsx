@@ -21,6 +21,7 @@ import {
   message,
   InputNumber,
   DatePicker,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -209,6 +210,7 @@ const CompetitionManagement: React.FC = () => {
           max_male_per_class: gender === 3 ? Number(row["每班最多男生人数"]) || 0 : 0,
           start_time: row["开始时间"] ? dayjs(row["开始时间"]).toISOString() : undefined,
           end_time: row["结束时间"] ? dayjs(row["结束时间"]).toISOString() : undefined,
+          allow_concurrent: row["允许兼项"] === "是",
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -318,6 +320,7 @@ const CompetitionManagement: React.FC = () => {
         max_male_per_class: competition.max_male_per_class || 0,
         start_time: competition.start_time ? dayjs(competition.start_time) : null,
         end_time: competition.end_time ? dayjs(competition.end_time) : null,
+        allow_concurrent: competition.allow_concurrent || false,
       });
     } else {
       form.resetFields();
@@ -366,6 +369,7 @@ const CompetitionManagement: React.FC = () => {
           image: imageBase64,
           start_time: values.start_time?.toISOString(),
           end_time: values.end_time?.toISOString(),
+          allow_concurrent: values.allow_concurrent ?? false,
         },
       );
       handleRespWithNotifySuccess(response, () => {
@@ -389,6 +393,7 @@ const CompetitionManagement: React.FC = () => {
         image: imageBase64,
         start_time: values.start_time?.toISOString(),
         end_time: values.end_time?.toISOString(),
+        allow_concurrent: values.allow_concurrent ?? false,
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
@@ -969,6 +974,10 @@ const CompetitionManagement: React.FC = () => {
             </Col>
           </Row>
 
+          <Form.Item label="允许兼项" name="allow_concurrent" valuePropName="checked" initialValue={false} extra="开启后，该比赛与其他比赛时间冲突时不视为错误">
+            <Switch />
+          </Form.Item>
+
           <Form.Item label="项目图片" name="image">
             <Upload
               listType="picture-card"
@@ -1026,6 +1035,7 @@ const CompetitionManagement: React.FC = () => {
                 "每班最多男生人数",
                 "开始时间",
                 "结束时间",
+                "允许兼项",
               ],
               [
                 "混合接力",
@@ -1042,8 +1052,9 @@ const CompetitionManagement: React.FC = () => {
                 "4",
                 "2026-05-01 09:00",
                 "2026-05-01 10:00",
+                "否",
               ],
-              ["跳远", "", "个人", "越高越好", "米", "男", "1", "2", "0", "0", "0", "0", "", ""],
+              ["跳远", "", "个人", "越高越好", "米", "男", "1", "2", "0", "0", "0", "0", "", "", "否"],
             ],
             importTemplateFilename: "比赛导入模板.xlsx",
             importRequiredFields: [
@@ -1074,6 +1085,7 @@ const CompetitionManagement: React.FC = () => {
                 每班最多男生人数: c.gender === 3 ? c.max_male_per_class : "",
                 开始时间: c.start_time ? dayjs(c.start_time).format("YYYY-MM-DD HH:mm") : "",
                 结束时间: c.end_time ? dayjs(c.end_time).format("YYYY-MM-DD HH:mm") : "",
+                允许兼项: c.allow_concurrent ? "是" : "否",
                 状态: c.status,
               })),
             exportFilename: "比赛数据.xlsx",
