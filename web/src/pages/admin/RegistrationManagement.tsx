@@ -181,7 +181,7 @@ const RegistrationManagement: React.FC = () => {
   const fetchClasses = async () => {
     const data = await adminRegistrationAPI.getClasses();
     handleResp(data, (data) => {
-      setClasses(data);
+      setClasses([...data].sort((a, b) => chineseSort(a.name, b.name)));
     });
   };
 
@@ -191,7 +191,7 @@ const RegistrationManagement: React.FC = () => {
       class_id: classId,
     });
     handleResp(response, (data) => {
-      setStudents(data);
+      setStudents([...data].sort((a, b) => a.full_name.localeCompare(b.full_name, "zh-CN")));
     });
   };
 
@@ -991,7 +991,7 @@ const RegistrationManagement: React.FC = () => {
 
           {/* 班级筛选 */}
           {registrations.length > 0 && (() => {
-            const classNames = Array.from(new Set(registrations.map((r) => r.class_name)));
+            const classNames = Array.from(new Set(registrations.map((r) => r.class_name))).sort((a, b) => chineseSort(a, b));
             return classNames.length > 1 ? (
               <div style={{ marginBottom: 12 }}>
                 <Select
@@ -1011,7 +1011,12 @@ const RegistrationManagement: React.FC = () => {
               <div style={{ textAlign: "center", color: "#999", padding: "24px 0" }}>暂无报名数据</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {registrations
+                {[...registrations]
+                  .sort((a, b) => {
+                    const classCompare = chineseSort(a.class_name, b.class_name);
+                    if (classCompare !== 0) return classCompare;
+                    return a.student_name.localeCompare(b.student_name, "zh-CN");
+                  })
                   .filter((r) => !registrationClassFilter || r.class_name === registrationClassFilter)
                   .map((reg) => (
                     <Card
