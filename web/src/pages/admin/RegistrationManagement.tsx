@@ -10,6 +10,7 @@ import {
   Typography,
   Popconfirm,
   Input,
+  InputNumber,
   message,
   List,
   Spin,
@@ -92,7 +93,14 @@ const RegistrationManagement: React.FC = () => {
   const [exportMode, setExportMode] = useState<"competition" | "student">(
     "competition",
   );
-  const [exportStyle, setExportStyle] = useState<"compact" | "full">("compact");
+  const [exportStyle, setExportStyle] = useState<"compact" | "full" | "track">("compact");
+  const [exportScoreType, setExportScoreType] = useState<"成绩" | "最优成绩" | "平均成绩">("成绩");
+  const [exportTestCount, setExportTestCount] = useState<number>(0);
+  const [exportCompCount, setExportCompCount] = useState<number>(1);
+  const [exportLaneCount, setExportLaneCount] = useState<number>(8);
+  const [exportClassIds, setExportClassIds] = useState<number[]>([]);
+  const [exportCompetitionIds, setExportCompetitionIds] = useState<number[]>([]);
+  const [exportAllCompetitions, setExportAllCompetitions] = useState<Competition[]>([]);
   const checklistTableRef = useRef<HTMLDivElement>(null);
   const [exportingImage, setExportingImage] = useState(false);
   const [randomDrawVisible, setRandomDrawVisible] = useState(false);
@@ -183,6 +191,13 @@ const RegistrationManagement: React.FC = () => {
     handleResp(data, (data) => {
       setClasses([...data].sort((a, b) => chineseSort(a.name, b.name)));
     });
+  };
+
+  const fetchExportCompetitions = async () => {
+    const resp = await adminRegistrationAPI.getCompetitions({
+      status: "approved,pending_score_review,completed",
+    });
+    handleResp(resp, (data) => setExportAllCompetitions(data));
   };
 
   // 根据班级获取学生列表
@@ -447,6 +462,8 @@ const RegistrationManagement: React.FC = () => {
       message.success("导出成功");
       setExportModalVisible(false);
       setExportClassId(null);
+      setExportClassIds([]);
+      setExportCompetitionIds([]);
     } catch (error) {
       message.error("导出失败：" + (error as Error).message);
     } finally {
@@ -456,23 +473,20 @@ const RegistrationManagement: React.FC = () => {
 
   // 按比赛导出
   const exportByCompetition = async () => {
-    // 获取所有已审核的比赛
-    const response = await adminRegistrationAPI.getCompetitions({
-      status: "approved,pending_score_review,completed",
-    });
-
-    let allCompetitions: Competition[] = [];
-    handleResp(response, (data) => {
-      allCompetitions = data;
-    });
+    const allCompetitions = exportAllCompetitions;
 
     if (allCompetitions.length === 0) {
       throw new Error("没有可导出的比赛项目");
     }
 
+    // 若指定了比赛，只保留选中的
+    const targetCompetitions = exportCompetitionIds.length > 0
+      ? allCompetitions.filter((c) => exportCompetitionIds.includes(c.id))
+      : allCompetitions;
+
     // 获取每个比赛的报名数据
     const competitionsWithRegistrations = await Promise.all(
-      allCompetitions.map(async (comp) => {
+      targetCompetitions.map(async (comp) => {
         const regResponse =
           await adminRegistrationAPI.getCompetitionRegistrations(comp.id);
         let registrations: Registration[] = [];
@@ -481,9 +495,9 @@ const RegistrationManagement: React.FC = () => {
         });
 
         // 如果选择了班级，只保留该班级的报名
-        if (exportClassId) {
+        if (exportClassIds.length > 0) {
           registrations = registrations.filter(
-            (reg) => reg.class_id === exportClassId,
+            (reg) => exportClassIds.includes(reg.class_id),
           );
         }
 
@@ -513,10 +527,13 @@ const RegistrationManagement: React.FC = () => {
       throw new Error("没有报名数据可导出");
     }
 
-    const classFilter = exportClassId
-      ? classes.find((c) => c.id === exportClassId)?.name || ""
-      : "全部";
-    const filename = `报名情况_按比赛_${exportStyle === "compact" ? "紧凑" : "完整"}_${classFilter}_${new Date().toLocaleDateString()}.xlsx`;
+    const classFilter = exportClassIds.length === 0
+      ? "全部"
+      : exportClassIds.length === 1
+        ? classes.find((c) => c.id === exportClassIds[0])?.name || ""
+        : `${exportClassIds.length}个班级`;
+    const styleLabel = exportStyle === "compact" ? "紧凑" : exportStyle === "full" ? "完整" : "径赛";
+    const filename = `报名情况_按比赛_${styleLabel}_${classFilter}_${new Date().toLocaleDateString()}.xlsx`;
 
     // 动态导入 excel 工具
     const { exportExcel, createMerge } = await import("../../utils/excel");
@@ -573,33 +590,139 @@ const RegistrationManagement: React.FC = () => {
         ],
         filename,
       );
-    } else {
+    } else if (exportStyle === "full") {
       // 完整模式：每个比赛一个 Sheet，一行一个学生
+      const hasTest = exportTestCount > 0;
+      const testGroupCols = hasTest ? exportTestCount + 2 : 0; // 第1次...第n次 + scoreType + 名次
+      const compGroupCols = exportCompCount + 2;
+      const totalCols = 3 + testGroupCols + compGroupCols;
+
       const sheets = filteredCompetitions.map((competition) => {
         const sheetData: any[][] = [];
         const merges: any[] = [];
 
-        // 添加比赛名称作为标题（合并2列）
-        sheetData.push([competition.name, "", "", "", ""]);
-        merges.push(createMerge(0, 0, 0, 1));
+        // 标题行（合并全列）
+        sheetData.push([competition.name, ...Array(totalCols - 1).fill("")]);
+        merges.push(createMerge(0, 0, 0, totalCols - 1, true, true));
 
-        // 添加表头
-        sheetData.push(["序号", "班级", "姓名", "成绩", "名次"]);
+        // 表头行
+        const headerRow: string[] = ["序号", "班级", "姓名"];
+        if (hasTest) {
+          for (let i = 1; i <= exportTestCount; i++) headerRow.push(`第${i}次`);
+          headerRow.push(exportScoreType, "名次");
+        }
+        for (let i = 1; i <= exportCompCount; i++) headerRow.push(`第${i}次`);
+        headerRow.push(exportScoreType, "名次");
+        sheetData.push(headerRow);
 
-        // 添加学生数据，一行一个学生，自动生成序号
+        // 数据行
         competition.registrations.forEach((reg, index) => {
-          sheetData.push([index + 1, reg.class_name, reg.student_name, "", ""]);
+          sheetData.push([
+            index + 1,
+            reg.class_name,
+            reg.student_name,
+            ...Array(testGroupCols + compGroupCols).fill(""),
+          ]);
         });
 
+        // 列宽
+        const colWidths: number[] = [5, 10, 10];
+        if (hasTest) {
+          colWidths.push(...Array(exportTestCount).fill(8), 12, 5);
+        }
+        colWidths.push(...Array(exportCompCount).fill(8), 12, 5);
+
         return {
-          name: competition.name.substring(0, 31), // Excel sheet 名称限制31字符
+          name: competition.name,
           data: sheetData,
-          merges: merges,
-          colWidths: [5, 10, 10, 10, 5],
+          merges,
+          colWidths,
         };
       });
 
       exportExcel(sheets, filename);
+    } else {
+      // 径赛模式：每个比赛两个 Sheet（报名表+成绩表），随机分道，横向布局
+      const N = exportLaneCount;
+
+      const shuffle = <T,>(arr: T[]): T[] => {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+
+      const allSheets: Parameters<typeof exportExcel>[0] = [];
+
+      filteredCompetitions.forEach((competition) => {
+        const athletes = shuffle(competition.registrations);
+        const groups: (typeof athletes)[] = [];
+        for (let i = 0; i < athletes.length; i += N) {
+          groups.push(athletes.slice(i, i + N));
+        }
+
+        const buildSheet = (includeScore: boolean) => {
+          const data: any[][] = [];
+          const merges: any[] = [];
+          let row = 0;
+
+          groups.forEach((group, gi) => {
+            // 比赛名称
+            data.push([competition.name, ...Array(N).fill("")]);
+            merges.push(createMerge(row, 0, row, N));
+            row++;
+
+            // 组标题
+            data.push([`第${gi + 1}组`, ...Array(N).fill("")]);
+            merges.push(createMerge(row, 0, row, N));
+            row++;
+
+            // 道次行
+            const seqRow: any[] = ["道次"];
+            for (let i = 0; i < N; i++) seqRow.push(i < group.length ? String(i + 1) : "");
+            data.push(seqRow);
+            row++;
+
+            // 班级行
+            const classRow: any[] = ["班级"];
+            for (let i = 0; i < N; i++) classRow.push(group[i]?.class_name ?? "");
+            data.push(classRow);
+            row++;
+
+            // 姓名行
+            const nameRow: any[] = ["姓名"];
+            for (let i = 0; i < N; i++) nameRow.push(group[i]?.student_name ?? "");
+            data.push(nameRow);
+            row++;
+
+            if (includeScore) {
+              data.push(["成绩", ...Array(N).fill("")]);
+              row++;
+              data.push(["名次", ...Array(N).fill("")]);
+              row++;
+            }
+
+            // 空2行分隔（空数组不会被加框线）
+            data.push([]);
+            data.push([]);
+            row += 2;
+          });
+
+          const colWidths = [8, ...Array(N).fill(10)];
+          return { data, merges, colWidths };
+        };
+
+        const baseName = competition.name.substring(0, 25);
+        const { data: regData, merges: regMerges, colWidths } = buildSheet(false);
+        const { data: scoreData, merges: scoreMerges } = buildSheet(true);
+
+        allSheets.push({ name: `${baseName}_报名`, data: regData, merges: regMerges, colWidths });
+        allSheets.push({ name: `${baseName}_成绩`, data: scoreData, merges: scoreMerges, colWidths });
+      });
+
+      exportExcel(allSheets, filename);
     }
   };
 
@@ -849,7 +972,7 @@ const RegistrationManagement: React.FC = () => {
             <Button
               icon={<FileExcelOutlined />}
               onClick={async () => {
-                await fetchClasses();
+                await Promise.all([fetchClasses(), fetchExportCompetitions()]);
                 setExportModalVisible(true);
               }}
               size="large"
@@ -905,7 +1028,7 @@ const RegistrationManagement: React.FC = () => {
               <Button
                 icon={<FileExcelOutlined />}
                 onClick={async () => {
-                  await fetchClasses();
+                  await Promise.all([fetchClasses(), fetchExportCompetitions()]);
                   setExportModalVisible(true);
                 }}
               >
@@ -1442,6 +1565,8 @@ const RegistrationManagement: React.FC = () => {
         onCancel={() => {
           setExportModalVisible(false);
           setExportClassId(null);
+          setExportClassIds([]);
+          setExportCompetitionIds([]);
         }}
         footer={[
           <Button
@@ -1481,21 +1606,97 @@ const RegistrationManagement: React.FC = () => {
           </div>
 
           {exportMode === "competition" && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 8 }}>
-                <strong>导出样式</strong>
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>选择比赛（可选）</strong>
+                </div>
+                <Select
+                  mode="multiple"
+                  style={{ width: "100%" }}
+                  placeholder="不选择则导出全部比赛"
+                  value={exportCompetitionIds}
+                  onChange={setExportCompetitionIds}
+                  allowClear
+                  maxTagCount="responsive"
+                  optionFilterProp="label"
+                  options={exportAllCompetitions.map((c) => ({ value: c.id, label: c.name }))}
+                />
               </div>
-              <Select
-                style={{ width: "100%" }}
-                value={exportStyle}
-                onChange={setExportStyle}
-              >
-                <Option value="compact">紧凑模式（一个Sheet，每行4人）</Option>
-                <Option value="full">
-                  完整模式（每个比赛一个Sheet，一行一人）
-                </Option>
-              </Select>
-            </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>导出样式</strong>
+                </div>
+                <Select
+                  style={{ width: "100%" }}
+                  value={exportStyle}
+                  onChange={setExportStyle}
+                >
+                  <Option value="compact">紧凑模式（一个Sheet，每行4人）</Option>
+                  <Option value="full">完整模式（每个比赛一个Sheet，一行一人）</Option>
+                  <Option value="track">径赛模式（每个比赛报名+成绩两张表，随机分道）</Option>
+                </Select>
+              </div>
+              {exportStyle === "track" && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>道数</strong>
+                  </div>
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={1}
+                    max={20}
+                    value={exportLaneCount}
+                    onChange={(v) => setExportLaneCount(v ?? 8)}
+                  />
+                </div>
+              )}
+              {exportStyle === "full" && (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <strong>成绩列标题</strong>
+                    </div>
+                    <Select
+                      style={{ width: "100%" }}
+                      value={exportScoreType}
+                      onChange={setExportScoreType}
+                    >
+                      <Option value="成绩">成绩</Option>
+                      <Option value="最优成绩">最优成绩</Option>
+                      <Option value="平均成绩">平均成绩</Option>
+                    </Select>
+                  </div>
+                  <div style={{ marginBottom: 16, display: "flex", gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>测试次数</strong>
+                        <span style={{ color: "#888", fontSize: 12, marginLeft: 4 }}>（0=不显示测试区）</span>
+                      </div>
+                      <InputNumber
+                        style={{ width: "100%" }}
+                        min={0}
+                        max={20}
+                        value={exportTestCount}
+                        onChange={(v) => setExportTestCount(v ?? 0)}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <strong>比赛次数</strong>
+                      </div>
+                      <InputNumber
+                        style={{ width: "100%" }}
+                        min={1}
+                        max={20}
+                        value={exportCompCount}
+                        onChange={(v) => setExportCompCount(v ?? 1)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
           )}
 
           <div style={{ marginBottom: 16 }}>
@@ -1508,21 +1709,31 @@ const RegistrationManagement: React.FC = () => {
                 {exportMode === "competition" && "（可选）"}
               </strong>
             </div>
-            <Select
-              style={{ width: "100%" }}
-              placeholder={
-                exportMode === "student" ? "请选择班级" : "不选择则导出全部班级"
-              }
-              allowClear={exportMode === "competition"}
-              value={exportClassId}
-              onChange={setExportClassId}
-            >
-              {classes.map((cls) => (
-                <Option key={cls.id} value={cls.id}>
-                  {cls.name}
-                </Option>
-              ))}
-            </Select>
+            {exportMode === "competition" ? (
+              <Select
+                mode="multiple"
+                style={{ width: "100%" }}
+                placeholder="不选择则导出全部班级"
+                allowClear
+                maxTagCount="responsive"
+                value={exportClassIds}
+                onChange={setExportClassIds}
+                options={classes.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            ) : (
+              <Select
+                style={{ width: "100%" }}
+                placeholder="请选择班级"
+                value={exportClassId}
+                onChange={setExportClassId}
+              >
+                {classes.map((cls) => (
+                  <Option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </Option>
+                ))}
+              </Select>
+            )}
           </div>
           <div style={{ color: "#666", fontSize: 14 }}>
             <p>导出说明：</p>
@@ -1534,14 +1745,22 @@ const RegistrationManagement: React.FC = () => {
                     <li>每个比赛项目占一个区块</li>
                     <li>每行显示4名学生的信息（班级、姓名）</li>
                   </>
-                ) : (
+                ) : exportStyle === "full" ? (
                   <>
                     <li>每个比赛项目单独一个Sheet</li>
-                    <li>包含表头：班级、姓名</li>
                     <li>一行显示一名学生的信息</li>
+                    {exportTestCount > 0 && <li>测试区：{exportTestCount}次成绩列 + {exportScoreType} + 名次</li>}
+                    <li>比赛区：{exportCompCount}次成绩列 + {exportScoreType} + 名次</li>
+                  </>
+                ) : (
+                  <>
+                    <li>每个比赛项目生成报名表和成绩表两个Sheet</li>
+                    <li>随机分道，每组{exportLaneCount}人，横向排列</li>
+                    <li>报名表含道次/班级/姓名，成绩表额外含成绩/名次行</li>
                   </>
                 )}
-                {exportClassId && <li>仅导出所选班级的报名数据</li>}
+                {exportCompetitionIds.length > 0 && <li>仅导出所选的 {exportCompetitionIds.length} 个比赛</li>}
+                {exportClassIds.length > 0 && <li>仅导出所选的 {exportClassIds.length} 个班级的报名数据</li>}
               </ul>
             ) : (
               <ul style={{ paddingLeft: 20, margin: 0 }}>

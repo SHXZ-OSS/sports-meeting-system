@@ -81,6 +81,15 @@ export const exportExcel = (
   const wb = XLSX.utils.book_new();
 
   sheets.forEach((sheet) => {
+    const safeName = sheet.name
+      .replace(/:/g, "：")
+      .replace(/\\/g, "＼")
+      .replace(/\//g, "／")
+      .replace(/\?/g, "？")
+      .replace(/\*/g, "＊")
+      .replace(/\[/g, "［")
+      .replace(/]/g, "］")
+      .slice(0, 31);
     const ws = XLSX.utils.aoa_to_sheet(sheet.data);
 
     // 设置合并单元格
@@ -127,7 +136,7 @@ export const exportExcel = (
     // 添加样式
     addStylesToWorksheet(ws, sheet.data);
 
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+    XLSX.utils.book_append_sheet(wb, ws, safeName);
   });
 
   XLSX.writeFile(wb, filename);
