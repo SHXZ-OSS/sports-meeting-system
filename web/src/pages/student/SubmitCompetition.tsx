@@ -89,8 +89,12 @@ const SubmitCompetition: React.FC = () => {
         unit: formValues.unit,
         min_participants_per_class: formValues.min_participants_per_class || 0,
         max_participants_per_class: formValues.max_participants_per_class || 0,
-        min_female_per_class: isMixed ? (formValues.min_female_per_class ?? 0) : 0,
-        max_female_per_class: isMixed ? (formValues.max_female_per_class ?? 0) : 0,
+        min_female_per_class: isMixed
+          ? (formValues.min_female_per_class ?? 0)
+          : 0,
+        max_female_per_class: isMixed
+          ? (formValues.max_female_per_class ?? 0)
+          : 0,
         min_male_per_class: isMixed ? (formValues.min_male_per_class ?? 0) : 0,
         max_male_per_class: isMixed ? (formValues.max_male_per_class ?? 0) : 0,
         image: imageBase64,
@@ -273,24 +277,44 @@ const SubmitCompetition: React.FC = () => {
             <>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item label="每班最少女生人数" name="min_female_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最少女生人数"
+                    name="min_female_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="每班最多女生人数" name="max_female_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最多女生人数"
+                    name="max_female_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item label="每班最少男生人数" name="min_male_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最少男生人数"
+                    name="min_male_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="每班最多男生人数" name="max_male_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最多男生人数"
+                    name="max_male_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>

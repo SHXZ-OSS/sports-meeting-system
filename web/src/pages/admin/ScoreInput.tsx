@@ -392,7 +392,7 @@ const ScoreInput: React.FC = () => {
 
           // 根据比赛类型决定合并列数
           const headerColCount = isTeamCompetition ? 5 : 6;
-          
+
           // 添加比赛名称作为标题
           const titleRow = [competition.name];
           for (let i = 1; i < headerColCount; i++) {
@@ -417,10 +417,10 @@ const ScoreInput: React.FC = () => {
                 classMap.set(reg.class_id, reg);
               }
             });
-            
+
             // 获取去重后的班级列表并按班级名称排序
             const uniqueClasses = Array.from(classMap.values()).sort((a, b) =>
-              chineseSort(a.class_name, b.class_name)
+              chineseSort(a.class_name, b.class_name),
             );
 
             // 为每个班级添加一行数据
@@ -440,7 +440,9 @@ const ScoreInput: React.FC = () => {
           } else {
             // 个人比赛：显示每个学生的数据
             registrations.forEach((reg, index) => {
-              const score = reg.student_id ? scoreMap.get(reg.student_id) : null;
+              const score = reg.student_id
+                ? scoreMap.get(reg.student_id)
+                : null;
               sheetData.push([
                 index + 1,
                 reg.class_name,
@@ -458,7 +460,9 @@ const ScoreInput: React.FC = () => {
             name: competition.name.substring(0, 31), // Excel sheet 名称限制31字符
             data: sheetData,
             merges: merges,
-            colWidths: isTeamCompetition ? [5, 10, 10, 5, 5] : [5, 10, 10, 10, 5, 5],
+            colWidths: isTeamCompetition
+              ? [5, 10, 10, 5, 5]
+              : [5, 10, 10, 10, 5, 5],
           };
         },
       );

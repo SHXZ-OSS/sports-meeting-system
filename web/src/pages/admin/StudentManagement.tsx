@@ -749,11 +749,11 @@ const StudentManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => refreshStudents()}
-                  loading={loading}
-                >
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refreshStudents()}
+                loading={loading}
+              >
                 刷新
               </Button>
               <Button

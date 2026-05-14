@@ -67,7 +67,9 @@ const CompetitionManagement: React.FC = () => {
     useState<Competition | null>(null);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"name" | "votes" | "schedule">("schedule");
+  const [sortBy, setSortBy] = useState<"name" | "votes" | "schedule">(
+    "schedule",
+  );
   const [batchResultsVisible, setBatchResultsVisible] = useState(false);
   const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
   const [batchModalVisible, setBatchModalVisible] = useState(false);
@@ -211,12 +213,20 @@ const CompetitionManagement: React.FC = () => {
           gender,
           min_participants_per_class: Number(row["每班最少报名人数"]) || 0,
           max_participants_per_class: Number(row["每班最多报名人数"]) || 0,
-          min_female_per_class: gender === 3 ? Number(row["每班最少女生人数"]) || 0 : 0,
-          max_female_per_class: gender === 3 ? Number(row["每班最多女生人数"]) || 0 : 0,
-          min_male_per_class: gender === 3 ? Number(row["每班最少男生人数"]) || 0 : 0,
-          max_male_per_class: gender === 3 ? Number(row["每班最多男生人数"]) || 0 : 0,
-          start_time: row["开始时间"] ? dayjs(row["开始时间"]).toISOString() : undefined,
-          end_time: row["结束时间"] ? dayjs(row["结束时间"]).toISOString() : undefined,
+          min_female_per_class:
+            gender === 3 ? Number(row["每班最少女生人数"]) || 0 : 0,
+          max_female_per_class:
+            gender === 3 ? Number(row["每班最多女生人数"]) || 0 : 0,
+          min_male_per_class:
+            gender === 3 ? Number(row["每班最少男生人数"]) || 0 : 0,
+          max_male_per_class:
+            gender === 3 ? Number(row["每班最多男生人数"]) || 0 : 0,
+          start_time: row["开始时间"]
+            ? dayjs(row["开始时间"]).toISOString()
+            : undefined,
+          end_time: row["结束时间"]
+            ? dayjs(row["结束时间"]).toISOString()
+            : undefined,
           allow_concurrent: row["允许兼项"] === "是",
         });
         if (response.code !== 200) {
@@ -325,7 +335,9 @@ const CompetitionManagement: React.FC = () => {
         max_female_per_class: competition.max_female_per_class || 0,
         min_male_per_class: competition.min_male_per_class || 0,
         max_male_per_class: competition.max_male_per_class || 0,
-        start_time: competition.start_time ? dayjs(competition.start_time) : null,
+        start_time: competition.start_time
+          ? dayjs(competition.start_time)
+          : null,
         end_time: competition.end_time ? dayjs(competition.end_time) : null,
         allow_concurrent: competition.allow_concurrent || false,
       });
@@ -369,8 +381,12 @@ const CompetitionManagement: React.FC = () => {
           unit: values.unit,
           min_participants_per_class: values.min_participants_per_class,
           max_participants_per_class: values.max_participants_per_class,
-          min_female_per_class: isMixed ? (values.min_female_per_class ?? 0) : 0,
-          max_female_per_class: isMixed ? (values.max_female_per_class ?? 0) : 0,
+          min_female_per_class: isMixed
+            ? (values.min_female_per_class ?? 0)
+            : 0,
+          max_female_per_class: isMixed
+            ? (values.max_female_per_class ?? 0)
+            : 0,
           min_male_per_class: isMixed ? (values.min_male_per_class ?? 0) : 0,
           max_male_per_class: isMixed ? (values.max_male_per_class ?? 0) : 0,
           image: imageBase64,
@@ -485,7 +501,8 @@ const CompetitionManagement: React.FC = () => {
             )}
             {record.start_time && record.end_time && (
               <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>
-                {dayjs(record.start_time).format("MM-DD HH:mm")} - {dayjs(record.end_time).format("HH:mm")}
+                {dayjs(record.start_time).format("MM-DD HH:mm")} -{" "}
+                {dayjs(record.end_time).format("HH:mm")}
               </div>
             )}
           </div>
@@ -736,11 +753,11 @@ const CompetitionManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => refreshCompetitions()}
-                  loading={loading}
-                >
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refreshCompetitions()}
+                loading={loading}
+              >
                 刷新
               </Button>
               <Button
@@ -933,24 +950,44 @@ const CompetitionManagement: React.FC = () => {
             <>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item label="每班最少女生人数" name="min_female_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最少女生人数"
+                    name="min_female_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="每班最多女生人数" name="max_female_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最多女生人数"
+                    name="max_female_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item label="每班最少男生人数" name="min_male_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最少男生人数"
+                    name="min_male_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="每班最多男生人数" name="max_male_per_class" initialValue={0} extra="0表示无限制">
+                  <Form.Item
+                    label="每班最多男生人数"
+                    name="max_male_per_class"
+                    initialValue={0}
+                    extra="0表示无限制"
+                  >
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
@@ -981,7 +1018,13 @@ const CompetitionManagement: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item label="允许兼项" name="allow_concurrent" valuePropName="checked" initialValue={false} extra="开启后，该比赛与其他比赛时间冲突时不视为错误">
+          <Form.Item
+            label="允许兼项"
+            name="allow_concurrent"
+            valuePropName="checked"
+            initialValue={false}
+            extra="开启后，该比赛与其他比赛时间冲突时不视为错误"
+          >
             <Switch />
           </Form.Item>
 
@@ -1061,7 +1104,23 @@ const CompetitionManagement: React.FC = () => {
                 "2026-05-01 10:00",
                 "否",
               ],
-              ["跳远", "", "个人", "越高越好", "米", "男", "1", "2", "0", "0", "0", "0", "", "", "否"],
+              [
+                "跳远",
+                "",
+                "个人",
+                "越高越好",
+                "米",
+                "男",
+                "1",
+                "2",
+                "0",
+                "0",
+                "0",
+                "0",
+                "",
+                "",
+                "否",
+              ],
             ],
             importTemplateFilename: "比赛导入模板.xlsx",
             importRequiredFields: [
@@ -1090,8 +1149,12 @@ const CompetitionManagement: React.FC = () => {
                 每班最多女生人数: c.gender === 3 ? c.max_female_per_class : "",
                 每班最少男生人数: c.gender === 3 ? c.min_male_per_class : "",
                 每班最多男生人数: c.gender === 3 ? c.max_male_per_class : "",
-                开始时间: c.start_time ? dayjs(c.start_time).format("YYYY-MM-DD HH:mm") : "",
-                结束时间: c.end_time ? dayjs(c.end_time).format("YYYY-MM-DD HH:mm") : "",
+                开始时间: c.start_time
+                  ? dayjs(c.start_time).format("YYYY-MM-DD HH:mm")
+                  : "",
+                结束时间: c.end_time
+                  ? dayjs(c.end_time).format("YYYY-MM-DD HH:mm")
+                  : "",
                 允许兼项: c.allow_concurrent ? "是" : "否",
                 状态: c.status,
               })),

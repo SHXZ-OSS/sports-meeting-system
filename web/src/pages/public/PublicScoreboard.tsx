@@ -42,6 +42,8 @@ import dayjs from "dayjs";
 import FadeContent from "../../components/FadeContent";
 import BlurText from "../../components/BlurText";
 import LightRays from "../../components/LightRays";
+import ScoreboardSettingsModal from "../../components/ScoreboardSettingsModal";
+import type { ScoreboardVoiceOption } from "../../components/ScoreboardSettingsModal";
 import { publicAPI } from "../../api/public";
 import { Competition, Score, Registration } from "../../types";
 import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
@@ -54,69 +56,135 @@ import {
 } from "../../utils/competition";
 import { useWebsite } from "../../contexts/WebsiteContext";
 import { useIsMobile } from "../../utils";
+import { shouldEnableBackgroundEffects } from "../../utils/performance";
 import {
-  shouldEnableBackgroundEffects,
-  toggleBackgroundEffects,
-} from "../../utils/performance";
+  buildAnimationOpeningAnnouncement,
+  buildAnimationStepAnnouncement,
+  buildCompetitionAnnouncementIntro,
+  getScoreboardSettings,
+  saveScoreboardSettings,
+  shouldAnnounceScore,
+} from "../../utils/scoreboardSettings";
+import type { ScoreboardSettings } from "../../utils/scoreboardSettings";
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 const PublicScoreboard: React.FC = () => {
   const isMobile = useIsMobile();
-  
+
   // 背景特效控制
   const [enableBackgroundEffects, setEnableBackgroundEffects] = useState(false);
-  
-  // 隐藏的背景特效开关 - 连续快速点击标题5次触发
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [scoreboardSettings, setScoreboardSettings] =
+    useState<ScoreboardSettings>(getScoreboardSettings);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
+  const announcementMarkerRef = useRef<string | null>(null);
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  const handleClick = useCallback(() => {
+  const hasSavedSettingsRef = useRef(false);
+
+  const handleTitleClick = useCallback(() => {
     clickCountRef.current += 1;
-    
-    // 清除之前的定时器
+
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
     }
-    
-    // 如果点击次数达到5次，切换背景特效
+
     if (clickCountRef.current >= 5) {
-      const isDisabled = toggleBackgroundEffects();
-      setEnableBackgroundEffects(!isDisabled);
-      
-      if (isDisabled) {
-        message.success('背景特效已禁用');
-      } else {
-        message.success('背景特效已启用');
-      }
-      
+      setSettingsModalOpen(true);
       clickCountRef.current = 0;
+      clickTimerRef.current = null;
       return;
     }
-    
-    // 2秒内没有继续点击则重置计数
+
     clickTimerRef.current = setTimeout(() => {
       clickCountRef.current = 0;
+      clickTimerRef.current = null;
     }, 2000);
   }, []);
-  
-  // 检测是否应该启用背景特效
+
   useEffect(() => {
-    shouldEnableBackgroundEffects().then((shouldEnable) => {
-      setEnableBackgroundEffects(shouldEnable);
-    });
+    return () => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
+    };
   }, []);
-  
+
+  useEffect(() => {
+    if (!hasSavedSettingsRef.current) {
+      hasSavedSettingsRef.current = true;
+      return;
+    }
+
+    saveScoreboardSettings(scoreboardSettings);
+  }, [scoreboardSettings]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    shouldEnableBackgroundEffects(
+      scoreboardSettings.backgroundEffectsPreference,
+    ).then((shouldEnable) => {
+      if (!cancelled) {
+        setEnableBackgroundEffects(shouldEnable);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scoreboardSettings.backgroundEffectsPreference]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    const updateVoices = () => {
+      const voices = synth.getVoices();
+      setAvailableVoices(
+        [...voices].sort((left, right) => {
+          const leftZh = left.lang.toLowerCase().startsWith("zh") ? 1 : 0;
+          const rightZh = right.lang.toLowerCase().startsWith("zh") ? 1 : 0;
+          return rightZh - leftZh || left.name.localeCompare(right.name);
+        }),
+      );
+    };
+
+    setSpeechSupported(true);
+    updateVoices();
+    synth.addEventListener("voiceschanged", updateVoices);
+
+    return () => {
+      synth.removeEventListener("voiceschanged", updateVoices);
+      synth.cancel();
+    };
+  }, []);
+
+  const voiceOptions = useMemo<ScoreboardVoiceOption[]>(
+    () =>
+      availableVoices.map((voice) => ({
+        label: `${voice.name} (${voice.lang})`,
+        value: voice.voiceURI,
+      })),
+    [availableVoices],
+  );
+
   // 动态导入 Hyperspeed
   const HyperspeedComponent = useMemo(() => {
     if (!enableBackgroundEffects) return null;
     return lazy(() => import("../../components/Hyperspeed"));
   }, [enableBackgroundEffects]);
-  
+
   const hyperSpeedElement = useMemo(() => {
     if (!HyperspeedComponent) return null;
-    
+
     return (
       <HyperspeedComponent
         effectOptions={{
@@ -168,7 +236,9 @@ const PublicScoreboard: React.FC = () => {
   const [animationQueue, setAnimationQueue] = useState<Score[]>([]);
   const [animatingCompetition, setAnimatingCompetition] =
     useState<Competition | null>(null);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const [isManualReplay, setIsManualReplay] = useState(false); // 标记是否是手动重播
 
   // 网站名称
@@ -177,6 +247,61 @@ const PublicScoreboard: React.FC = () => {
     icp_beian: icp_beian,
     public_sec_beian: public_sec_beian,
   } = useWebsite();
+
+  const stopAnnouncement = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+  }, []);
+
+  const speakText = useCallback(
+    (text: string) => {
+      if (
+        !speechSupported ||
+        typeof window === "undefined" ||
+        !("speechSynthesis" in window) ||
+        !text.trim()
+      ) {
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoice = availableVoices.find(
+        (voice) =>
+          voice.voiceURI === scoreboardSettings.scoreAnnouncement.voiceURI,
+      );
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      } else {
+        utterance.lang = "zh-CN";
+      }
+
+      utterance.rate = scoreboardSettings.scoreAnnouncement.speechRate;
+
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      synth.speak(utterance);
+    },
+    [
+      availableVoices,
+      scoreboardSettings.scoreAnnouncement.speechRate,
+      scoreboardSettings.scoreAnnouncement.voiceURI,
+      speechSupported,
+    ],
+  );
+
+  const previewAnnouncement = useCallback(() => {
+    if (!speechSupported) {
+      message.warning("当前浏览器不支持成绩播报");
+      return;
+    }
+
+    speakText("成绩公布。男子一百米。第1名。十二秒三四。高一一班。张三。");
+  }, [speakText, speechSupported]);
 
   // 动画队列管理
   const [animationTaskQueue, setAnimationTaskQueue] = useState<
@@ -277,16 +402,21 @@ const PublicScoreboard: React.FC = () => {
   // ETag 缓存管理
   const [statisticsEtag, setStatisticsEtag] = useState<string | null>(null);
 
-  // 清理超过10分钟的播放记录
-  const cleanExpiredPlayedCompetitions = useCallback(() => {
+  const getPlayedCompetitions = useCallback(() => {
     const playedCompetitionsRaw =
       localStorage.getItem("played_competitions") || "[]";
-    let playedCompetitions: Array<{ id: number; timestamp: number }> = [];
+
     try {
-      playedCompetitions = JSON.parse(playedCompetitionsRaw);
+      const parsed = JSON.parse(playedCompetitionsRaw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      playedCompetitions = [];
+      return [];
     }
+  }, []);
+
+  // 清理超过10分钟的播放记录
+  const cleanExpiredPlayedCompetitions = useCallback(() => {
+    const playedCompetitions = getPlayedCompetitions();
 
     const now = Date.now();
     const validPlayedCompetitions = playedCompetitions.filter((item) => {
@@ -319,14 +449,7 @@ const PublicScoreboard: React.FC = () => {
       const comp = data.latest_competition;
 
       // 检查localStorage是否已存在该比赛id，并且审核时间匹配
-      const playedCompetitionsRaw =
-        localStorage.getItem("played_competitions") || "[]";
-      let playedCompetitions: Array<{ id: number; timestamp: number }> = [];
-      try {
-        playedCompetitions = JSON.parse(playedCompetitionsRaw);
-      } catch {
-        playedCompetitions = [];
-      }
+      const playedCompetitions = getPlayedCompetitions();
 
       // 获取当前比赛的审核时间戳
       const currentReviewedTimestamp = comp.score_reviewed_at
@@ -364,7 +487,7 @@ const PublicScoreboard: React.FC = () => {
         return prev;
       });
     },
-    [lastNotifiedCompetitionId],
+    [getPlayedCompetitions, lastNotifiedCompetitionId],
   );
 
   // 获取统计数据并检查最新成绩
@@ -550,6 +673,7 @@ const PublicScoreboard: React.FC = () => {
       const nextTask = animationTaskQueue[0];
       setIsProcessingAnimation(true);
       setAnimatingCompetition(nextTask.competition);
+      announcementMarkerRef.current = null;
       // 只显示前8名
       setAnimationQueue(nextTask.scores.slice(0, 8));
       setShowAnimation(true);
@@ -568,20 +692,16 @@ const PublicScoreboard: React.FC = () => {
   const endAnimation = () => {
     if (!animatingCompetition) return;
 
+    announcementMarkerRef.current = null;
+    stopAnnouncement();
+
     // 标记为已播放
     const compId = animatingCompetition.id;
     const reviewedTimestamp = animatingCompetition.score_reviewed_at
       ? new Date(animatingCompetition.score_reviewed_at).getTime()
       : Date.now();
 
-    const playedCompetitionsRaw =
-      localStorage.getItem("played_competitions") || "[]";
-    let playedCompetitions: Array<{ id: number; timestamp: number }> = [];
-    try {
-      playedCompetitions = JSON.parse(playedCompetitionsRaw);
-    } catch {
-      playedCompetitions = [];
-    }
+    const playedCompetitions = getPlayedCompetitions();
 
     const existingIndex = playedCompetitions.findIndex(
       (item) => item.id === compId && item.timestamp === reviewedTimestamp,
@@ -597,8 +717,8 @@ const PublicScoreboard: React.FC = () => {
 
     setShowAnimation(false);
     setIsProcessingAnimation(false);
-    // 只有在非手动重播时才打开模态框
-    if (!isManualReplay) {
+    // 只有在非手动重播且设置允许时才打开模态框
+    if (!isManualReplay && scoreboardSettings.autoOpenResultModal) {
       handleViewScores(animatingCompetition);
     }
     setCurrentIndex(0);
@@ -615,6 +735,8 @@ const PublicScoreboard: React.FC = () => {
     // 获取该比赛的成绩
     publicAPI.getCompetitionScores(competition.id).then((response) => {
       handleResp(response, (scores) => {
+        announcementMarkerRef.current = null;
+        stopAnnouncement();
         setAnimatingCompetition(competition);
         setAnimationQueue(scores.slice(0, 8)); // 只显示前8名
         setShowAnimation(true);
@@ -1128,10 +1250,26 @@ const PublicScoreboard: React.FC = () => {
     if (!showAnimation || !animatingCompetition) return;
 
     if (currentIndex === 0) {
+      if (scoreboardSettings.scoreAnnouncement.enabled) {
+        const announcementKey = "animation-opening";
+        if (announcementMarkerRef.current !== announcementKey) {
+          announcementMarkerRef.current = announcementKey;
+          speakText(buildAnimationOpeningAnnouncement());
+        }
+      }
+
       const timer = setTimeout(() => setCurrentIndex(1), 2000);
       return () => clearTimeout(timer);
     }
     if (currentIndex === 1) {
+      if (scoreboardSettings.scoreAnnouncement.enabled) {
+        const announcementKey = `${animatingCompetition.id}-intro`;
+        if (announcementMarkerRef.current !== announcementKey) {
+          announcementMarkerRef.current = announcementKey;
+          speakText(buildCompetitionAnnouncementIntro(animatingCompetition));
+        }
+      }
+
       const timer = setTimeout(() => setCurrentIndex(2), 2000);
       return () => clearTimeout(timer);
     }
@@ -1154,8 +1292,23 @@ const PublicScoreboard: React.FC = () => {
     }
 
     // 在展示成绩的最后一步触发 confetti 并播放音效
+    const currentScore = animationQueue[scoreIndex];
+    if (shouldAnnounceScore(scoreboardSettings, currentScore)) {
+      const announcementKey = `${animatingCompetition.id}-${currentScore.id}-${currentIndex}`;
+      if (announcementMarkerRef.current !== announcementKey) {
+        announcementMarkerRef.current = announcementKey;
+        speakText(
+          buildAnimationStepAnnouncement(
+            animatingCompetition,
+            currentScore,
+            stepInScore,
+          ),
+        );
+      }
+    }
+
     if (stepInScore === 3) {
-      const ranking = animationQueue[scoreIndex].ranking;
+      const ranking = currentScore.ranking;
 
       // 播放音效
       playEffect();
@@ -1204,6 +1357,13 @@ const PublicScoreboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentIndex, showAnimation, animationQueue, animatingCompetition]);
 
+  useEffect(() => {
+    if (!showAnimation) {
+      announcementMarkerRef.current = null;
+      stopAnnouncement();
+    }
+  }, [showAnimation, stopAnnouncement]);
+
   // 比赛表格列（用于已完成比赛模态框）
   const completedCompetitionColumns = [
     {
@@ -1240,7 +1400,8 @@ const PublicScoreboard: React.FC = () => {
           <div style={{ fontWeight: 500, fontSize: 16 }}>{record.name}</div>
           {record.start_time && record.end_time && (
             <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-              {dayjs(record.start_time).format("MM-DD HH:mm")} - {dayjs(record.end_time).format("HH:mm")}
+              {dayjs(record.start_time).format("MM-DD HH:mm")} -{" "}
+              {dayjs(record.end_time).format("HH:mm")}
             </div>
           )}
         </div>
@@ -1498,7 +1659,7 @@ const PublicScoreboard: React.FC = () => {
         }}
       >
         <Title
-          onClick={handleClick}
+          onClick={handleTitleClick}
           style={{
             color: "#fff",
             margin: 0,
@@ -1520,6 +1681,16 @@ const PublicScoreboard: React.FC = () => {
           </Button>
         </div>
       </Header>
+
+      <ScoreboardSettingsModal
+        open={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        settings={scoreboardSettings}
+        onChange={setScoreboardSettings}
+        speechSupported={speechSupported}
+        voiceOptions={voiceOptions}
+        onPreviewAnnouncement={previewAnnouncement}
+      />
 
       <Content style={{ padding: "16px" }}>
         {/* 统计卡片 */}

@@ -67,7 +67,10 @@ const Dashboard: React.FC = () => {
         });
       }
 
-      if (pendingApprovalResult && pendingApprovalResult.status === "fulfilled") {
+      if (
+        pendingApprovalResult &&
+        pendingApprovalResult.status === "fulfilled"
+      ) {
         handleRespWithoutNotify(
           pendingApprovalResult.value,
           (_, pagination) => {
@@ -76,7 +79,10 @@ const Dashboard: React.FC = () => {
         );
       }
 
-      if (pendingScoreReviewResult && pendingScoreReviewResult.status === "fulfilled") {
+      if (
+        pendingScoreReviewResult &&
+        pendingScoreReviewResult.status === "fulfilled"
+      ) {
         handleRespWithoutNotify(
           pendingScoreReviewResult.value,
           (_, pagination) => {

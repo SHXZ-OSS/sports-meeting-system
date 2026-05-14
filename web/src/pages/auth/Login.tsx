@@ -150,7 +150,8 @@ const Login: React.FC = () => {
       navigate("/auth/dingtalk");
     } else {
       // 如果不在钉钉客户端内，使用 SSO 重定向登录
-      window.location.href = "/api/public/dingtalk/sso_redirect?redirect=/login";
+      window.location.href =
+        "/api/public/dingtalk/sso_redirect?redirect=/login";
     }
   };
 

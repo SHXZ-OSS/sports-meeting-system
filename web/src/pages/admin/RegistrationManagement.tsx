@@ -93,18 +93,28 @@ const RegistrationManagement: React.FC = () => {
   const [exportMode, setExportMode] = useState<"competition" | "student">(
     "competition",
   );
-  const [exportStyle, setExportStyle] = useState<"compact" | "full" | "track">("compact");
-  const [exportScoreType, setExportScoreType] = useState<"成绩" | "最优成绩" | "平均成绩">("成绩");
+  const [exportStyle, setExportStyle] = useState<"compact" | "full" | "track">(
+    "compact",
+  );
+  const [exportScoreType, setExportScoreType] = useState<
+    "成绩" | "最优成绩" | "平均成绩"
+  >("成绩");
   const [exportTestCount, setExportTestCount] = useState<number>(0);
   const [exportCompCount, setExportCompCount] = useState<number>(1);
   const [exportLaneCount, setExportLaneCount] = useState<number>(8);
   const [exportClassIds, setExportClassIds] = useState<number[]>([]);
-  const [exportCompetitionIds, setExportCompetitionIds] = useState<number[]>([]);
-  const [exportAllCompetitions, setExportAllCompetitions] = useState<Competition[]>([]);
+  const [exportCompetitionIds, setExportCompetitionIds] = useState<number[]>(
+    [],
+  );
+  const [exportAllCompetitions, setExportAllCompetitions] = useState<
+    Competition[]
+  >([]);
   const checklistTableRef = useRef<HTMLDivElement>(null);
   const [exportingImage, setExportingImage] = useState(false);
   const [randomDrawVisible, setRandomDrawVisible] = useState(false);
-  const [registrationClassFilter, setRegistrationClassFilter] = useState<string | null>(null);
+  const [registrationClassFilter, setRegistrationClassFilter] = useState<
+    string | null
+  >(null);
 
   const fetchCompetitions = async (
     page = currentPage,
@@ -206,7 +216,11 @@ const RegistrationManagement: React.FC = () => {
       class_id: classId,
     });
     handleResp(response, (data) => {
-      setStudents([...data].sort((a, b) => a.full_name.localeCompare(b.full_name, "zh-CN")));
+      setStudents(
+        [...data].sort((a, b) =>
+          a.full_name.localeCompare(b.full_name, "zh-CN"),
+        ),
+      );
     });
   };
 
@@ -216,8 +230,12 @@ const RegistrationManagement: React.FC = () => {
       return;
 
     const comp = currentCompetition;
-    const classRegs = registrations.filter((reg) => reg.class_id === selectedClass);
-    const selectedObjs = students.filter((s) => selectedStudents.includes(s.id));
+    const classRegs = registrations.filter(
+      (reg) => reg.class_id === selectedClass,
+    );
+    const selectedObjs = students.filter((s) =>
+      selectedStudents.includes(s.id),
+    );
 
     // 总人数检查
     const totalAfterSelection = classRegs.length + selectedStudents.length;
@@ -227,30 +245,55 @@ const RegistrationManagement: React.FC = () => {
     const warnings: string[] = [];
 
     if (minLimit > 0 && totalAfterSelection < minLimit) {
-      warnings.push(`总人数 ${totalAfterSelection} 人，未达到最小要求 ${minLimit} 人`);
+      warnings.push(
+        `总人数 ${totalAfterSelection} 人，未达到最小要求 ${minLimit} 人`,
+      );
     } else if (maxLimit > 0 && totalAfterSelection > maxLimit) {
-      warnings.push(`总人数 ${totalAfterSelection} 人，超过最大限制 ${maxLimit} 人`);
+      warnings.push(
+        `总人数 ${totalAfterSelection} 人，超过最大限制 ${maxLimit} 人`,
+      );
     }
 
     // 混合性别项目：分别检查男女人数
     if (comp.gender === 3) {
-      const femaleRegistered = classRegs.filter((r) => r.student_gender === 2).length;
-      const maleRegistered = classRegs.filter((r) => r.student_gender === 1).length;
+      const femaleRegistered = classRegs.filter(
+        (r) => r.student_gender === 2,
+      ).length;
+      const maleRegistered = classRegs.filter(
+        (r) => r.student_gender === 1,
+      ).length;
       const femaleSelected = selectedObjs.filter((s) => s.gender === 2).length;
       const maleSelected = selectedObjs.filter((s) => s.gender === 1).length;
       const femaleTotal = femaleRegistered + femaleSelected;
       const maleTotal = maleRegistered + maleSelected;
 
-      if (comp.min_female_per_class > 0 && femaleTotal < comp.min_female_per_class) {
-        warnings.push(`女生人数 ${femaleTotal} 人，未达到最小要求 ${comp.min_female_per_class} 人`);
-      } else if (comp.max_female_per_class > 0 && femaleTotal > comp.max_female_per_class) {
-        warnings.push(`女生人数 ${femaleTotal} 人，超过最大限制 ${comp.max_female_per_class} 人`);
+      if (
+        comp.min_female_per_class > 0 &&
+        femaleTotal < comp.min_female_per_class
+      ) {
+        warnings.push(
+          `女生人数 ${femaleTotal} 人，未达到最小要求 ${comp.min_female_per_class} 人`,
+        );
+      } else if (
+        comp.max_female_per_class > 0 &&
+        femaleTotal > comp.max_female_per_class
+      ) {
+        warnings.push(
+          `女生人数 ${femaleTotal} 人，超过最大限制 ${comp.max_female_per_class} 人`,
+        );
       }
 
       if (comp.min_male_per_class > 0 && maleTotal < comp.min_male_per_class) {
-        warnings.push(`男生人数 ${maleTotal} 人，未达到最小要求 ${comp.min_male_per_class} 人`);
-      } else if (comp.max_male_per_class > 0 && maleTotal > comp.max_male_per_class) {
-        warnings.push(`男生人数 ${maleTotal} 人，超过最大限制 ${comp.max_male_per_class} 人`);
+        warnings.push(
+          `男生人数 ${maleTotal} 人，未达到最小要求 ${comp.min_male_per_class} 人`,
+        );
+      } else if (
+        comp.max_male_per_class > 0 &&
+        maleTotal > comp.max_male_per_class
+      ) {
+        warnings.push(
+          `男生人数 ${maleTotal} 人，超过最大限制 ${comp.max_male_per_class} 人`,
+        );
       }
     }
 
@@ -259,7 +302,9 @@ const RegistrationManagement: React.FC = () => {
         title: "报名人数不符合要求",
         content: (
           <ul style={{ paddingLeft: 16, margin: 0 }}>
-            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
           </ul>
         ),
         okText: "继续提交",
@@ -480,9 +525,10 @@ const RegistrationManagement: React.FC = () => {
     }
 
     // 若指定了比赛，只保留选中的
-    const targetCompetitions = exportCompetitionIds.length > 0
-      ? allCompetitions.filter((c) => exportCompetitionIds.includes(c.id))
-      : allCompetitions;
+    const targetCompetitions =
+      exportCompetitionIds.length > 0
+        ? allCompetitions.filter((c) => exportCompetitionIds.includes(c.id))
+        : allCompetitions;
 
     // 获取每个比赛的报名数据
     const competitionsWithRegistrations = await Promise.all(
@@ -496,8 +542,8 @@ const RegistrationManagement: React.FC = () => {
 
         // 如果选择了班级，只保留该班级的报名
         if (exportClassIds.length > 0) {
-          registrations = registrations.filter(
-            (reg) => exportClassIds.includes(reg.class_id),
+          registrations = registrations.filter((reg) =>
+            exportClassIds.includes(reg.class_id),
           );
         }
 
@@ -527,12 +573,18 @@ const RegistrationManagement: React.FC = () => {
       throw new Error("没有报名数据可导出");
     }
 
-    const classFilter = exportClassIds.length === 0
-      ? "全部"
-      : exportClassIds.length === 1
-        ? classes.find((c) => c.id === exportClassIds[0])?.name || ""
-        : `${exportClassIds.length}个班级`;
-    const styleLabel = exportStyle === "compact" ? "紧凑" : exportStyle === "full" ? "完整" : "径赛";
+    const classFilter =
+      exportClassIds.length === 0
+        ? "全部"
+        : exportClassIds.length === 1
+          ? classes.find((c) => c.id === exportClassIds[0])?.name || ""
+          : `${exportClassIds.length}个班级`;
+    const styleLabel =
+      exportStyle === "compact"
+        ? "紧凑"
+        : exportStyle === "full"
+          ? "完整"
+          : "径赛";
     const filename = `报名情况_按比赛_${styleLabel}_${classFilter}_${new Date().toLocaleDateString()}.xlsx`;
 
     // 动态导入 excel 工具
@@ -681,19 +733,22 @@ const RegistrationManagement: React.FC = () => {
 
             // 道次行
             const seqRow: any[] = ["道次"];
-            for (let i = 0; i < N; i++) seqRow.push(i < group.length ? String(i + 1) : "");
+            for (let i = 0; i < N; i++)
+              seqRow.push(i < group.length ? String(i + 1) : "");
             data.push(seqRow);
             row++;
 
             // 班级行
             const classRow: any[] = ["班级"];
-            for (let i = 0; i < N; i++) classRow.push(group[i]?.class_name ?? "");
+            for (let i = 0; i < N; i++)
+              classRow.push(group[i]?.class_name ?? "");
             data.push(classRow);
             row++;
 
             // 姓名行
             const nameRow: any[] = ["姓名"];
-            for (let i = 0; i < N; i++) nameRow.push(group[i]?.student_name ?? "");
+            for (let i = 0; i < N; i++)
+              nameRow.push(group[i]?.student_name ?? "");
             data.push(nameRow);
             row++;
 
@@ -715,11 +770,25 @@ const RegistrationManagement: React.FC = () => {
         };
 
         const baseName = competition.name.substring(0, 25);
-        const { data: regData, merges: regMerges, colWidths } = buildSheet(false);
+        const {
+          data: regData,
+          merges: regMerges,
+          colWidths,
+        } = buildSheet(false);
         const { data: scoreData, merges: scoreMerges } = buildSheet(true);
 
-        allSheets.push({ name: `${baseName}_报名`, data: regData, merges: regMerges, colWidths });
-        allSheets.push({ name: `${baseName}_成绩`, data: scoreData, merges: scoreMerges, colWidths });
+        allSheets.push({
+          name: `${baseName}_报名`,
+          data: regData,
+          merges: regMerges,
+          colWidths,
+        });
+        allSheets.push({
+          name: `${baseName}_成绩`,
+          data: scoreData,
+          merges: scoreMerges,
+          colWidths,
+        });
       });
 
       exportExcel(allSheets, filename);
@@ -878,29 +947,59 @@ const RegistrationManagement: React.FC = () => {
         onClick={() => openRegistrationModal(competition)}
         style={{ cursor: "pointer", height: "100%" }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, flex: 1, marginRight: 8 }}>{competition.name}</div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 8,
+          }}
+        >
+          <div
+            style={{ fontWeight: 600, fontSize: 15, flex: 1, marginRight: 8 }}
+          >
+            {competition.name}
+          </div>
           {getStatusTag(competition.status)}
         </div>
 
         {competition.description && (
-          <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{competition.description}</div>
+          <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+            {competition.description}
+          </div>
         )}
 
         {competition.start_time && competition.end_time && (
           <div style={{ fontSize: 12, color: "#999", marginBottom: 10 }}>
-            {dayjs(competition.start_time).format("MM-DD HH:mm")} – {dayjs(competition.end_time).format("HH:mm")}
+            {dayjs(competition.start_time).format("MM-DD HH:mm")} –{" "}
+            {dayjs(competition.end_time).format("HH:mm")}
           </div>
         )}
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
-          <Tag color={competition.competition_type === "team" ? "blue" : "green"} style={{ margin: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            marginBottom: 10,
+          }}
+        >
+          <Tag
+            color={competition.competition_type === "team" ? "blue" : "green"}
+            style={{ margin: 0 }}
+          >
             {competition.competition_type === "team" ? "团体" : "个人"}
           </Tag>
           {getGenderTag(competition.gender)}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <span style={{ fontSize: 12, color: "#888" }}>
             {limitText} · 已报名 {competition.registration_count ?? 0} 人
           </span>
@@ -908,7 +1007,10 @@ const RegistrationManagement: React.FC = () => {
             type="primary"
             size="small"
             icon={<UserOutlined />}
-            onClick={(e) => { e.stopPropagation(); openRegistrationModal(competition); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openRegistrationModal(competition);
+            }}
           >
             管理报名
           </Button>
@@ -1028,7 +1130,10 @@ const RegistrationManagement: React.FC = () => {
               <Button
                 icon={<FileExcelOutlined />}
                 onClick={async () => {
-                  await Promise.all([fetchClasses(), fetchExportCompetitions()]);
+                  await Promise.all([
+                    fetchClasses(),
+                    fetchExportCompetitions(),
+                  ]);
                   setExportModalVisible(true);
                 }}
               >
@@ -1049,7 +1154,16 @@ const RegistrationManagement: React.FC = () => {
         <List
           dataSource={competitions}
           rowKey="id"
-          grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 3, xxl: 3, xxxl: 3 }}
+          grid={{
+            gutter: 16,
+            xs: 1,
+            sm: 1,
+            md: 2,
+            lg: 2,
+            xl: 3,
+            xxl: 3,
+            xxxl: 3,
+          }}
           renderItem={(competition) => (
             <List.Item style={{ marginBottom: 16 }}>
               {renderCompetitionCard(competition)}
@@ -1113,46 +1227,89 @@ const RegistrationManagement: React.FC = () => {
           </div>
 
           {/* 班级筛选 */}
-          {registrations.length > 0 && (() => {
-            const classNames = Array.from(new Set(registrations.map((r) => r.class_name))).sort((a, b) => chineseSort(a, b));
-            return classNames.length > 1 ? (
-              <div style={{ marginBottom: 12 }}>
-                <Select
-                  placeholder="筛选班级"
-                  allowClear
-                  style={{ width: 160 }}
-                  onChange={(v) => setRegistrationClassFilter(v ?? null)}
-                >
-                  {classNames.map((c) => <Option key={c} value={c}>{c}</Option>)}
-                </Select>
-              </div>
-            ) : null;
-          })()}
+          {registrations.length > 0 &&
+            (() => {
+              const classNames = Array.from(
+                new Set(registrations.map((r) => r.class_name)),
+              ).sort((a, b) => chineseSort(a, b));
+              return classNames.length > 1 ? (
+                <div style={{ marginBottom: 12 }}>
+                  <Select
+                    placeholder="筛选班级"
+                    allowClear
+                    style={{ width: 160 }}
+                    onChange={(v) => setRegistrationClassFilter(v ?? null)}
+                  >
+                    {classNames.map((c) => (
+                      <Option key={c} value={c}>
+                        {c}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null;
+            })()}
 
           <Spin spinning={registrationLoading}>
             {registrations.length === 0 && !registrationLoading ? (
-              <div style={{ textAlign: "center", color: "#999", padding: "24px 0" }}>暂无报名数据</div>
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#999",
+                  padding: "24px 0",
+                }}
+              >
+                暂无报名数据
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[...registrations]
                   .sort((a, b) => {
-                    const classCompare = chineseSort(a.class_name, b.class_name);
+                    const classCompare = chineseSort(
+                      a.class_name,
+                      b.class_name,
+                    );
                     if (classCompare !== 0) return classCompare;
-                    return a.student_name.localeCompare(b.student_name, "zh-CN");
+                    return a.student_name.localeCompare(
+                      b.student_name,
+                      "zh-CN",
+                    );
                   })
-                  .filter((r) => !registrationClassFilter || r.class_name === registrationClassFilter)
+                  .filter(
+                    (r) =>
+                      !registrationClassFilter ||
+                      r.class_name === registrationClassFilter,
+                  )
                   .map((reg) => (
                     <Card
                       key={reg.id}
                       size="small"
                       styles={{ body: { padding: "8px 14px" } }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                          <span style={{ fontWeight: 500, minWidth: 60 }}>{reg.student_name}</span>
-                          <span style={{ fontSize: 12, color: "#666" }}>{reg.class_name}</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                          }}
+                        >
+                          <span style={{ fontWeight: 500, minWidth: 60 }}>
+                            {reg.student_name}
+                          </span>
+                          <span style={{ fontSize: 12, color: "#666" }}>
+                            {reg.class_name}
+                          </span>
                           {currentCompetition?.gender === 3 && (
-                            <span style={{ fontSize: 12, color: "#666" }}>{getGenderText(reg.student_gender)}</span>
+                            <span style={{ fontSize: 12, color: "#666" }}>
+                              {getGenderText(reg.student_gender)}
+                            </span>
                           )}
                           <span style={{ fontSize: 12, color: "#bbb" }}>
                             {isMobile
@@ -1166,7 +1323,9 @@ const RegistrationManagement: React.FC = () => {
                           okText="确定"
                           cancelText="取消"
                         >
-                          <Button size="small" danger icon={<DeleteOutlined />}>取消报名</Button>
+                          <Button size="small" danger icon={<DeleteOutlined />}>
+                            取消报名
+                          </Button>
                         </Popconfirm>
                       </div>
                     </Card>
@@ -1312,7 +1471,9 @@ const RegistrationManagement: React.FC = () => {
                       (currentCompetition.max_male_per_class > 0 &&
                         maleTotal > currentCompetition.max_male_per_class));
 
-                  const femaleStatusColor = hasFemaleViolation ? "red" : "green";
+                  const femaleStatusColor = hasFemaleViolation
+                    ? "red"
+                    : "green";
                   const maleStatusColor = hasMaleViolation ? "red" : "green";
 
                   if ((hasFemaleViolation || hasMaleViolation) && status) {
@@ -1333,7 +1494,9 @@ const RegistrationManagement: React.FC = () => {
                       }}
                     >
                       <span>
-                        <span style={{ color: statusColor, fontWeight: "bold" }}>
+                        <span
+                          style={{ color: statusColor, fontWeight: "bold" }}
+                        >
                           {statusText}
                         </span>
                         <span style={{ marginLeft: 8, color: "#666" }}>
@@ -1342,21 +1505,39 @@ const RegistrationManagement: React.FC = () => {
                       </span>
                       {hasFemaleLimit && (
                         <span>
-                          <span style={{ color: femaleStatusColor, fontWeight: "bold" }}>
+                          <span
+                            style={{
+                              color: femaleStatusColor,
+                              fontWeight: "bold",
+                            }}
+                          >
                             女
                           </span>
                           <span style={{ marginLeft: 4, color: "#666" }}>
-                            {femaleTotal}人/{genderLimitText(currentCompetition.min_female_per_class, currentCompetition.max_female_per_class)}
+                            {femaleTotal}人/
+                            {genderLimitText(
+                              currentCompetition.min_female_per_class,
+                              currentCompetition.max_female_per_class,
+                            )}
                           </span>
                         </span>
                       )}
                       {hasMaleLimit && (
                         <span>
-                          <span style={{ color: maleStatusColor, fontWeight: "bold" }}>
+                          <span
+                            style={{
+                              color: maleStatusColor,
+                              fontWeight: "bold",
+                            }}
+                          >
                             男
                           </span>
                           <span style={{ marginLeft: 4, color: "#666" }}>
-                            {maleTotal}人/{genderLimitText(currentCompetition.min_male_per_class, currentCompetition.max_male_per_class)}
+                            {maleTotal}人/
+                            {genderLimitText(
+                              currentCompetition.min_male_per_class,
+                              currentCompetition.max_male_per_class,
+                            )}
                           </span>
                         </span>
                       )}
@@ -1378,13 +1559,26 @@ const RegistrationManagement: React.FC = () => {
                 <div>
                   <div style={{ maxHeight: 300, overflowY: "auto" }}>
                     <List
-                      grid={{ gutter: 8, xs: 3, sm: 4, md: 4, lg: 4, xl: 4, xxl: 5, xxxl: 6 }}
+                      grid={{
+                        gutter: 8,
+                        xs: 3,
+                        sm: 4,
+                        md: 4,
+                        lg: 4,
+                        xl: 4,
+                        xxl: 5,
+                        xxxl: 6,
+                      }}
                       dataSource={students}
                       renderItem={(student) => {
-                        const alreadyRegistered = registrations.some((r) => r.student_id === student.id);
+                        const alreadyRegistered = registrations.some(
+                          (r) => r.student_id === student.id,
+                        );
                         const genderMatch = isStudentGenderMatch(student);
                         const canSelect = !alreadyRegistered && genderMatch;
-                        const isSelected = selectedStudents.includes(student.id);
+                        const isSelected = selectedStudents.includes(
+                          student.id,
+                        );
                         return (
                           <List.Item style={{ marginBottom: 8 }}>
                             <Card
@@ -1393,22 +1587,38 @@ const RegistrationManagement: React.FC = () => {
                               style={{
                                 cursor: canSelect ? "pointer" : "not-allowed",
                                 opacity: canSelect ? 1 : 0.5,
-                                border: isSelected ? "1px solid #1677ff" : undefined,
+                                border: isSelected
+                                  ? "1px solid #1677ff"
+                                  : undefined,
                                 background: isSelected ? "#e6f4ff" : undefined,
                               }}
                               onClick={() => {
                                 if (!canSelect) return;
                                 handleStudentSelect(
                                   isSelected
-                                    ? selectedStudents.filter((id) => id !== student.id)
+                                    ? selectedStudents.filter(
+                                        (id) => id !== student.id,
+                                      )
                                     : [...selectedStudents, student.id],
                                 );
                               }}
                             >
-                              <div style={{ fontWeight: 500, fontSize: 13 }}>{student.full_name}</div>
-                              <div style={{ fontSize: 11, color: "#999" }}>{getGenderText(student.gender)}</div>
-                              {alreadyRegistered && <div style={{ fontSize: 11, color: "#52c41a" }}>已报名</div>}
-                              {!genderMatch && <div style={{ fontSize: 11, color: "#ff4d4f" }}>性别不符</div>}
+                              <div style={{ fontWeight: 500, fontSize: 13 }}>
+                                {student.full_name}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#999" }}>
+                                {getGenderText(student.gender)}
+                              </div>
+                              {alreadyRegistered && (
+                                <div style={{ fontSize: 11, color: "#52c41a" }}>
+                                  已报名
+                                </div>
+                              )}
+                              {!genderMatch && (
+                                <div style={{ fontSize: 11, color: "#ff4d4f" }}>
+                                  性别不符
+                                </div>
+                              )}
                             </Card>
                           </List.Item>
                         );
@@ -1482,13 +1692,22 @@ const RegistrationManagement: React.FC = () => {
         width={800}
       >
         <div ref={checklistTableRef} style={{ padding: "20px" }}>
-          <div style={{ marginBottom: 16, fontSize: 18, fontWeight: "bold", textAlign: "center" }}>
+          <div
+            style={{
+              marginBottom: 16,
+              fontSize: 18,
+              fontWeight: "bold",
+              textAlign: "center",
+            }}
+          >
             报名检查清单
           </div>
           <Spin spinning={checklistLoading}>
             {(() => {
               // 按项目分组
-              const grouped = checklistResults.reduce<Record<number, typeof checklistResults>>((acc, item) => {
+              const grouped = checklistResults.reduce<
+                Record<number, typeof checklistResults>
+              >((acc, item) => {
                 if (!acc[item.competition_id]) acc[item.competition_id] = [];
                 acc[item.competition_id].push(item);
                 return acc;
@@ -1496,35 +1715,61 @@ const RegistrationManagement: React.FC = () => {
 
               const statusTag = (status: string) => {
                 if (status === "ok") return <Tag color="success">符合要求</Tag>;
-                if (status === "warning") return <Tag color="warning">警告</Tag>;
+                if (status === "warning")
+                  return <Tag color="warning">警告</Tag>;
                 return <Tag color="error">不符合要求</Tag>;
               };
 
               const borderColor = (s: string) =>
-                s === "error" ? "#ff4d4f" : s === "warning" ? "#faad14" : "#52c41a";
+                s === "error"
+                  ? "#ff4d4f"
+                  : s === "warning"
+                    ? "#faad14"
+                    : "#52c41a";
 
               return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
                   {Object.entries(grouped).map(([compId, items]) => {
                     const worstStatus = items.some((i) => i.status === "error")
                       ? "error"
                       : items.some((i) => i.status === "warning")
                         ? "warning"
                         : "ok";
-                    const hasDetails = !(items.length === 1 && items[0].status === "ok");
+                    const hasDetails = !(
+                      items.length === 1 && items[0].status === "ok"
+                    );
                     return (
                       <Card
                         key={compId}
                         styles={{ body: { padding: "20px 24px" } }}
-                        style={{ borderLeft: `4px solid ${borderColor(worstStatus)}` }}
+                        style={{
+                          borderLeft: `4px solid ${borderColor(worstStatus)}`,
+                        }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: hasDetails ? 16 : 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: hasDetails ? 16 : 0,
+                          }}
+                        >
                           <Button
                             type="link"
-                            style={{ padding: 0, fontWeight: 600, fontSize: 16, height: "auto" }}
+                            style={{
+                              padding: 0,
+                              fontWeight: 600,
+                              fontSize: 16,
+                              height: "auto",
+                            }}
                             onClick={async () => {
-                              const competition = competitions.find((c) => c.id === Number(compId));
-                              if (competition) await openRegistrationModal(competition);
+                              const competition = competitions.find(
+                                (c) => c.id === Number(compId),
+                              );
+                              if (competition)
+                                await openRegistrationModal(competition);
                             }}
                           >
                             {items[0].competition_name}
@@ -1532,9 +1777,24 @@ const RegistrationManagement: React.FC = () => {
                           {statusTag(worstStatus)}
                         </div>
                         {hasDetails && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                            }}
+                          >
                             {items.map((item, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "#555" }}>
+                              <div
+                                key={i}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 12,
+                                  fontSize: 14,
+                                  color: "#555",
+                                }}
+                              >
                                 {statusTag(item.status)}
                                 <span>{item.message}</span>
                               </div>
@@ -1620,7 +1880,10 @@ const RegistrationManagement: React.FC = () => {
                   allowClear
                   maxTagCount="responsive"
                   optionFilterProp="label"
-                  options={exportAllCompetitions.map((c) => ({ value: c.id, label: c.name }))}
+                  options={exportAllCompetitions.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  }))}
                 />
               </div>
               <div style={{ marginBottom: 16 }}>
@@ -1632,9 +1895,15 @@ const RegistrationManagement: React.FC = () => {
                   value={exportStyle}
                   onChange={setExportStyle}
                 >
-                  <Option value="compact">紧凑模式（一个Sheet，每行4人）</Option>
-                  <Option value="full">完整模式（每个比赛一个Sheet，一行一人）</Option>
-                  <Option value="track">径赛模式（每个比赛报名+成绩两张表，随机分道）</Option>
+                  <Option value="compact">
+                    紧凑模式（一个Sheet，每行4人）
+                  </Option>
+                  <Option value="full">
+                    完整模式（每个比赛一个Sheet，一行一人）
+                  </Option>
+                  <Option value="track">
+                    径赛模式（每个比赛报名+成绩两张表，随机分道）
+                  </Option>
                 </Select>
               </div>
               {exportStyle === "track" && (
@@ -1671,7 +1940,11 @@ const RegistrationManagement: React.FC = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ marginBottom: 8 }}>
                         <strong>测试次数</strong>
-                        <span style={{ color: "#888", fontSize: 12, marginLeft: 4 }}>（0=不显示测试区）</span>
+                        <span
+                          style={{ color: "#888", fontSize: 12, marginLeft: 4 }}
+                        >
+                          （0=不显示测试区）
+                        </span>
                       </div>
                       <InputNumber
                         style={{ width: "100%" }}
@@ -1749,8 +2022,16 @@ const RegistrationManagement: React.FC = () => {
                   <>
                     <li>每个比赛项目单独一个Sheet</li>
                     <li>一行显示一名学生的信息</li>
-                    {exportTestCount > 0 && <li>测试区：{exportTestCount}次成绩列 + {exportScoreType} + 名次</li>}
-                    <li>比赛区：{exportCompCount}次成绩列 + {exportScoreType} + 名次</li>
+                    {exportTestCount > 0 && (
+                      <li>
+                        测试区：{exportTestCount}次成绩列 + {exportScoreType} +
+                        名次
+                      </li>
+                    )}
+                    <li>
+                      比赛区：{exportCompCount}次成绩列 + {exportScoreType} +
+                      名次
+                    </li>
                   </>
                 ) : (
                   <>
@@ -1759,8 +2040,12 @@ const RegistrationManagement: React.FC = () => {
                     <li>报名表含道次/班级/姓名，成绩表额外含成绩/名次行</li>
                   </>
                 )}
-                {exportCompetitionIds.length > 0 && <li>仅导出所选的 {exportCompetitionIds.length} 个比赛</li>}
-                {exportClassIds.length > 0 && <li>仅导出所选的 {exportClassIds.length} 个班级的报名数据</li>}
+                {exportCompetitionIds.length > 0 && (
+                  <li>仅导出所选的 {exportCompetitionIds.length} 个比赛</li>
+                )}
+                {exportClassIds.length > 0 && (
+                  <li>仅导出所选的 {exportClassIds.length} 个班级的报名数据</li>
+                )}
               </ul>
             ) : (
               <ul style={{ paddingLeft: 20, margin: 0 }}>

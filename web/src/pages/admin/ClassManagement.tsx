@@ -282,11 +282,11 @@ const ClassManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-               <Button
-                 icon={<ReloadOutlined />}
-                 onClick={() => refreshClasses()}
-                 loading={loading}
-               >
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refreshClasses()}
+                loading={loading}
+              >
                 刷新
               </Button>
               <Button

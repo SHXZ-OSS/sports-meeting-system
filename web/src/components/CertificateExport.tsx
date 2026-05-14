@@ -67,7 +67,10 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
     if (visible && isScoreMode && scores) {
       const teamCompMap = new Map<number, string>();
       scores.forEach((score) => {
-        if (score.student_name === "集体" && !teamCompMap.has(score.competition_id)) {
+        if (
+          score.student_name === "集体" &&
+          !teamCompMap.has(score.competition_id)
+        ) {
           teamCompMap.set(score.competition_id, score.competition_name);
         }
       });
@@ -156,14 +159,16 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
         const selectedTeamCompIds = values.selectedTeamCompetitions || [];
 
         // 批量获取选中集体项目的报名数据
-        const teamCompRegistrations = new Map<number, Map<number, Registration[]>>();
-        
+        const teamCompRegistrations = new Map<
+          number,
+          Map<number, Registration[]>
+        >();
+
         if (selectedTeamCompIds.length > 0) {
           for (const compId of selectedTeamCompIds) {
-            const registrationsResponse = await adminRegistrationAPI.getCompetitionRegistrations(
-              compId,
-            );
-            
+            const registrationsResponse =
+              await adminRegistrationAPI.getCompetitionRegistrations(compId);
+
             await new Promise<void>((resolve) => {
               handleResp(
                 registrationsResponse,
@@ -192,15 +197,15 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
         // 为每个符合条件的成绩生成奖状
         for (const score of qualifiedScores) {
           // 判断是否是集体项目且被选中
-          const isSelectedTeamComp = 
-            score.student_name === "集体" && 
+          const isSelectedTeamComp =
+            score.student_name === "集体" &&
             selectedTeamCompIds.includes(score.competition_id);
 
           if (isSelectedTeamComp && score.class_id) {
             // 集体项目且被选中：从缓存中获取该班级的报名者，为每人生成奖状（保持原排名）
             const classMap = teamCompRegistrations.get(score.competition_id);
             const classRegistrations = classMap?.get(score.class_id) || [];
-            
+
             // 为每个报名者生成奖状，保持原有排名
             classRegistrations.forEach((registration) => {
               certificates.push({
@@ -224,9 +229,10 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
             });
           } else {
             // 个人项目或未被选中的集体项目：按正常逻辑生成
-            const participantName = score.student_name && score.student_name !== "集体"
-              ? `${score.class_name} ${score.student_name}`
-              : score.class_name;
+            const participantName =
+              score.student_name && score.student_name !== "集体"
+                ? `${score.class_name} ${score.student_name}`
+                : score.class_name;
 
             certificates.push({
               participantName,
@@ -540,14 +546,22 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
           </Input.Group>
         </Form.Item>
 
-        <Form.Item label="Y坐标配置 (mm)" extra="从顶部开始的距离，A4横向总高度为210mm">
+        <Form.Item
+          label="Y坐标配置 (mm)"
+          extra="从顶部开始的距离，A4横向总高度为210mm"
+        >
           <Input.Group compact>
             <Form.Item
               name="yPosition1"
               noStyle
               rules={[
                 { required: true, message: "请输入第一行Y坐标" },
-                { type: "number", min: 0, max: 210, message: "Y坐标必须在0-210之间" },
+                {
+                  type: "number",
+                  min: 0,
+                  max: 210,
+                  message: "Y坐标必须在0-210之间",
+                },
               ]}
             >
               <InputNumber
@@ -563,7 +577,12 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
               noStyle
               rules={[
                 { required: true, message: "请输入第二行Y坐标" },
-                { type: "number", min: 0, max: 210, message: "Y坐标必须在0-210之间" },
+                {
+                  type: "number",
+                  min: 0,
+                  max: 210,
+                  message: "Y坐标必须在0-210之间",
+                },
               ]}
             >
               <InputNumber
@@ -579,7 +598,12 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
               noStyle
               rules={[
                 { required: true, message: "请输入第三行Y坐标" },
-                { type: "number", min: 0, max: 210, message: "Y坐标必须在0-210之间" },
+                {
+                  type: "number",
+                  min: 0,
+                  max: 210,
+                  message: "Y坐标必须在0-210之间",
+                },
               ]}
             >
               <InputNumber
@@ -595,7 +619,12 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
               noStyle
               rules={[
                 { required: true, message: "请输入颁发单位Y坐标" },
-                { type: "number", min: 0, max: 210, message: "Y坐标必须在0-210之间" },
+                {
+                  type: "number",
+                  min: 0,
+                  max: 210,
+                  message: "Y坐标必须在0-210之间",
+                },
               ]}
             >
               <InputNumber
@@ -611,7 +640,12 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
               noStyle
               rules={[
                 { required: true, message: "请输入日期Y坐标" },
-                { type: "number", min: 0, max: 210, message: "Y坐标必须在0-210之间" },
+                {
+                  type: "number",
+                  min: 0,
+                  max: 210,
+                  message: "Y坐标必须在0-210之间",
+                },
               ]}
             >
               <InputNumber

@@ -6,7 +6,6 @@ import { WebsiteProvider } from "./contexts/WebsiteContext";
 import AppRouter from "./router/AppRouter";
 import "./App.css";
 
-
 // 打印项目信息：D
 console.log(
   "%c🏫 运动会管理系统 %c  By Henry  %c  https://itshenryz.com/ ",

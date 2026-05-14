@@ -160,23 +160,28 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
       round1Seeds.forEach((seed, index) => {
         const team1 = seed.teams[0]?.name || "";
         const team2 = seed.teams[1]?.name || "";
-        
+
         // 检查是否有一方轮空，另一方是选手
         let winner: string | null = null;
         if (team1 === "轮空" && team2 && team2 !== "" && team2 !== "轮空") {
           winner = team2;
-        } else if (team2 === "轮空" && team1 && team1 !== "" && team1 !== "轮空") {
+        } else if (
+          team2 === "轮空" &&
+          team1 &&
+          team1 !== "" &&
+          team1 !== "轮空"
+        ) {
           winner = team1;
         }
-        
+
         // 如果有自动晋级的选手，填入第二轮对应位置
         if (winner) {
           const nextRoundMatchIndex = Math.floor(index / 2);
           const nextRoundPosition = index % 2; // 0 = 上方，1 = 下方
-          
+
           if (rounds[1] && rounds[1].seeds[nextRoundMatchIndex]) {
-            rounds[1].seeds[nextRoundMatchIndex].teams[nextRoundPosition] = { 
-              name: winner 
+            rounds[1].seeds[nextRoundMatchIndex].teams[nextRoundPosition] = {
+              name: winner,
             };
           }
         }

@@ -599,11 +599,11 @@ const UserManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => refreshUsers()}
-                  loading={loading}
-                >
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refreshUsers()}
+                loading={loading}
+              >
                 刷新
               </Button>
               <Button
