@@ -94,6 +94,9 @@ const ClassManagement: React.FC = () => {
     );
   };
 
+  const refreshClasses = () =>
+    fetchClasses(currentPage, pageSize, Boolean(searchText));
+
   useEffect(() => {
     if (searchText) {
       fetchClasses(currentPage, pageSize, true);
@@ -128,7 +131,7 @@ const ClassManagement: React.FC = () => {
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchClasses();
+        refreshClasses();
       });
     } else {
       const response = await adminClassAPI.createClass({
@@ -136,7 +139,7 @@ const ClassManagement: React.FC = () => {
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchClasses();
+        refreshClasses();
       });
     }
   };
@@ -144,7 +147,7 @@ const ClassManagement: React.FC = () => {
   const handleDelete = async (cls: Class) => {
     const response = await adminClassAPI.deleteClass(cls.id);
     handleRespWithNotifySuccess(response, () => {
-      fetchClasses();
+      refreshClasses();
     });
   };
 
@@ -249,7 +252,7 @@ const ClassManagement: React.FC = () => {
             />
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => fetchClasses()}
+              onClick={() => refreshClasses()}
               loading={loading}
               size="large"
               style={{ width: "100%" }}
@@ -279,11 +282,11 @@ const ClassManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchClasses()}
-                loading={loading}
-              >
+               <Button
+                 icon={<ReloadOutlined />}
+                 onClick={() => refreshClasses()}
+                 loading={loading}
+               >
                 刷新
               </Button>
               <Button

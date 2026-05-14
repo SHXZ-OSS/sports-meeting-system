@@ -122,6 +122,9 @@ const StudentManagement: React.FC = () => {
     );
   };
 
+  const refreshStudents = () =>
+    fetchStudents(currentPage, pageSize, Boolean(searchText));
+
   // 获取班级列表
   const fetchClasses = async () => {
     const data = await adminClassAPI.getClasses();
@@ -204,7 +207,7 @@ const StudentManagement: React.FC = () => {
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchStudents();
+        refreshStudents();
         fetchClasses();
       });
     } else {
@@ -244,7 +247,7 @@ const StudentManagement: React.FC = () => {
           ),
         });
         closeModal();
-        fetchStudents();
+        refreshStudents();
         fetchClasses(); // 可能创建了新班级
       });
     }
@@ -254,7 +257,7 @@ const StudentManagement: React.FC = () => {
   const handleDelete = async (student: Student) => {
     const response = await adminStudentAPI.deleteStudent(student.id);
     handleRespWithNotifySuccess(response, () => {
-      fetchStudents();
+      refreshStudents();
     });
   };
 
@@ -305,7 +308,7 @@ const StudentManagement: React.FC = () => {
         setBatchProgressVisible(false);
         setBatchResults(results);
         setBatchResultsVisible(true);
-        fetchStudents();
+        refreshStudents();
         fetchClasses();
       },
     });
@@ -421,7 +424,7 @@ const StudentManagement: React.FC = () => {
             setBatchResults(results);
             setBatchResultsVisible(true);
             setSelectedRowKeys([]);
-            fetchStudents();
+            refreshStudents();
           },
         });
       },
@@ -479,7 +482,7 @@ const StudentManagement: React.FC = () => {
             setBatchResults(results);
             setBatchResultsVisible(true);
             setSelectedRowKeys([]);
-            fetchStudents();
+            refreshStudents();
 
             // 按班级分组密码
             const passwordsByClass = new Map<string, any[]>();
@@ -661,7 +664,7 @@ const StudentManagement: React.FC = () => {
             />
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => fetchStudents()}
+              onClick={() => refreshStudents()}
               loading={loading}
               size="large"
               style={{ width: "100%" }}
@@ -746,11 +749,11 @@ const StudentManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchStudents()}
-                loading={loading}
-              >
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => refreshStudents()}
+                  loading={loading}
+                >
                 刷新
               </Button>
               <Button

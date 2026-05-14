@@ -132,6 +132,9 @@ const CompetitionManagement: React.FC = () => {
     );
   };
 
+  const refreshCompetitions = () =>
+    fetchCompetitions(currentPage, pageSize, Boolean(searchText));
+
   useEffect(() => {
     if (searchText) {
       fetchCompetitions(currentPage, pageSize, true);
@@ -142,7 +145,11 @@ const CompetitionManagement: React.FC = () => {
 
   // 当排序方式改变时，重新获取数据
   useEffect(() => {
-    fetchCompetitions();
+    if (searchText) {
+      fetchCompetitions(currentPage, pageSize, true);
+    } else {
+      fetchCompetitions();
+    }
   }, [sortBy]);
 
   const handleApprove = async (competition: Competition) => {
@@ -150,7 +157,7 @@ const CompetitionManagement: React.FC = () => {
       competition.id,
     );
     handleRespWithNotifySuccess(response, () => {
-      fetchCompetitions();
+      refreshCompetitions();
     });
   };
 
@@ -159,7 +166,7 @@ const CompetitionManagement: React.FC = () => {
       competition.id,
     );
     handleRespWithNotifySuccess(response, () => {
-      fetchCompetitions();
+      refreshCompetitions();
     });
   };
 
@@ -168,7 +175,7 @@ const CompetitionManagement: React.FC = () => {
       competition.id,
     );
     handleRespWithNotifySuccess(response, () => {
-      fetchCompetitions();
+      refreshCompetitions();
     });
   };
 
@@ -230,7 +237,7 @@ const CompetitionManagement: React.FC = () => {
         setBatchProgressVisible(false);
         setBatchResults(results);
         setBatchResultsVisible(true);
-        fetchCompetitions();
+        refreshCompetitions();
       },
     });
 
@@ -293,7 +300,7 @@ const CompetitionManagement: React.FC = () => {
             setBatchResults(results);
             setBatchResultsVisible(true);
             setSelectedRowKeys([]);
-            fetchCompetitions();
+            refreshCompetitions();
           },
         });
       },
@@ -374,7 +381,7 @@ const CompetitionManagement: React.FC = () => {
       );
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchCompetitions();
+        refreshCompetitions();
       });
     } else {
       const response = await adminCompetitionAPI.createCompetition({
@@ -397,7 +404,7 @@ const CompetitionManagement: React.FC = () => {
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchCompetitions();
+        refreshCompetitions();
       });
     }
   };
@@ -642,7 +649,7 @@ const CompetitionManagement: React.FC = () => {
             />
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => fetchCompetitions()}
+              onClick={() => refreshCompetitions()}
               loading={loading}
               size="large"
               style={{ width: "100%" }}
@@ -729,11 +736,11 @@ const CompetitionManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchCompetitions()}
-                loading={loading}
-              >
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => refreshCompetitions()}
+                  loading={loading}
+                >
                 刷新
               </Button>
               <Button

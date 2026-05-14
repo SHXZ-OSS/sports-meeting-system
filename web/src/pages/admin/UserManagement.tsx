@@ -152,6 +152,9 @@ const UserManagement: React.FC = () => {
     );
   };
 
+  const refreshUsers = () =>
+    fetchUsers(currentPage, pageSize, Boolean(searchText));
+
   // 获取班级列表
   const fetchClasses = async () => {
     const response = await adminUserAPI.getClasses();
@@ -232,7 +235,7 @@ const UserManagement: React.FC = () => {
       );
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchUsers();
+        refreshUsers();
       });
     } else {
       // 创建用户
@@ -248,7 +251,7 @@ const UserManagement: React.FC = () => {
       const response = await adminUserAPI.createUser(createData);
       handleRespWithNotifySuccess(response, () => {
         closeModal();
-        fetchUsers();
+        refreshUsers();
       });
     }
   };
@@ -257,7 +260,7 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (user: User) => {
     const response = await adminUserAPI.deleteUser(user.id);
     handleRespWithNotifySuccess(response, () => {
-      fetchUsers();
+      refreshUsers();
     });
   };
 
@@ -310,7 +313,7 @@ const UserManagement: React.FC = () => {
         setBatchProgressVisible(false);
         setBatchResults(results);
         setBatchResultsVisible(true);
-        fetchUsers();
+        refreshUsers();
       },
     });
 
@@ -371,7 +374,7 @@ const UserManagement: React.FC = () => {
             setBatchResults(results);
             setBatchResultsVisible(true);
             setSelectedRowKeys([]);
-            fetchUsers();
+            refreshUsers();
           },
         });
       },
@@ -532,7 +535,7 @@ const UserManagement: React.FC = () => {
             />
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => fetchUsers()}
+              onClick={() => refreshUsers()}
               loading={loading}
               size="large"
               style={{ width: "100%" }}
@@ -596,11 +599,11 @@ const UserManagement: React.FC = () => {
                 }}
                 style={{ width: 250 }}
               />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchUsers()}
-                loading={loading}
-              >
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => refreshUsers()}
+                  loading={loading}
+                >
                 刷新
               </Button>
               <Button
