@@ -70,6 +70,11 @@ import type { ScoreboardSettings } from "../../utils/scoreboardSettings";
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
+interface SpeakTextOptions {
+  onEnd?: () => void;
+  onError?: () => void;
+}
+
 const PublicScoreboard: React.FC = () => {
   const isMobile = useIsMobile();
 
@@ -83,6 +88,7 @@ const PublicScoreboard: React.FC = () => {
     SpeechSynthesisVoice[]
   >([]);
   const announcementMarkerRef = useRef<string | null>(null);
+  const speechRequestIdRef = useRef(0);
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSavedSettingsRef = useRef(false);
@@ -249,6 +255,8 @@ const PublicScoreboard: React.FC = () => {
   } = useWebsite();
 
   const stopAnnouncement = useCallback(() => {
+    speechRequestIdRef.current += 1;
+
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       return;
     }
@@ -257,14 +265,14 @@ const PublicScoreboard: React.FC = () => {
   }, []);
 
   const speakText = useCallback(
-    (text: string) => {
+    (text: string, options?: SpeakTextOptions) => {
       if (
         !speechSupported ||
         typeof window === "undefined" ||
         !("speechSynthesis" in window) ||
         !text.trim()
       ) {
-        return;
+        return false;
       }
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -283,8 +291,23 @@ const PublicScoreboard: React.FC = () => {
       utterance.rate = scoreboardSettings.scoreAnnouncement.speechRate;
 
       const synth = window.speechSynthesis;
+      const requestId = speechRequestIdRef.current + 1;
+      speechRequestIdRef.current = requestId;
+
+      const finalize = (callback?: () => void) => {
+        if (speechRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        callback?.();
+      };
+
+      utterance.onend = () => finalize(options?.onEnd);
+      utterance.onerror = () => finalize(options?.onError);
       synth.cancel();
       synth.speak(utterance);
+
+      return true;
     },
     [
       availableVoices,
@@ -1293,25 +1316,34 @@ const PublicScoreboard: React.FC = () => {
 
     // 在展示成绩的最后一步触发 confetti 并播放音效
     const currentScore = animationQueue[scoreIndex];
+    let playedEffectAfterAnnouncement = false;
     if (shouldAnnounceScore(scoreboardSettings, currentScore)) {
       const announcementKey = `${animatingCompetition.id}-${currentScore.id}-${currentIndex}`;
       if (announcementMarkerRef.current !== announcementKey) {
         announcementMarkerRef.current = announcementKey;
-        speakText(
-          buildAnimationStepAnnouncement(
-            animatingCompetition,
-            currentScore,
-            stepInScore,
-          ),
+        const announcementText = buildAnimationStepAnnouncement(
+          animatingCompetition,
+          currentScore,
+          stepInScore,
         );
+
+        if (stepInScore === 3) {
+          playedEffectAfterAnnouncement = speakText(announcementText, {
+            onEnd: playEffect,
+            onError: playEffect,
+          });
+        } else {
+          speakText(announcementText);
+        }
       }
     }
 
     if (stepInScore === 3) {
       const ranking = currentScore.ranking;
 
-      // 播放音效
-      playEffect();
+      if (!playedEffectAfterAnnouncement) {
+        playEffect();
+      }
 
       if (ranking === 1) {
         confetti({

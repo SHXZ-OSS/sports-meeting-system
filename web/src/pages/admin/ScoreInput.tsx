@@ -36,6 +36,7 @@ import CertificateExport from "../../components/CertificateExport";
 
 const { Title } = Typography;
 const { Option } = Select;
+const SCORE_PAGE_SIZE_OPTIONS = ["10", "30", "50", "100"];
 
 interface ScoreFormData {
   competition_id: number;
@@ -60,6 +61,8 @@ const ScoreInput: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [certificateModalVisible, setCertificateModalVisible] = useState(false);
   const [allCompletedScores, setAllCompletedScores] = useState<Score[]>([]);
+  const [scoreTablePage, setScoreTablePage] = useState(1);
+  const [scoreTablePageSize, setScoreTablePageSize] = useState(30);
 
   const fetchCompetitions = async () => {
     setLoading(true);
@@ -110,9 +113,17 @@ const ScoreInput: React.FC = () => {
     fetchCompetitions();
   }, []);
 
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(scores.length / scoreTablePageSize));
+    if (scoreTablePage > maxPage) {
+      setScoreTablePage(maxPage);
+    }
+  }, [scoreTablePage, scoreTablePageSize, scores.length]);
+
   const handleCompetitionChange = async (competitionId: number) => {
     const competition = competitions.find((c) => c.id === competitionId);
     setSelectedCompetition(competition || null);
+    setScoreTablePage(1);
     if (competitionId) {
       await Promise.all([
         fetchScores(competitionId),
@@ -701,8 +712,17 @@ const ScoreInput: React.FC = () => {
             loading={loading}
             tableLayout="auto"
             pagination={{
-              pageSize: 10,
+              current: scoreTablePage,
+              pageSize: scoreTablePageSize,
+              total: scores.length,
+              showSizeChanger: true,
+              pageSizeOptions: SCORE_PAGE_SIZE_OPTIONS,
+              showQuickJumper: true,
               showTotal: (total) => `共 ${total} 条成绩`,
+              onChange: (page, size) => {
+                setScoreTablePage(page);
+                setScoreTablePageSize(size || 30);
+              },
             }}
             locale={{
               emptyText: "暂无成绩数据",
