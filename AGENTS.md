@@ -8,7 +8,7 @@ sports-meeting-system is a sports meeting management system for Shanghai Xingzhi
 - Backend: Go 1.27+ (Gin, GORM)
 - Frontend: React 19 (TypeScript, Ant Design, Vite)
 - Database: SQLite only (`github.com/ncruces/go-sqlite3/gormlite`, pure Go — no CGO)
-- Auth: JWT + DingTalk login
+- Auth: JWT + DingTalk/OIDC login
 - Deployment: the frontend build is embedded into the Go binary via `//go:embed`
 
 ## Repository Structure

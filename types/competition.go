@@ -67,6 +67,7 @@ type Competition struct {
 	AllowConcurrent         bool              `json:"allow_concurrent"               gorm:"default:false"` // 允许兼项
 
 	// 关联关系，不响应到前端
+	Event          *Event         `json:"-" gorm:"foreignKey:EventID"`
 	Submitter      *Student       `json:"-" gorm:"foreignKey:SubmitterID"`
 	Reviewer       *User          `json:"-" gorm:"foreignKey:ReviewerID"`
 	ScoreSubmitter *User          `json:"-" gorm:"foreignKey:ScoreSubmitterID"`

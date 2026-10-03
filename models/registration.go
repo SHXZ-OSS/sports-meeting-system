@@ -65,22 +65,18 @@ func UnregisterFromCompetition(studentID *int, classID *int, competitionID int, 
 	return nil
 }
 
-// GetCompetitionRegistrations 获取比赛的报名列表（支持班级scope）
-// scopeClassIDs: 可选的班级ID列表，用于过滤报名记录。如果为nil，则返回所有报名记录
-func GetCompetitionRegistrations(competitionID int, scopeClassIDs *[]int) ([]*types.Registration, error) {
+// GetCompetitionRegistrations 获取比赛的报名列表
+// scopeClassID: 数据权限过滤的班级ID，0 表示不过滤（全局管理员）
+func GetCompetitionRegistrations(competitionID int, scopeClassID int) ([]*types.Registration, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
 	// 构建查询
 	query := db.Preload("Student.Class").Where("competition_id = ?", competitionID)
 
-	// 如果提供了scopeClassIDs，应用班级scope过滤
-	if scopeClassIDs != nil {
-		if len(*scopeClassIDs) == 0 {
-			// 没有任何班级权限，返回空列表
-			return []*types.Registration{}, nil
-		}
-		query = query.Where("class_id IN ?", *scopeClassIDs)
+	// 如果限定了数据权限班级，应用过滤
+	if scopeClassID > 0 {
+		query = query.Where("class_id = ?", scopeClassID)
 	}
 
 	// 查询报名记录，包含学生、班级信息
@@ -144,8 +140,8 @@ func GetStudentRegistrationsByStudentID(studentID int) ([]*types.Competition, er
 }
 
 // GetCompetitionChecklist 获取比赛报名检查清单
-// scopeClassIDs: 可选的班级ID列表，用于过滤检查范围。如果为nil，则检查所有班级
-func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
+// scopeClassID: 数据权限过滤的班级ID，0 表示检查所有班级（全局管理员）
+func GetCompetitionChecklist(scopeClassID int) ([]map[string]any, error) {
 	db := database.GetDB()
 
 	// 获取当前届次的所有比赛项目
@@ -156,13 +152,8 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 		return nil, err
 	}
 
-	// 如果提供了scopeClassIDs且为空，返回空列表
-	if scopeClassIDs != nil && len(*scopeClassIDs) == 0 {
-		return []map[string]any{}, nil
-	}
-
 	// 检查学生报名时间冲突
-	timeConflictIssues := checkStudentTimeConflicts(db, scopeClassIDs)
+	timeConflictIssues := checkStudentTimeConflicts(db, scopeClassID)
 
 	// 检查每个项目
 	var results []map[string]any
@@ -170,8 +161,8 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 		// 查询该项目的报名情况（混合性别时需要 Preload Student 以获取性别）
 		var registrations []types.Registration
 		query := db.Where("competition_id = ?", comp.ID)
-		if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
-			query = query.Where("class_id IN ?", *scopeClassIDs)
+		if scopeClassID > 0 {
+			query = query.Where("class_id = ?", scopeClassID)
 		}
 		needGender := comp.Gender == 3 &&
 			(comp.MinFemalePerClass > 0 || comp.MaxFemalePerClass > 0 || comp.MinMalePerClass > 0 || comp.MaxMalePerClass > 0)
@@ -203,8 +194,8 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 
 		// 检查每个班级是否符合要求
 		var classes []types.Class
-		if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
-			db.Where("id IN ?", *scopeClassIDs).Find(&classes)
+		if scopeClassID > 0 {
+			db.Where("id = ?", scopeClassID).Find(&classes)
 		} else {
 			db.Find(&classes)
 		}
@@ -303,7 +294,8 @@ func appendCountIssue(
 }
 
 // checkStudentTimeConflicts 检查学生报名的比赛时间是否有冲突
-func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]any {
+// scopeClassID: 数据权限过滤的班级ID，0 表示检查所有班级
+func checkStudentTimeConflicts(db *gorm.DB, scopeClassID int) []map[string]any {
 	var issues []map[string]any
 
 	// 获取当前届次所有有时间信息的比赛
@@ -324,8 +316,8 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 	// 获取所有报名记录
 	var registrations []types.Registration
 	query := db.Preload("Student")
-	if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
-		query = query.Where("class_id IN ?", *scopeClassIDs)
+	if scopeClassID > 0 {
+		query = query.Where("class_id = ?", scopeClassID)
 	}
 	if err := query.Find(&registrations).Error; err != nil {
 		return issues

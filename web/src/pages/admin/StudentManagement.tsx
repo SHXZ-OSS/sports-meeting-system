@@ -216,6 +216,7 @@ const StudentManagement: React.FC = () => {
         class_name: values.class_name,
         gender: values.gender,
         dingtalk_id: values.dingtalk_id || "",
+        username: values.username?.trim() || "",
       });
       handleRespWithNotifySuccess(response, (data) => {
         Modal.success({
@@ -280,6 +281,8 @@ const StudentManagement: React.FC = () => {
           class_name: row["班级"],
           gender: genderMap[row["性别"]] || 1,
           dingtalk_id: row["钉钉ID"] || "",
+          // 预定义用户名可选；留空由后端自动生成，冲突按行报错
+          username: (row["用户名"] || "").trim(),
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -912,6 +915,22 @@ const StudentManagement: React.FC = () => {
             <Input placeholder="可选，用于钉钉登录" />
           </Form.Item>
 
+          {!editingStudent && (
+            <Form.Item
+              label="用户名"
+              name="username"
+              tooltip="留空自动生成（stu+姓名拼音首字母+随机数）"
+              rules={[
+                {
+                  pattern: /^[a-zA-Z0-9_]+$/,
+                  message: "用户名只能包含字母、数字和下划线",
+                },
+              ]}
+            >
+              <Input placeholder="可选，留空自动生成" />
+            </Form.Item>
+          )}
+
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>
               <Button onClick={closeModal}>取消</Button>
@@ -930,9 +949,9 @@ const StudentManagement: React.FC = () => {
           {
             title: "学生数据",
             importTemplate: [
-              ["姓名", "班级", "性别", "钉钉ID"],
-              ["张三", "高一1班", "男", ""],
-              ["李四", "高一1班", "女", ""],
+              ["姓名", "班级", "性别", "用户名", "钉钉ID"],
+              ["张三", "高一1班", "男", "", ""],
+              ["李四", "高一1班", "女", "stulis0001", ""],
             ],
             importTemplateFilename: "学生导入模板.xlsx",
             importRequiredFields: ["姓名", "班级", "性别"],

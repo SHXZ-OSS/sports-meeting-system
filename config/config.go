@@ -27,6 +27,15 @@ type Config struct {
 		AgentID   string `json:"agent_id"`
 		CorpID    string `json:"corp_id"`
 	} `json:"dingtalk"`
+	Oidc struct {
+		Enabled      bool   `json:"enabled"`       // 是否启用 OIDC 登录（如接入慧云 xzzx-sis）
+		AuthorizeURL string `json:"authorize_url"` // 授权端点完整地址，如 https://sis.example.com/api/oauth/authorize
+		TokenURL     string `json:"token_url"`     // 令牌端点完整地址，如 https://sis.example.com/api/oauth/token
+		UserinfoURL  string `json:"userinfo_url"`  // 用户信息端点完整地址，如 https://sis.example.com/api/oauth/userinfo
+		ClientID     string `json:"client_id"`     // 在提供方注册的客户端 ID
+		ClientSecret string `json:"client_secret"` // 在提供方注册的客户端密钥
+		Scopes       string `json:"scopes"`        // 授权范围，默认 openid profile
+	} `json:"oidc"`
 	Security struct {
 		JWTSecret string `json:"jwt_secret"`
 	} `json:"security"`
@@ -45,6 +54,8 @@ type Config struct {
 		RegistrationStartTime     string `json:"registration_start_time"`      // 报名开始时间
 		RegistrationEndTime       string `json:"registration_end_time"`        // 报名结束时间
 		MaxRegistrationsPerPerson int    `json:"max_registrations_per_person"` // 每个人最多可报名的个人比赛项目数量，0表示无限制
+		AllowStudentRegistration  bool   `json:"allow_student_registration"`   // 是否允许学生本人报名；关闭后仅管理员与班级账号可报名
+		AllowStudentSubmission    bool   `json:"allow_student_submission"`     // 是否允许学生本人提交推荐项目；关闭后仅管理员与班级账号可提交
 	} `json:"competition"`
 	Dashboard struct {
 		Enabled bool `json:"enabled"` // 看板功能是否启用
@@ -78,8 +89,12 @@ func Load() error {
 		config.Competition.RegistrationStartTime = ""
 		config.Competition.RegistrationEndTime = ""
 		config.Competition.MaxRegistrationsPerPerson = 0 // 默认无限制
-		config.Dashboard.Enabled = true                  // 默认启用看板功能
-		config.CurrentEventID = 1                        // 默认选中第一届运动会
+		config.Competition.AllowStudentRegistration = true
+		config.Competition.AllowStudentSubmission = true
+		config.Oidc.Enabled = false
+		config.Oidc.Scopes = "openid profile"
+		config.Dashboard.Enabled = true // 默认启用看板功能
+		config.CurrentEventID = 1       // 默认选中第一届运动会
 
 		// 默认得分映射配置
 		config.Scoring.TeamPointsMapping = map[string]float64{

@@ -70,33 +70,12 @@ const UserManagement: React.FC = () => {
   const [classes, setClasses] = useState<Class[]>([]); // 班级列表
   const [batchProgressVisible, setBatchProgressVisible] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
-  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
-  const [selectedClassScopes, setSelectedClassScopes] = useState<number[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<number | undefined>();
 
-  // 检查是否有不支持scope的权限
-  const hasNonScopedPermissions = (permissions: number[]): boolean => {
-    const permission = calculatePermissions(permissions);
-    const nonScopedPermissions = [
-      PERMISSIONS.PROJECT_MANAGEMENT,
-      PERMISSIONS.SCORE_INPUT,
-      PERMISSIONS.SCORE_REVIEW,
-      PERMISSIONS.USER_MANAGEMENT,
-      PERMISSIONS.WEBSITE_MANAGEMENT,
-    ];
-    return nonScopedPermissions.some((perm) => (permission & perm) !== 0);
-  };
-
-  // 检查表单是否可以提交
-  const isFormValid = (): boolean => {
-    // 如果有不支持scope的权限，且选择了班级scope，则不能提交
-    if (
-      hasNonScopedPermissions(selectedPermissions) &&
-      selectedClassScopes.length > 0
-    ) {
-      return false;
-    }
-    return true;
-  };
+  // 班级账号固定持有的权限位：学生与班级管理 + 报名管理
+  const CLASS_ACCOUNT_PERMISSIONS =
+    PERMISSIONS.STUDENT_AND_CLASS_MANAGEMENT |
+    PERMISSIONS.REGISTRATION_MANAGEMENT;
 
   // 获取用户列表
   const fetchUsers = async (
@@ -188,17 +167,14 @@ const UserManagement: React.FC = () => {
 
     if (user) {
       const permissions = getSelectedPermissions(user.permission || 0);
-      const classScopes = user.class_scopes?.map((c) => c.id) || [];
-      setSelectedPermissions(permissions);
-      setSelectedClassScopes(classScopes);
+      setSelectedClassId(user.class_id);
       form.setFieldsValue({
         ...user,
         permission: permissions,
-        class_scope_ids: classScopes,
+        class_id: user.class_id,
       });
     } else {
-      setSelectedPermissions([]);
-      setSelectedClassScopes([]);
+      setSelectedClassId(undefined);
       form.resetFields();
     }
   };
@@ -207,14 +183,17 @@ const UserManagement: React.FC = () => {
   const closeModal = () => {
     setModalVisible(false);
     setEditingUser(null);
-    setSelectedPermissions([]);
-    setSelectedClassScopes([]);
+    setSelectedClassId(undefined);
     form.resetFields();
   };
 
   // 提交表单
   const handleSubmit = async (values: any) => {
-    const permission = calculatePermissions(values.permission || []);
+    // 班级账号权限位由后端校验固定，前端统一按班级账号权限提交
+    const classId = values.class_id || undefined;
+    const permission = classId
+      ? CLASS_ACCOUNT_PERMISSIONS
+      : calculatePermissions(values.permission || []);
 
     if (editingUser) {
       // 更新用户
@@ -222,7 +201,7 @@ const UserManagement: React.FC = () => {
         full_name: values.full_name,
         permission: permission,
         dingtalk_id: values.dingtalk_id || "",
-        class_scope_ids: values.class_scope_ids || [],
+        class_id: classId,
       };
 
       if (values.password) {
@@ -245,7 +224,7 @@ const UserManagement: React.FC = () => {
         full_name: values.full_name,
         permission: permission,
         dingtalk_id: values.dingtalk_id || "",
-        class_scope_ids: values.class_scope_ids || [],
+        class_id: classId,
       };
 
       const response = await adminUserAPI.createUser(createData);
@@ -270,30 +249,24 @@ const UserManagement: React.FC = () => {
       id: index,
       name: row["用户名"] || `第${index + 1}行`,
       request: async () => {
-        // 处理班级权限范围：将班级名称转换为班级ID
-        let class_scope_ids: number[] = [];
-        if (row["班级权限范围"] && row["班级权限范围"].trim()) {
-          const classNames = row["班级权限范围"]
-            .split(/[,，、]/)
-            .map((name: string) => name.trim())
-            .filter((name: string) => name);
-
-          // 根据班级名称查找班级ID
-          class_scope_ids = classNames
-            .map((className: string) => {
-              const foundClass = classes.find((c) => c.name === className);
-              return foundClass?.id;
-            })
-            .filter((id: number | undefined): id is number => id !== undefined);
+        // 处理班级账号：将班级名称转换为班级ID，班级账号固定权限位
+        let classId: number | undefined;
+        let permission = Number(row["权限"]) || 0;
+        if (row["班级"] && row["班级"].trim()) {
+          const foundClass = classes.find((c) => c.name === row["班级"].trim());
+          if (foundClass) {
+            classId = foundClass.id;
+            permission = CLASS_ACCOUNT_PERMISSIONS;
+          }
         }
 
         const response = await adminUserAPI.createUser({
           username: row["用户名"],
           full_name: row["姓名"],
           password: String(row["密码"]),
-          permission: Number(row["权限"]) || 0,
+          permission: permission,
           dingtalk_id: row["钉钉ID"] || "",
-          class_scope_ids: class_scope_ids,
+          class_id: classId,
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -432,26 +405,20 @@ const UserManagement: React.FC = () => {
       ),
     },
     {
-      title: "班级权限",
-      dataIndex: "class_scopes",
-      key: "class_scopes",
-      render: (class_scopes?: Class[]) => {
-        if (!class_scopes || class_scopes.length === 0) {
-          return <Tag color="gold">全局管理员</Tag>;
-        }
-        return (
+      title: "账号类型",
+      dataIndex: "class_id",
+      key: "class_id",
+      render: (_: number | undefined, record: User) =>
+        record.class ? (
           <div style={{ maxWidth: 150 }}>
-            {class_scopes.slice(0, 2).map((c) => (
-              <Tag key={c.id} color="blue" style={{ marginBottom: 4 }}>
-                {c.name}
-              </Tag>
-            ))}
-            {class_scopes.length > 2 && (
-              <Tag color="default">+{class_scopes.length - 2}</Tag>
-            )}
+            <Tag color="blue">班级账号</Tag>
+            <Tag color="geekblue" style={{ marginBottom: 4 }}>
+              {record.class.name}
+            </Tag>
           </div>
-        );
-      },
+        ) : (
+          <Tag color="gold">全局管理员</Tag>
+        ),
     },
     {
       title: "钉钉ID",
@@ -766,11 +733,7 @@ const UserManagement: React.FC = () => {
           </Row>
 
           <Form.Item label="权限设置" name="permission">
-            <Checkbox.Group
-              onChange={(checkedValues) =>
-                setSelectedPermissions(checkedValues as number[])
-              }
-            >
+            <Checkbox.Group disabled={!!selectedClassId}>
               <Row gutter={[16, 16]}>
                 {PERMISSION_OPTIONS.map((perm) => (
                   <Col span={24} key={perm.value}>
@@ -788,12 +751,11 @@ const UserManagement: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="班级权限范围"
-            name="class_scope_ids"
-            tooltip="留空表示全局管理员，可以管理所有班级；选择班级后只能管理指定班级的学生和报名"
+            label="班级"
+            name="class_id"
+            tooltip="留空表示全局管理员；选择班级后为班级账号，仅能管理该班级的学生与报名，并代本班提交推荐项目"
           >
             <Select
-              mode="multiple"
               placeholder="留空表示全局管理员"
               allowClear
               showSearch
@@ -806,42 +768,39 @@ const UserManagement: React.FC = () => {
                 label: c.name,
                 value: c.id,
               }))}
-              onChange={(values) => setSelectedClassScopes(values as number[])}
+              onChange={(value) => {
+                setSelectedClassId(value);
+                if (value) {
+                  // 班级账号固定权限位，自动勾选并锁定
+                  form.setFieldValue(
+                    "permission",
+                    getSelectedPermissions(CLASS_ACCOUNT_PERMISSIONS),
+                  );
+                }
+              }}
             />
           </Form.Item>
 
-          {hasNonScopedPermissions(selectedPermissions) &&
-            selectedClassScopes.length > 0 && (
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: "12px",
-                  backgroundColor: "#fff2e8",
-                  border: "1px solid #ffbb96",
-                  borderRadius: "4px",
-                }}
-              >
-                <div style={{ color: "#d4380d", fontWeight: "bold" }}>
-                  ⚠️ 权限配置冲突
-                </div>
-                <div style={{ color: "#d4380d", marginTop: 4 }}>
-                  选择的权限中包含"项目管理"、"成绩录入"、"成绩审核"、"用户管理"或"网站管理"权限时，不能指定班级权限范围。
-                  <br />
-                  只有"学生班级管理"和"报名管理"权限支持班级权限范围。
-                  <br />
-                  请取消班级权限范围选择或调整权限配置。
-                </div>
+          {selectedClassId && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px",
+                backgroundColor: "#e6f4ff",
+                border: "1px solid #91caff",
+                borderRadius: "4px",
+              }}
+            >
+              <div style={{ color: "#1677ff" }}>
+                已选择班级账号模式：权限自动限定为「学生与班级管理」和「报名管理」，数据仅限所选班级。
               </div>
-            )}
+            </div>
+          )}
 
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>
               <Button onClick={closeModal}>取消</Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                disabled={!isFormValid()}
-              >
+              <Button type="primary" htmlType="submit">
                 {editingUser ? "更新" : "创建"}
               </Button>
             </Space>
@@ -856,16 +815,9 @@ const UserManagement: React.FC = () => {
           {
             title: "用户数据",
             importTemplate: [
-              ["用户名", "姓名", "密码", "权限", "钉钉ID", "班级权限范围"],
+              ["用户名", "姓名", "密码", "权限", "钉钉ID", "班级"],
               ["admin001", "管理员1", "password123", "1", "", ""],
-              [
-                "admin002",
-                "管理员2",
-                "password456",
-                "63",
-                "",
-                "高一1班,高一2班",
-              ],
+              ["admin002", "班级账号1", "password456", "68", "", "高一1班"],
             ],
             importTemplateFilename: "用户导入模板.xlsx",
             importRequiredFields: ["用户名", "姓名", "密码", "权限"],
@@ -878,10 +830,7 @@ const UserManagement: React.FC = () => {
                 姓名: u.full_name,
                 权限: u.permission,
                 钉钉ID: u.dingtalk_id || "",
-                班级权限范围:
-                  u.class_scopes && u.class_scopes.length > 0
-                    ? u.class_scopes.map((c: any) => c.name).join(",")
-                    : "",
+                班级: u.class?.name || "",
               })),
             exportFilename: "用户数据.xlsx",
             exportButtonText: "导出全部用户",

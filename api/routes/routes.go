@@ -12,6 +12,7 @@ import (
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/handlers"
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
@@ -54,6 +55,11 @@ func (n noListFS) Open(name string) (fs.File, error) {
 // SetupRouter 设置路由
 func SetupRouter(staticFS fs.FS) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
+
+	// Gin 的请求日志与 Panic 恢复日志统一走 logger
+	gin.DefaultWriter = logger.GinWriter()
+	gin.DefaultErrorWriter = logger.GinWriter()
+
 	r := gin.Default()
 
 	// API 路由
@@ -65,6 +71,9 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	// 钉钉SSO登录路由
 	public.GET("/dingtalk/sso_redirect", handlers.DingTalkSSORedirect)
 	public.GET("/dingtalk/sso_callback", handlers.DingTalkSSOCallback)
+	// OIDC SSO 登录路由（接入慧云等 OIDC 提供方）
+	public.GET("/oidc/auth_redirect", handlers.OIDCSSORedirect)
+	public.GET("/oidc/callback", handlers.OIDCSSOCallback)
 
 	// 看板相关API路由
 	dashboard := public.Group("")
@@ -92,6 +101,9 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	// 管理员API路由
 	adminAPI := secured.Group("/admin")
 	adminAPI.Use(middlewares.AdminMiddleware())
+
+	// 班级账号提交推荐项目（走待审核路径；全局管理员调用则直接生效）
+	adminAPI.POST("/competitions/submit", handlers.CreateCompetition)
 
 	// 用户管理（需要用户管理权限）
 	userMgmt := adminAPI.Group("/users")

@@ -73,12 +73,15 @@ func ServeIndexHTML(staticFS fs.FS) gin.HandlerFunc {
 func buildInitialData(cfg *config.Config) gin.H {
 	return gin.H{
 		"website_info": gin.H{
-			"name":             cfg.Website.Name,
-			"icp_beian":        cfg.Website.ICPBeian,
-			"public_sec_beian": cfg.Website.PublicSecBeian,
-			"dingtalk_corp_id": cfg.DingTalk.CorpID,
-			"domain":           cfg.Website.Domain,
-			"logo_url":         logoURL(cfg),
+			"name":                       cfg.Website.Name,
+			"icp_beian":                  cfg.Website.ICPBeian,
+			"public_sec_beian":           cfg.Website.PublicSecBeian,
+			"dingtalk_corp_id":           cfg.DingTalk.CorpID,
+			"domain":                     cfg.Website.Domain,
+			"logo_url":                   logoURL(cfg),
+			"allow_student_registration": cfg.Competition.AllowStudentRegistration,
+			"allow_student_submission":   cfg.Competition.AllowStudentSubmission,
+			"oidc_enabled":               cfg.Oidc.Enabled && cfg.Oidc.ClientID != "",
 		},
 	}
 }

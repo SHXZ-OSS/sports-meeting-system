@@ -6,6 +6,7 @@ export interface CreateStudentRequest {
   class_name: string;
   gender: number;
   dingtalk_id?: string;
+  username?: string; // 预定义用户名；留空自动生成
 }
 
 export interface UpdateStudentRequest {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,6 +13,25 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
+
+// buildBaseURL 解析对外可访问的基础地址：优先使用配置域名，否则按当前请求推断
+func buildBaseURL(c *gin.Context) string {
+	cfg := config.Get()
+	if cfg.Website.Domain != "" {
+		return cfg.Website.Domain
+	}
+
+	scheme := "https"
+	if c.Request.TLS == nil {
+		// 检查X-Forwarded-Proto头
+		if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+			scheme = proto
+		} else {
+			scheme = "http"
+		}
+	}
+	return fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+}
 
 // LoginRequest 登录请求
 type LoginRequest struct {
@@ -144,26 +164,8 @@ func DingTalkSSORedirect(c *gin.Context) {
 		redirectPath = "/"
 	}
 
-	// 构建回调URL
-	var baseURL string
-	if cfg.Website.Domain != "" {
-		// 如果配置了域名，使用配置的域名
-		baseURL = cfg.Website.Domain
-	} else {
-		// 否则使用当前请求的域名
-		scheme := "https"
-		if c.Request.TLS == nil {
-			// 检查X-Forwarded-Proto头
-			if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
-				scheme = proto
-			} else {
-				scheme = "http"
-			}
-		}
-		baseURL = fmt.Sprintf("%s://%s", scheme, c.Request.Host)
-	}
 	redirectURI := fmt.Sprintf("%s/api/public/dingtalk/sso_callback?redirect=%s",
-		baseURL, url.QueryEscape(redirectPath))
+		buildBaseURL(c), url.QueryEscape(redirectPath))
 
 	// 构建钉钉OAuth2授权URL
 	urlValues := url.Values{}
@@ -185,22 +187,7 @@ func DingTalkSSOCallback(c *gin.Context) {
 	}
 	redirectPath := c.Query("redirect") // 回调后重定向的路径
 
-	// 获取基础URL
-	cfg := config.Get()
-	var baseURL string
-	if cfg.Website.Domain != "" {
-		baseURL = cfg.Website.Domain
-	} else {
-		scheme := "https"
-		if c.Request.TLS == nil {
-			if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
-				scheme = proto
-			} else {
-				scheme = "http"
-			}
-		}
-		baseURL = fmt.Sprintf("%s://%s", scheme, c.Request.Host)
-	}
+	baseURL := buildBaseURL(c)
 
 	if code == "" {
 		// 重定向回前端，带上错误信息
@@ -238,4 +225,104 @@ func DingTalkSSOCallback(c *gin.Context) {
 		url.QueryEscape(token),
 		url.QueryEscape(string(userJSON)))
 	c.Redirect(http.StatusFound, redirectURL)
+}
+
+// OIDCSSORedirect OIDC SSO 登录重定向（接入慧云等 OIDC 提供方）
+func OIDCSSORedirect(c *gin.Context) {
+	cfg := config.Get()
+	if !cfg.Oidc.Enabled || cfg.Oidc.ClientID == "" ||
+		cfg.Oidc.AuthorizeURL == "" || cfg.Oidc.TokenURL == "" || cfg.Oidc.UserinfoURL == "" {
+		utils.ResponseError(c, http.StatusBadRequest, "OIDC 登录未配置")
+		return
+	}
+
+	// 获取最终重定向路径（SSO完成后跳转回的页面）
+	redirectPath := c.Query("redirect")
+	if redirectPath == "" {
+		redirectPath = "/"
+	}
+
+	redirectURI := fmt.Sprintf("%s/api/public/oidc/callback?redirect=%s",
+		buildBaseURL(c), url.QueryEscape(redirectPath))
+
+	state, verifier, codeChallenge, err := utils.GenerateOIDCPKCE()
+	if err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "生成 OIDC 随机参数失败")
+		return
+	}
+
+	// state 与 code_verifier 经短期 Cookie 携带到回调，用于防 CSRF 与 PKCE 兑换
+	c.SetCookie("oidc_state", state, 600, "/", "", false, true)
+	c.SetCookie("oidc_verifier", verifier, 600, "/", "", false, true)
+
+	authURL := utils.BuildOIDCAuthURL(redirectURI, state, codeChallenge, cfg.Oidc.Scopes)
+	c.Redirect(http.StatusFound, authURL)
+}
+
+// OIDCSSOCallback OIDC SSO 登录回调
+func OIDCSSOCallback(c *gin.Context) {
+	code := c.Query("code")
+	redirectPath := c.Query("redirect")
+	if redirectPath == "" {
+		redirectPath = "/"
+	}
+	baseURL := buildBaseURL(c)
+
+	failRedirect := func(err error) {
+		c.Redirect(http.StatusFound,
+			fmt.Sprintf("%s%s?oidc_error=%s", baseURL, redirectPath, url.QueryEscape(err.Error())))
+	}
+
+	if code == "" {
+		failRedirect(errors.New("未获取到授权码"))
+		return
+	}
+
+	// 校验 state 防 CSRF
+	expectedState, err := c.Cookie("oidc_state")
+	if err != nil || expectedState == "" || expectedState != c.Query("state") {
+		failRedirect(errors.New("state 校验失败，请重新发起登录"))
+		return
+	}
+	verifier, err := c.Cookie("oidc_verifier")
+	if err != nil || verifier == "" {
+		failRedirect(errors.New("登录会话已过期，请重新发起登录"))
+		return
+	}
+	// 一次性消费，防重放
+	c.SetCookie("oidc_state", "", -1, "/", "", false, true)
+	c.SetCookie("oidc_verifier", "", -1, "/", "", false, true)
+
+	redirectURI := fmt.Sprintf("%s/api/public/oidc/callback?redirect=%s",
+		baseURL, url.QueryEscape(redirectPath))
+
+	tokenResp, err := utils.ExchangeOIDCCode(c.Request.Context(), code, redirectURI, verifier)
+	if err != nil {
+		failRedirect(err)
+		return
+	}
+
+	userInfo, err := utils.GetOIDCUserInfo(c.Request.Context(), tokenResp.AccessToken)
+	if err != nil {
+		failRedirect(err)
+		return
+	}
+
+	// 按用户名匹配本地账号并签发本系统的 JWT
+	token, userObj, err := services.OIDCLogin(userInfo.PreferredUsername)
+	if err != nil {
+		failRedirect(err)
+		return
+	}
+
+	userJSON, err := json.Marshal(userObj)
+	if err != nil {
+		failRedirect(errors.New("用户信息序列化失败"))
+		return
+	}
+
+	c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?oidc_token=%s&oidc_user=%s",
+		baseURL,
+		url.QueryEscape(token),
+		url.QueryEscape(string(userJSON))))
 }

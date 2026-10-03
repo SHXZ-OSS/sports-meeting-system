@@ -4,7 +4,8 @@ export interface User {
   full_name: string;
   role: "admin" | "student";
   permission?: number;
-  class_scopes?: Class[]; // 班级权限范围，空表示全局管理员
+  class_id?: number; // 班级账号所属班级；空表示全局管理员
+  class?: Class;
 }
 
 export interface Student {
@@ -136,6 +137,9 @@ export interface WebsiteInfo {
   dingtalk_corp_id: string;
   domain: string;
   logo_url?: string;
+  allow_student_registration?: boolean; // 是否允许学生本人报名；关闭后仅管理员与班级账号可报名
+  allow_student_submission?: boolean; // 是否允许学生本人提交推荐项目；关闭后仅管理员与班级账号可提交
+  oidc_enabled?: boolean; // 是否启用 OIDC 登录（如接入慧云）
 }
 
 export interface ApiResponse<T = unknown> {

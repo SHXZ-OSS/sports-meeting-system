@@ -26,6 +26,7 @@ import {
   FormOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  PlusCircleOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../contexts/AuthContext";
 import { useWebsite } from "../contexts/WebsiteContext";
@@ -37,6 +38,9 @@ import NotFound from "../components/NotFound";
 
 // Admin 懒加载组件
 const AdminDashboard = React.lazy(() => import("../pages/admin/Dashboard"));
+const AdminSubmitCompetition = React.lazy(
+  () => import("../pages/admin/SubmitCompetition"),
+);
 const UserManagement = React.lazy(
   () => import("../pages/admin/UserManagement"),
 );
@@ -83,7 +87,11 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, hasPermission } = useAuth();
-  const { name: websiteName, logo_url } = useWebsite();
+  const {
+    name: websiteName,
+    logo_url,
+    allow_student_submission,
+  } = useWebsite();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const isMobile = useIsMobile();
@@ -105,6 +113,12 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         key: "/admin",
         icon: <DashboardOutlined />,
         label: "仪表板",
+      },
+      // 班级账号专属：代本班学生提交推荐项目
+      user?.class_id && {
+        key: "/admin/submit-competition",
+        icon: <PlusCircleOutlined />,
+        label: "提交推荐项目",
       },
       hasPermission(PERMISSIONS.USER_MANAGEMENT) && {
         key: "/admin/users",
@@ -182,7 +196,8 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         icon: <TrophyOutlined />,
         label: "报名项目",
       },
-      {
+      // 学生本人提交被配置关闭时隐藏入口（班级账号走管理端）
+      allow_student_submission && {
         key: "/student/submit",
         icon: <FormOutlined />,
         label: "推荐项目",
@@ -284,6 +299,12 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       return (
         <Routes>
           <Route path="/" element={<AdminDashboard />} />
+          {user?.class_id && (
+            <Route
+              path="/submit-competition"
+              element={<AdminSubmitCompetition />}
+            />
+          )}
           {hasPermission(PERMISSIONS.USER_MANAGEMENT) && (
             <Route path="/users" element={<UserManagement />} />
           )}

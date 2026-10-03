@@ -165,3 +165,32 @@ func DingTalkSSOLogin(userID, _ string) (string, any, error) {
 
 	return loginByDingTalkID(userID)
 }
+
+// OIDCLogin OIDC 登录：直接按用户名匹配本地账号，先学生后管理员（与钉钉登录的匹配顺序一致）
+func OIDCLogin(username string) (string, any, error) {
+	if username == "" {
+		return "", nil, errors.New("OIDC 账号用户名为空")
+	}
+
+	// 先尝试匹配学生
+	student, err := models.GetStudentByUsername(username)
+	if err == nil {
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, student, nil
+	}
+
+	// 再尝试匹配管理员
+	user, err := models.GetUserByUsername(username)
+	if err == nil {
+		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, user, nil
+	}
+
+	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的用户名为：" + username)
+}

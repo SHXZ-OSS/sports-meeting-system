@@ -21,6 +21,10 @@ const defaultWebsiteInfo: WebsiteInfo = {
   public_sec_beian: "",
   dingtalk_corp_id: "",
   domain: "",
+  // 默认放开，待接口返回后按配置收敛
+  allow_student_registration: true,
+  allow_student_submission: true,
+  oidc_enabled: false,
 };
 
 const WebsiteContext = createContext<WebsiteContextType | undefined>(undefined);

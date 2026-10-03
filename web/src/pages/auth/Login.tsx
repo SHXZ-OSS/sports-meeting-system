@@ -11,7 +11,12 @@ import {
   Alert,
   message,
 } from "antd";
-import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
+import {
+  UserOutlined,
+  LockOutlined,
+  LoginOutlined,
+  SafetyCertificateOutlined,
+} from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
@@ -33,7 +38,12 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const { name: websiteName, dingtalk_corp_id, logo_url } = useWebsite();
+  const {
+    name: websiteName,
+    dingtalk_corp_id,
+    logo_url,
+    oidc_enabled,
+  } = useWebsite();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInDingTalk, setIsInDingTalk] = useState(false);
@@ -82,25 +92,20 @@ const Login: React.FC = () => {
     }
   }, []);
 
-  // 处理 URL 参数中的钉钉登录信息
+  // 处理 URL 参数中的钉钉/OIDC 登录信息
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const dingtalkToken = params.get("dingtalk_token");
     const dingtalkUser = params.get("dingtalk_user");
     const dingtalkError = params.get("dingtalk_error");
+    const oidcToken = params.get("oidc_token");
+    const oidcUser = params.get("oidc_user");
+    const oidcError = params.get("oidc_error");
 
-    if (dingtalkError) {
-      setError(`钉钉登录失败: ${dingtalkError}`);
-      message.error(`钉钉登录失败: ${dingtalkError}`);
-      // 清除 URL 参数
-      navigate("/login", { replace: true });
-      return;
-    }
-
-    if (dingtalkToken && dingtalkUser) {
+    const completeSSOLogin = (token: string, userJSON: string) => {
       try {
-        const user = JSON.parse(dingtalkUser);
-        login(user, dingtalkToken);
+        const user = JSON.parse(userJSON);
+        login(user, token);
         message.success("登录成功");
         // 根据用户角色跳转
         if (user.role === "admin") {
@@ -112,6 +117,31 @@ const Login: React.FC = () => {
         setError("登录信息解析失败");
         navigate("/login", { replace: true });
       }
+    };
+
+    if (dingtalkError) {
+      setError(`钉钉登录失败: ${dingtalkError}`);
+      message.error(`钉钉登录失败: ${dingtalkError}`);
+      // 清除 URL 参数
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (dingtalkToken && dingtalkUser) {
+      completeSSOLogin(dingtalkToken, dingtalkUser);
+      return;
+    }
+
+    if (oidcError) {
+      setError(`OIDC 登录失败: ${oidcError}`);
+      message.error(`OIDC 登录失败: ${oidcError}`);
+      // 清除 URL 参数
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (oidcToken && oidcUser) {
+      completeSSOLogin(oidcToken, oidcUser);
       return;
     }
   }, [location, login, navigate]);
@@ -134,6 +164,19 @@ const Login: React.FC = () => {
       window.location.href =
         "/api/public/dingtalk/sso_redirect?redirect=/login";
     }
+  };
+
+  const handleOIDCLogin = () => {
+    if (!oidc_enabled) {
+      setError("OIDC 登录未配置，请使用账号密码登录");
+      return;
+    }
+
+    // 清除错误状态
+    setError(null);
+
+    // 跳转到 OIDC 提供方（慧云）的授权页面
+    window.location.href = "/api/public/oidc/auth_redirect?redirect=/login";
   };
 
   return (
@@ -244,6 +287,21 @@ const Login: React.FC = () => {
                 }}
               >
                 钉钉登录
+              </Button>
+            </>
+          )}
+
+          {oidc_enabled && (
+            <>
+              <Divider>或</Divider>
+              <Button
+                block
+                size="large"
+                onClick={handleOIDCLogin}
+                disabled={loading}
+                icon={<SafetyCertificateOutlined />}
+              >
+                使用 上海市行知中学统一认证 登录
               </Button>
             </>
           )}

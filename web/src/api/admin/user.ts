@@ -7,7 +7,7 @@ export interface CreateUserRequest {
   full_name: string;
   permission: number;
   dingtalk_id?: string;
-  class_scope_ids?: number[]; // 班级scope列表，空表示全局管理员
+  class_id?: number; // 班级账号所属班级；空表示全局管理员
 }
 
 export interface UpdateUserRequest {
@@ -15,7 +15,7 @@ export interface UpdateUserRequest {
   permission?: number;
   password?: string;
   dingtalk_id?: string;
-  class_scope_ids?: number[]; // 班级scope列表
+  class_id?: number; // 班级账号所属班级；空表示全局管理员
 }
 
 /**
