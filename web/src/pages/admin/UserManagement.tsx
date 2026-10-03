@@ -254,10 +254,12 @@ const UserManagement: React.FC = () => {
         let permission = Number(row["权限"]) || 0;
         if (row["班级"] && row["班级"].trim()) {
           const foundClass = classes.find((c) => c.name === row["班级"].trim());
-          if (foundClass) {
-            classId = foundClass.id;
-            permission = CLASS_ACCOUNT_PERMISSIONS;
+          if (!foundClass) {
+            // 班级名不存在时拒绝该行，避免误建全局管理员
+            throw new Error(`班级「${row["班级"].trim()}」不存在`);
           }
+          classId = foundClass.id;
+          permission = CLASS_ACCOUNT_PERMISSIONS;
         }
 
         const response = await adminUserAPI.createUser({

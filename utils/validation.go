@@ -469,9 +469,9 @@ func ValidateUserCreateOrUpdate(operatorPermission, targetPermission, originalPe
 		return ErrCannotModifyHigherPermissionUser
 	}
 
-	// 班级账号只能持有学生与班级管理、报名管理两个权限位
+	// 班级账号权限位固定为：学生与班级管理、报名管理（须与权限位集合完全一致）
 	isClassBound := classID != nil && *classID > 0
-	if isClassBound && targetPermission&^classBoundAllowedPermissions != 0 {
+	if isClassBound && targetPermission != classBoundAllowedPermissions {
 		return ErrScopeNotAllowedForPermissions
 	}
 

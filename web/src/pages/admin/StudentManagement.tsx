@@ -282,7 +282,8 @@ const StudentManagement: React.FC = () => {
           gender: genderMap[row["性别"]] || 1,
           dingtalk_id: row["钉钉ID"] || "",
           // 预定义用户名可选；留空由后端自动生成，冲突按行报错
-          username: (row["用户名"] || "").trim(),
+          // Excel 会把纯数字用户名给成 number，先转 string 再 trim
+          username: String(row["用户名"] || "").trim(),
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -921,6 +922,7 @@ const StudentManagement: React.FC = () => {
               name="username"
               tooltip="留空自动生成（stu+姓名拼音首字母+随机数）"
               rules={[
+                { min: 3, max: 20, message: "用户名长度需在3-20个字符之间" },
                 {
                   pattern: /^[a-zA-Z0-9_]+$/,
                   message: "用户名只能包含字母、数字和下划线",

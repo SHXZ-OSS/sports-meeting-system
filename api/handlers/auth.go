@@ -230,8 +230,7 @@ func DingTalkSSOCallback(c *gin.Context) {
 // OIDCSSORedirect OIDC SSO 登录重定向（接入慧云等 OIDC 提供方）
 func OIDCSSORedirect(c *gin.Context) {
 	cfg := config.Get()
-	if !cfg.Oidc.Enabled || cfg.Oidc.ClientID == "" ||
-		cfg.Oidc.AuthorizeURL == "" || cfg.Oidc.TokenURL == "" || cfg.Oidc.UserinfoURL == "" {
+	if !oidcLoginReady(cfg) {
 		utils.ResponseError(c, http.StatusBadRequest, "OIDC 登录未配置")
 		return
 	}

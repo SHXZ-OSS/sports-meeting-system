@@ -24,6 +24,12 @@ type WebsiteInfoResponse struct {
 	OIDCEnabled bool `json:"oidc_enabled"`
 }
 
+// oidcLoginReady 统一认证是否已具备可用配置（与 OIDCSSORedirect 的校验保持一致）
+func oidcLoginReady(cfg *config.Config) bool {
+	return cfg.Oidc.Enabled && cfg.Oidc.ClientID != "" &&
+		cfg.Oidc.AuthorizeURL != "" && cfg.Oidc.TokenURL != "" && cfg.Oidc.UserinfoURL != ""
+}
+
 // GetWebsiteInfo 获取网站信息（公共API）
 func GetWebsiteInfo(c *gin.Context) {
 	// 获取配置
@@ -39,7 +45,7 @@ func GetWebsiteInfo(c *gin.Context) {
 		LogoURL:                  logoURL(cfg),
 		AllowStudentRegistration: cfg.Competition.AllowStudentRegistration,
 		AllowStudentSubmission:   cfg.Competition.AllowStudentSubmission,
-		OIDCEnabled:              cfg.Oidc.Enabled && cfg.Oidc.ClientID != "",
+		OIDCEnabled:              oidcLoginReady(cfg),
 	}
 
 	// 返回响应

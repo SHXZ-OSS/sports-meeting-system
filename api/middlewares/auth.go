@@ -117,6 +117,35 @@ func PermissionMiddleware(requiredPermission int) gin.HandlerFunc {
 	}
 }
 
+// ClassBoundOrProjectPermission 班级账号或持有项目管理权限的中间件
+// 用于班级账号代提交推荐项目路由：班级账号放行，未绑定班级的管理员需持有项目管理权限
+func ClassBoundOrProjectPermission() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 获取用户信息
+		userID, ok := GetUserIDFromContext(c)
+		if !ok {
+			utils.ResponseError(c, http.StatusUnauthorized, "unauthorized")
+			c.Abort()
+			return
+		}
+
+		user, err := models.GetUserByID(userID)
+		if err != nil {
+			utils.ResponseError(c, http.StatusUnauthorized, "user not found")
+			c.Abort()
+			return
+		}
+
+		if models.IsClassBound(user) || models.HasPermission(user, utils.PermissionProjectManagement) {
+			c.Next()
+			return
+		}
+
+		utils.ResponseError(c, http.StatusForbidden, "insufficient permissions")
+		c.Abort()
+	}
+}
+
 // StudentMiddleware 学生验证中间件
 func StudentMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

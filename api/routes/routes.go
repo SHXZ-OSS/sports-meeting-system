@@ -102,8 +102,10 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	adminAPI := secured.Group("/admin")
 	adminAPI.Use(middlewares.AdminMiddleware())
 
-	// 班级账号提交推荐项目（走待审核路径；全局管理员调用则直接生效）
-	adminAPI.POST("/competitions/submit", handlers.CreateCompetition)
+	// 班级账号提交推荐项目（走待审核路径；全局管理员调用则直接生效，需持有项目管理权限）
+	submitCompetition := adminAPI.Group("/competitions/submit")
+	submitCompetition.Use(middlewares.ClassBoundOrProjectPermission())
+	submitCompetition.POST("", handlers.CreateCompetition)
 
 	// 用户管理（需要用户管理权限）
 	userMgmt := adminAPI.Group("/users")

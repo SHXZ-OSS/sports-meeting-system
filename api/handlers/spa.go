@@ -81,7 +81,7 @@ func buildInitialData(cfg *config.Config) gin.H {
 			"logo_url":                   logoURL(cfg),
 			"allow_student_registration": cfg.Competition.AllowStudentRegistration,
 			"allow_student_submission":   cfg.Competition.AllowStudentSubmission,
-			"oidc_enabled":               cfg.Oidc.Enabled && cfg.Oidc.ClientID != "",
+			"oidc_enabled":               oidcLoginReady(cfg),
 		},
 	}
 }
