@@ -1,53 +1,7 @@
-/* 全局样式 */
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  padding: 20px;
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 卡片样式 */
+/* 卡片视觉增强（antd token 未覆盖的阴影效果） */
 .ant-card {
-  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
-}
-
-.ant-card-head {
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.ant-card-head-title {
-  color: #262626;
-  font-weight: 600;
 }
 
 /* 悬停效果卡片 */
@@ -89,44 +43,18 @@
   color: white;
 }
 
-/* 统计数值样式 */
+/* 统计数值样式（Statistic 无对应 token） */
 .ant-statistic-content-value {
   color: #262626;
   font-weight: 600;
 }
 
-/* 表格样式 */
-.ant-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.ant-table-thead > tr > th {
-  background: #fafafa;
-  border-bottom: 2px solid #f0f0f0;
-  font-weight: 600;
-  color: #262626;
-}
-
-/* 表格行悬停效果 */
-.ant-table-tbody > tr:hover > td {
-  background: #f5f5f5 !important;
-}
-
-/* 表单标签样式 */
+/* 表单/描述列表标签加粗（token 仅支持颜色，见 App.tsx 的 theme.components） */
 .ant-form-item-label > label {
   font-weight: 600;
-  color: #262626;
 }
 
-/* 模态框样式 */
-.ant-modal-header {
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
-}
-
-.ant-modal-title {
-  color: #262626;
+.ant-descriptions-item-label {
   font-weight: 600;
 }
 
@@ -134,52 +62,6 @@
 .ant-tag {
   border-radius: 4px;
   font-weight: 500;
-}
-
-/* 按钮组间距 */
-.ant-space-item {
-  margin-right: 8px;
-}
-
-/* 页面标题样式 */
-h1.ant-typography,
-h2.ant-typography,
-h3.ant-typography {
-  color: #262626;
-  font-weight: 600;
-}
-
-/* 分页器样式 */
-.ant-pagination {
-  text-align: right;
-  margin-top: 16px;
-}
-
-/* 空状态样式 */
-.ant-empty-description {
-  color: #999;
-}
-
-/* 加载状态样式 */
-.ant-spin-container {
-  transition: opacity 0.3s;
-}
-
-/* 面包屑样式 */
-.ant-breadcrumb {
-  margin-bottom: 16px;
-}
-
-/* 警告提示样式 */
-.ant-alert {
-  border-radius: 6px;
-  margin-bottom: 16px;
-}
-
-/* 描述列表样式 */
-.ant-descriptions-item-label {
-  font-weight: 600;
-  color: #595959;
 }
 
 /* 页面头部操作区域 */
@@ -193,7 +75,6 @@ h3.ant-typography {
 .page-header-title {
   font-size: 20px;
   font-weight: 600;
-  color: #262626;
   margin: 0;
 }
 
@@ -234,7 +115,7 @@ h3.ant-typography {
     touch-action: manipulation;
   }
 
-  /* 卡片优化 */
+  /* antd 无断点级 token，以下紧凑化覆盖必须用 !important 压过 cssinjs 输出 */
   .ant-card {
     border-radius: 8px !important;
     margin-bottom: 12px !important;

@@ -1,7 +1,14 @@
+// 旧浏览器 polyfill（目标见 package.json 的 browserslist）
+import "core-js/stable";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import React from "react";
+
+// 动态 import 的 chunk 加载失败时重载（发版后旧页面加载新 chunk 404 的场景）
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
+});
 
 const container = document.getElementById("root");
 if (!container) {

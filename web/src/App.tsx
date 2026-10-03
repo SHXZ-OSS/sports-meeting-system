@@ -1,5 +1,10 @@
 import { BrowserRouter } from "react-router-dom";
 import { ConfigProvider, theme, App as AntdApp } from "antd";
+import {
+  StyleProvider,
+  legacyLogicalPropertiesTransformer,
+  autoPrefixTransformer,
+} from "@ant-design/cssinjs";
 import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WebsiteProvider } from "./contexts/WebsiteContext";
@@ -30,36 +35,71 @@ console.log(
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider
-      locale={zhCN}
-      theme={{
-        algorithm: theme.defaultAlgorithm,
-        token: {
-          borderRadius: 8,
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-        },
-        components: {
-          Layout: {
-            colorBgHeader: "#ffffff",
-          },
-          Button: {
-            borderRadius: 6,
-            controlHeight: 36,
-          },
-        },
-      }}
+    // hashPriority="high" 降低 antd 样式优先级，便于全局 CSS 覆盖；
+    // transformers 将逻辑属性/标准属性转换为旧浏览器兼容写法
+    <StyleProvider
+      hashPriority="high"
+      transformers={[legacyLogicalPropertiesTransformer, autoPrefixTransformer]}
     >
-      <AntdApp>
-        <BrowserRouter>
-          <WebsiteProvider>
-            <AuthProvider>
-              <AppRouter />
-            </AuthProvider>
-          </WebsiteProvider>
-        </BrowserRouter>
-      </AntdApp>
-    </ConfigProvider>
+      <ConfigProvider
+        locale={zhCN}
+        theme={{
+          algorithm: theme.defaultAlgorithm,
+          token: {
+            borderRadius: 8,
+            fontFamily:
+              "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            colorTextHeading: "#262626",
+          },
+          components: {
+            Layout: {
+              colorBgHeader: "#ffffff",
+            },
+            Card: {
+              headerBg: "#fafafa",
+            },
+            Table: {
+              headerBg: "#fafafa",
+              headerColor: "#262626",
+              headerSplitColor: "#f0f0f0",
+              rowHoverBg: "#f5f5f5",
+            },
+            Form: {
+              labelColor: "#262626",
+            },
+            Modal: {
+              headerBg: "#fafafa",
+            },
+            Typography: {
+              colorTextHeading: "#262626",
+            },
+            Empty: {
+              colorTextDescription: "#999999",
+            },
+            Descriptions: {
+              labelColor: "#595959",
+            },
+            Alert: {
+              marginXS: 16,
+            },
+            Button: {
+              borderRadius: 6,
+              controlHeight: 36,
+            },
+          },
+        }}
+      >
+        <AntdApp>
+          <BrowserRouter>
+            <WebsiteProvider>
+              <AuthProvider>
+                <AppRouter />
+              </AuthProvider>
+            </WebsiteProvider>
+          </BrowserRouter>
+        </AntdApp>
+      </ConfigProvider>
+    </StyleProvider>
   );
 };
 
