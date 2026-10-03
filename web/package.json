@@ -72,9 +72,11 @@
     "postcss": "^8.5.28",
     "prettier": "^3.9.9",
     "react-doctor": "^0.9.14",
+    "react-scan": "^0.5.7",
     "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",
+    "vconsole": "^3.15.1",
     "vite": "^8.3.2"
   }
 }
