@@ -110,21 +110,6 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 	})
 }
 
-// GetStudentVote 获取学生对某比赛项目的投票
-func GetStudentVote(db *gorm.DB, studentID, competitionID int) (*types.Vote, error) {
-	var vote types.Vote
-	err := db.Where("student_id = ? AND competition_id = ?", studentID, competitionID).
-		First(&vote).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // 没有投票记录
-		}
-		return nil, fmt.Errorf("查询投票失败: %w", err)
-	}
-
-	return &vote, nil
-}
-
 // GetStudentVotesForCompetitions 批量获取学生对多个比赛项目的投票
 // 返回 map[competitionID]voteType
 func GetStudentVotesForCompetitions(db *gorm.DB, studentID int, competitionIDs []int) (map[int]types.VoteType, error) {

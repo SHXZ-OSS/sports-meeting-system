@@ -156,11 +156,10 @@ chore: 更新依赖
 | `AuthMiddleware()`            | JWT 认证                         |
 | `AdminMiddleware()`           | 管理员角色校验                   |
 | `StudentMiddleware()`         | 学生身份校验                     |
-| `PermissionMiddleware(perm)`  | 要求持有指定权限位               |
-| `PermissionAnyMiddleware(...)` | 满足任一权限位即可              |
-| `DashboardMiddleware()`       | 公开看板访问（受配置开关控制）   |
+| `PermissionMiddleware(perm)`   | 要求持有指定权限位               |
+| `DashboardMiddleware()`        | 公开看板访问（受配置开关控制）   |
 
-上下文辅助函数：`GetUserIDFromContext`、`GetRoleFromContext`、`GetPermissionsFromContext`、`GetFullnameFromContext`、`IsAdmin`/`IsStudent`/`IsGuest`。
+上下文辅助函数：`GetUserIDFromContext`、`GetRoleFromContext`、`IsAdmin`/`IsStudent`。
 
 ### 2. 必须使用标准化响应格式
 

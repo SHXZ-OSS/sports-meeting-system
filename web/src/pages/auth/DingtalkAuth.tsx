@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, List, Result, Spin } from "antd";
-import { LoadingOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Result, Spin, message } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { authAPI } from "../../api/auth";
 import { handleRespWithoutAuthAndNotify } from "../../utils/handleResp";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
 import Footer from "../../components/Footer";
-import { message } from "antd";
 import * as dd from "dingtalk-jsapi";
 
 const DingtalkAuth = () => {
@@ -17,8 +16,6 @@ const DingtalkAuth = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [students, setStudents] = useState<any[]>([]);
-  const [showStudentSelect, setShowStudentSelect] = useState(false);
 
   // 根据用户角色重定向到对应页面
   const redirectToUserHomepage = () => {
@@ -109,14 +106,8 @@ const DingtalkAuth = () => {
     handleRespWithoutAuthAndNotify(
       response,
       (data) => {
-        // 检查返回的数据结构，判断是否为多学生情况
-        if (Array.isArray(data)) {
-          // 多个学生的情况（返回学生数组），显示选择界面
-          setStudents(data);
-          setShowStudentSelect(true);
-          setLoading(false);
-        } else if (data.token && data.user) {
-          // 单个用户的情况，直接登录
+        if (data.token && data.user) {
+          // 直接登录
           login(data.user, data.token);
           message.success("登录成功");
           redirectToUserHomepage();
@@ -134,21 +125,6 @@ const DingtalkAuth = () => {
     );
   };
 
-  // 处理学生选择
-  const handleStudentSelect = (student: any) => {
-    // 构造用户信息对象
-    const userInfo = {
-      id: student.id,
-      username: student.username,
-      full_name: student.full_name,
-      role: "student" as const,
-    };
-
-    login(userInfo, student.token);
-    message.success(`欢迎 ${student.full_name} (${student.class})`);
-    navigate("/student");
-  };
-
   // 返回登录页
   const handleBackToLogin = () => {
     navigate("/login");
@@ -161,40 +137,6 @@ const DingtalkAuth = () => {
           <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
           <p>钉钉授权登录中...</p>
         </div>
-        <div>
-          <Footer />
-        </div>
-      </div>
-    );
-  }
-
-  if (showStudentSelect) {
-    return (
-      <div>
-        <Card title="请选择学生账号">
-          <List
-            itemLayout="horizontal"
-            dataSource={students}
-            renderItem={(student) => (
-              <List.Item
-                actions={[
-                  <Button
-                    type="primary"
-                    onClick={() => handleStudentSelect(student)}
-                  >
-                    选择
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={<Avatar icon={<UserOutlined />} />}
-                  title={student.full_name}
-                  description={student.class}
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
         <div>
           <Footer />
         </div>

@@ -15,32 +15,10 @@
   transform: translateY(-2px);
 }
 
-/* 统计卡片样式 */
-.stat-card {
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
 /* 成绩排名样式 */
 .score-ranking.top-3 {
   background: linear-gradient(90deg, #fff7e6 0%, #fff2cc 100%);
   border-left: 4px solid #faad14;
-}
-
-/* 新成绩模态框样式 */
-.new-result-modal .ant-modal-content {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.new-result-modal .ant-modal-body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
 }
 
 /* 统计数值样式（Statistic 无对应 token） */
@@ -62,26 +40,6 @@
 .ant-tag {
   border-radius: 4px;
   font-weight: 500;
-}
-
-/* 页面头部操作区域 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-header-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.page-header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 /* 自定义滚动条 */
@@ -149,28 +107,5 @@
     min-height: 24px !important;
     padding: 2px 6px !important;
     font-size: 11px !important;
-  }
-
-  /* 页面头部布局优化 */
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .page-header-actions {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    width: 100% !important;
-  }
-
-  .page-header-actions .ant-input-search {
-    width: 100% !important;
-    margin-bottom: 8px !important;
-  }
-
-  .page-header-actions .ant-btn {
-    flex-shrink: 0 !important;
   }
 }

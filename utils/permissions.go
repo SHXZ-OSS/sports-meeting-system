@@ -34,56 +34,10 @@ func HasPermission(userPermission, targetPermission int) bool {
 	return userPermission&targetPermission != 0
 }
 
-// GetPermissionNames 获取权限名称列表
-func GetPermissionNames(permission int) []string {
-	var permissions []string
-
-	if HasPermission(permission, PermissionProjectManagement) {
-		permissions = append(permissions, "project_management")
-	}
-	if HasPermission(permission, PermissionUserManagement) {
-		permissions = append(permissions, "user_management")
-	}
-	if HasPermission(permission, PermissionStudentAndClassManagement) {
-		permissions = append(permissions, "student_management")
-	}
-	if HasPermission(permission, PermissionWebsiteManagement) {
-		permissions = append(permissions, "website_management")
-	}
-	if HasPermission(permission, PermissionScoreInput) {
-		permissions = append(permissions, "score_input")
-	}
-	if HasPermission(permission, PermissionScoreReview) {
-		permissions = append(permissions, "score_review")
-	}
-	if HasPermission(permission, PermissionRegistrationManagement) {
-		permissions = append(permissions, "registration_management")
-	}
-
-	return permissions
-}
-
 // HasMorePermissions 检查是否有更多权限（用于权限比较）
 func HasMorePermissions(userPermission, targetPermission int) bool {
 	// 检查target权限是否是user权限的子集
 	// 如果target的所有权限位在user中都有，则user权限不算更多
 	// 只有当user有target没有的权限时，才算更多
 	return (userPermission & ^targetPermission) != 0
-}
-
-// CountPermissions 计算权限数量
-func CountPermissions(permission int) int {
-	count := 0
-	for i := range 32 {
-		if permission&(1<<i) != 0 {
-			count++
-		}
-	}
-	return count
-}
-
-// IsValidPermission 验证权限值是否有效
-func IsValidPermission(permission int) bool {
-	allPermissions := GetAllPermissions()
-	return (permission & ^allPermissions) == 0
 }

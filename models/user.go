@@ -16,11 +16,6 @@ func HasPermission(user *types.User, permission int) bool {
 	return utils.HasPermission(user.Permission, permission)
 }
 
-// GetPermissionList 获取权限列表
-func GetPermissionList(user *types.User) []string {
-	return utils.GetPermissionNames(user.Permission)
-}
-
 // IsGlobalAdmin 检查是否是全局管理员（没有班级scope限制）
 func IsGlobalAdmin(user *types.User) bool {
 	return len(user.ClassScopes) == 0

@@ -15,14 +15,6 @@ export interface DingTalkLoginRequest {
   code: string;
 }
 
-// 定义钉钉登录可能返回的数据类型
-export interface StudentData {
-  id: number;
-  username: string;
-  full_name: string;
-  token: string;
-}
-
 /**
  * 认证相关API
  */
@@ -39,7 +31,7 @@ export const authAPI = {
    */
   dingTalkLogin: async (
     data: DingTalkLoginRequest,
-  ): Promise<ApiResponse<LoginResponse | StudentData[]>> => {
+  ): Promise<ApiResponse<LoginResponse>> => {
     return await callApi(() => api.post("/dingtalk/login", data));
   },
 };

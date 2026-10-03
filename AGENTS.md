@@ -70,7 +70,7 @@ Always use `utils/response.go`: `ResponseOK`, `ResponseSuccessWithCustomMessage`
 
 #### 2. Authentication & Authorization
 
-Use `api/middlewares/auth.go`: `AuthMiddleware`, `AdminMiddleware`, `StudentMiddleware`, `PermissionMiddleware(perm)`, `PermissionAnyMiddleware(...)`. New endpoints must be protected; only genuinely public endpoints go under `/api/public` (with `DashboardMiddleware` where applicable). Read identity via `GetUserIDFromContext` / `GetRoleFromContext` / `GetPermissionsFromContext`.
+Use `api/middlewares/auth.go`: `AuthMiddleware`, `AdminMiddleware`, `StudentMiddleware`, `PermissionMiddleware(perm)`. New endpoints must be protected; only genuinely public endpoints go under `/api/public` (with `DashboardMiddleware` where applicable). Read identity via `GetUserIDFromContext` / `GetRoleFromContext`.
 
 #### 3. List Endpoints: Search & Pagination
 

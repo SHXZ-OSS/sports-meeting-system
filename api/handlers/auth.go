@@ -225,33 +225,17 @@ func DingTalkSSOCallback(c *gin.Context) {
 		return
 	}
 
-	// 如果有用户token，重定向到登录页面处理
-	if token != "" {
-		// 将用户信息转换为JSON
-		userJSON, err := json.Marshal(userObj)
-		if err != nil {
-			redirectURL := fmt.Sprintf("%s/login?dingtalk_error=%s", baseURL, url.QueryEscape("用户信息序列化失败"))
-			c.Redirect(http.StatusFound, redirectURL)
-			return
-		}
-
-		redirectURL := fmt.Sprintf("%s/login?dingtalk_token=%s&dingtalk_user=%s",
-			baseURL,
-			url.QueryEscape(token),
-			url.QueryEscape(string(userJSON)))
+	// 重定向到登录页面处理
+	userJSON, err := json.Marshal(userObj)
+	if err != nil {
+		redirectURL := fmt.Sprintf("%s/login?dingtalk_error=%s", baseURL, url.QueryEscape("用户信息序列化失败"))
 		c.Redirect(http.StatusFound, redirectURL)
-	} else {
-		// 家长登录，返回多个学生选项
-		studentsJSON, err := json.Marshal(userObj)
-		if err != nil {
-			redirectURL := fmt.Sprintf("%s/login?dingtalk_error=%s", baseURL, url.QueryEscape("学生信息序列化失败"))
-			c.Redirect(http.StatusFound, redirectURL)
-			return
-		}
-
-		redirectURL := fmt.Sprintf("%s/login?dingtalk_students=%s",
-			baseURL,
-			url.QueryEscape(string(studentsJSON)))
-		c.Redirect(http.StatusFound, redirectURL)
+		return
 	}
+
+	redirectURL := fmt.Sprintf("%s/login?dingtalk_token=%s&dingtalk_user=%s",
+		baseURL,
+		url.QueryEscape(token),
+		url.QueryEscape(string(userJSON)))
+	c.Redirect(http.StatusFound, redirectURL)
 }

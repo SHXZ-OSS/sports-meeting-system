@@ -181,7 +181,6 @@ func autoMigrate() error {
 		&types.User{},
 		&types.Class{},
 		&types.Student{},
-		&types.ParentStudentRelation{},
 		&types.Event{},
 		&types.Competition{},
 		&types.Registration{},
@@ -194,12 +193,6 @@ func autoMigrate() error {
 	}
 
 	// 添加唯一索引
-	if err := db.Exec(
-		"CREATE UNIQUE INDEX IF NOT EXISTS idx_parent_student_relation ON parent_student_relations(parent_id, student_id, relation)",
-	).Error; err != nil {
-		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for parent_student_relations: %v", err))
-	}
-
 	if err := db.Exec(
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_registration ON registrations(student_id, competition_id)",
 	).Error; err != nil {

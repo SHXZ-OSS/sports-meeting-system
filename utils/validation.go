@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"slices"
 	"time"
 
 	"gorm.io/gorm"
@@ -151,19 +150,6 @@ func ValidateCompetitionTime(startTime, endTime *time.Time) error {
 // IsCompetitionStatusValidForRegistration 检查比赛状态是否允许报名
 func IsCompetitionStatusValidForRegistration(status types.CompetitionStatus) bool {
 	return status == types.StatusApproved
-}
-
-// ValidateCompetitionStatus 验证比赛状态
-func ValidateCompetitionStatus(status types.CompetitionStatus) bool {
-	validStatuses := []types.CompetitionStatus{
-		types.StatusPendingApproval,
-		types.StatusApproved,
-		types.StatusRejected,
-		types.StatusPendingScoreReview,
-		types.StatusCompleted,
-	}
-
-	return slices.Contains(validStatuses, status)
 }
 
 // ValidateCompetitionSubmission 验证比赛项目提交
@@ -436,33 +422,6 @@ func (rv *RegistrationValidator) ValidateUnregistration(
 	}
 
 	return nil
-}
-
-// CheckRegistrationExists 检查报名记录是否存在
-func (rv *RegistrationValidator) CheckRegistrationExists(studentID, competitionID int) error {
-	var count int64
-	if err := rv.db.Model(&types.Registration{}).
-		Where("student_id = ? AND competition_id = ?", studentID, competitionID).
-		Count(&count).
-		Error; err != nil {
-		return err
-	}
-	if count == 0 {
-		return ErrNotRegistered
-	}
-	return nil
-}
-
-// CheckStudentExists 检查学生是否存在
-func (rv *RegistrationValidator) CheckStudentExists(studentID int) (*types.Student, error) {
-	var student types.Student
-	if err := rv.db.First(&student, studentID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrStudentNotFound
-		}
-		return nil, err
-	}
-	return &student, nil
 }
 
 // ==== 用户管理相关验证函数 ====

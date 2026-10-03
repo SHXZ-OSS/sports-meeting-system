@@ -117,44 +117,6 @@ func PermissionMiddleware(requiredPermission int) gin.HandlerFunc {
 	}
 }
 
-// PermissionAnyMiddleware 允许多个权限之一的中间件
-func PermissionAnyMiddleware(requiredPermissions ...int) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// 从上下文获取用户ID
-		userID, ok := GetUserIDFromContext(c)
-		if !ok {
-			utils.ResponseError(c, http.StatusUnauthorized, "unauthorized")
-			c.Abort()
-			return
-		}
-
-		// 获取用户信息
-		user, err := models.GetUserByID(userID)
-		if err != nil {
-			utils.ResponseError(c, http.StatusUnauthorized, "user not found")
-			c.Abort()
-			return
-		}
-
-		// 检查是否有任何一个所需权限
-		hasPermission := false
-		for _, perm := range requiredPermissions {
-			if models.HasPermission(user, perm) {
-				hasPermission = true
-				break
-			}
-		}
-
-		if !hasPermission {
-			utils.ResponseError(c, http.StatusForbidden, "insufficient permissions")
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
-}
-
 // StudentMiddleware 学生验证中间件
 func StudentMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -190,46 +152,6 @@ func GetRoleFromContext(c *gin.Context) (services.UserRole, bool) {
 	return r, ok
 }
 
-// GetPermissionsFromContext 从上下文获取用户权限列表
-func GetPermissionsFromContext(c *gin.Context) ([]string, bool) {
-	permissions, ok := c.Get(PermissionsKey)
-	if !ok {
-		return nil, false
-	}
-	perms, ok := permissions.([]string)
-	return perms, ok
-}
-
-// GetFullnameFromContext 从上下文获取用户全名
-func GetFullnameFromContext(c *gin.Context) (string, bool) {
-	userID, ok := GetUserIDFromContext(c)
-	if !ok {
-		return "", false
-	}
-
-	role, ok := GetRoleFromContext(c)
-	if !ok {
-		return "", false
-	}
-
-	switch role {
-	case services.RoleAdmin:
-		user, err := models.GetUserByID(userID)
-		if err != nil {
-			return "", false
-		}
-		return user.FullName, true
-	case services.RoleStudent:
-		student, err := models.GetStudentByID(userID)
-		if err != nil {
-			return "", false
-		}
-		return student.FullName, true
-	}
-
-	return "", false
-}
-
 // IsAdmin 判断用户是否为管理员
 func IsAdmin(c *gin.Context) bool {
 	role, ok := GetRoleFromContext(c)
@@ -240,10 +162,4 @@ func IsAdmin(c *gin.Context) bool {
 func IsStudent(c *gin.Context) bool {
 	role, ok := GetRoleFromContext(c)
 	return ok && role == services.RoleStudent
-}
-
-// IsGuest 判断用户是否为游客
-func IsGuest(c *gin.Context) bool {
-	role, ok := GetRoleFromContext(c)
-	return !ok || role != services.RoleAdmin
 }

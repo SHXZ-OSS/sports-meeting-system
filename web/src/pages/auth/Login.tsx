@@ -9,8 +9,6 @@ import {
   Space,
   Divider,
   Alert,
-  List,
-  Avatar,
   message,
 } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
@@ -38,8 +36,6 @@ const Login: React.FC = () => {
   const { name: websiteName, dingtalk_corp_id } = useWebsite();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [students, setStudents] = useState<any[]>([]);
-  const [showStudentSelect, setShowStudentSelect] = useState(false);
   const [isInDingTalk, setIsInDingTalk] = useState(false);
 
   const handleLogin = async (values: LoginForm) => {
@@ -91,7 +87,6 @@ const Login: React.FC = () => {
     const params = new URLSearchParams(location.search);
     const dingtalkToken = params.get("dingtalk_token");
     const dingtalkUser = params.get("dingtalk_user");
-    const dingtalkStudents = params.get("dingtalk_students");
     const dingtalkError = params.get("dingtalk_error");
 
     if (dingtalkError) {
@@ -119,20 +114,6 @@ const Login: React.FC = () => {
       }
       return;
     }
-
-    if (dingtalkStudents) {
-      try {
-        const studentsData = JSON.parse(dingtalkStudents);
-        setStudents(studentsData);
-        setShowStudentSelect(true);
-        // 清除 URL 参数
-        navigate("/login", { replace: true });
-      } catch (e) {
-        setError("学生信息解析失败");
-        navigate("/login", { replace: true });
-      }
-      return;
-    }
   }, [location, login, navigate]);
 
   const handleDingTalkLogin = () => {
@@ -154,80 +135,6 @@ const Login: React.FC = () => {
         "/api/public/dingtalk/sso_redirect?redirect=/login";
     }
   };
-
-  // 处理学生选择
-  const handleStudentSelect = (student: any) => {
-    const userInfo = {
-      id: student.id,
-      username: student.username,
-      full_name: student.full_name,
-      role: "student" as const,
-    };
-
-    login(userInfo, student.token);
-    message.success(`欢迎 ${student.full_name}`);
-    navigate("/student");
-  };
-
-  // 显示学生选择界面
-  if (showStudentSelect) {
-    return (
-      <Layout style={{ minHeight: "100vh" }}>
-        <Content
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "20px",
-          }}
-        >
-          <Card
-            title="请选择学生账号"
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              borderRadius: "12px",
-              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <List
-              itemLayout="horizontal"
-              dataSource={students}
-              renderItem={(student) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      type="primary"
-                      onClick={() => handleStudentSelect(student)}
-                    >
-                      选择
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                    title={student.full_name}
-                    description={student.username}
-                  />
-                </List.Item>
-              )}
-            />
-            <Button
-              block
-              style={{ marginTop: "16px" }}
-              onClick={() => {
-                setShowStudentSelect(false);
-                setStudents([]);
-              }}
-            >
-              返回登录
-            </Button>
-          </Card>
-        </Content>
-        <Footer />
-      </Layout>
-    );
-  }
 
   return (
     <Layout style={{ minHeight: "100vh" }}>

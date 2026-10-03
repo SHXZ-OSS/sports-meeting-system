@@ -10,7 +10,6 @@ import {
   DatePicker,
   Space,
   Modal,
-  List,
   Spin,
   Alert,
   InputNumber,
@@ -22,9 +21,6 @@ import {
 import {
   SaveOutlined,
   ReloadOutlined,
-  WarningOutlined,
-  SyncOutlined,
-  FileTextOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -38,7 +34,7 @@ import {
 import { useWebsite } from "../../contexts/WebsiteContext";
 import { useIsMobile } from "../../utils/mobile";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 // Editable cell component for inline editing
@@ -83,9 +79,6 @@ const Settings: React.FC = () => {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [rebuildLoading, setRebuildLoading] = useState(false);
-  const [logsModalVisible, setLogsModalVisible] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
   const { refresh: refreshWebsiteInfo } = useWebsite();
 
   // Event management states
@@ -265,51 +258,6 @@ const Settings: React.FC = () => {
         setSaving(false);
       },
     );
-  };
-
-  const handleRebuildMapping = () => {
-    Modal.confirm({
-      title: "重建家长-学生映射关系",
-      content: (
-        <div>
-          <p>此操作将：</p>
-          <ul>
-            <li>清空现有的家长-学生关系映射</li>
-            <li>从钉钉重新获取所有班级的家长-学生关系</li>
-            <li>可能需要较长时间完成</li>
-          </ul>
-          <p style={{ color: "#ff4d4f", marginTop: 16 }}>
-            <WarningOutlined /> 确定要继续吗？
-          </p>
-        </div>
-      ),
-      okText: "确定重建",
-      cancelText: "取消",
-      okType: "danger",
-      onOk: performRebuildMapping,
-    });
-  };
-
-  const performRebuildMapping = async () => {
-    setRebuildLoading(true);
-    const response = await adminSettingsAPI.rebuildMapping();
-    handleRespWithNotifySuccess(
-      response,
-      () => {
-        setRebuildLoading(false);
-      },
-      () => {
-        setRebuildLoading(false);
-      },
-    );
-  };
-
-  const fetchLogs = async () => {
-    const response = await adminSettingsAPI.getMappingLogs();
-    handleResp(response, (data) => {
-      setLogs(data?.logs ? data.logs : []);
-      setLogsModalVisible(true);
-    });
   };
 
   const fetchEvents = async () => {
@@ -897,30 +845,6 @@ const Settings: React.FC = () => {
           </Card>
 
           {/* 危险操作 */}
-          <Card title="危险操作" style={{ marginBottom: 24 }}>
-            <Alert
-              message="警告"
-              description="以下操作具有风险，请谨慎使用"
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-
-            <Space>
-              <Button
-                danger
-                icon={<SyncOutlined />}
-                loading={rebuildLoading}
-                onClick={handleRebuildMapping}
-              >
-                重建家长-学生映射
-              </Button>
-              <Button icon={<FileTextOutlined />} onClick={fetchLogs}>
-                查看重建日志
-              </Button>
-            </Space>
-          </Card>
-
           <Form.Item style={{ textAlign: "right", marginTop: 24 }}>
             <Button
               type="primary"
@@ -934,40 +858,6 @@ const Settings: React.FC = () => {
           </Form.Item>
         </Form>
       </Spin>
-
-      {/* 日志查看模态框 */}
-      <Modal
-        title="重建映射日志"
-        open={logsModalVisible}
-        onCancel={() => setLogsModalVisible(false)}
-        footer={[
-          <Button key="refresh" onClick={fetchLogs}>
-            刷新日志
-          </Button>,
-          <Button key="close" onClick={() => setLogsModalVisible(false)}>
-            关闭
-          </Button>,
-        ]}
-        width={800}
-      >
-        {logs.length > 0 ? (
-          <List
-            dataSource={logs}
-            renderItem={(log) => (
-              <List.Item>
-                <Text code style={{ whiteSpace: "pre-wrap" }}>
-                  {log}
-                </Text>
-              </List.Item>
-            )}
-            style={{ maxHeight: 400, overflow: "auto" }}
-          />
-        ) : (
-          <div style={{ textAlign: "center", padding: "40px" }}>
-            <Text type="secondary">暂无日志记录</Text>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };

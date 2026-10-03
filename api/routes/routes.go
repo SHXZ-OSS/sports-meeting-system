@@ -160,9 +160,6 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	websiteMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionWebsiteManagement))
 	websiteMgmt.GET("", handlers.GetSettings)
 	websiteMgmt.PUT("", handlers.UpdateSettings)
-	// 危险API
-	websiteMgmt.POST("/rebuild-mapping", handlers.RebuildParentStudentMapping)
-	websiteMgmt.GET("/rebuild-mapping/logs", handlers.GetMappingLogs)
 	// 运动会届次管理
 	websiteMgmt.GET("/events", handlers.GetEvents)
 	websiteMgmt.POST("/events", handlers.CreateEvent)

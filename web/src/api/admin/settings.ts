@@ -59,11 +59,6 @@ export interface UpdateSettingsRequest {
   };
 }
 
-export interface MappingLog {
-  message: string;
-  timestamp: string;
-}
-
 export interface Event {
   id: number;
   name: string;
@@ -100,20 +95,6 @@ export const adminSettingsAPI = {
     data: UpdateSettingsRequest,
   ): Promise<ApiResponse<void>> => {
     return await callApi(() => api.put("/admin/settings", data));
-  },
-
-  /**
-   * 重建家长-学生映射关系
-   */
-  rebuildMapping: async (): Promise<ApiResponse<void>> => {
-    return await callApi(() => api.post("/admin/settings/rebuild-mapping"));
-  },
-
-  /**
-   * 获取映射重建日志
-   */
-  getMappingLogs: async (): Promise<ApiResponse<{ logs: string[] }>> => {
-    return await callApi(() => api.get("/admin/settings/rebuild-mapping/logs"));
   },
 
   /**

@@ -30,14 +30,6 @@ type JWTClaims struct {
 	Permission int      `json:"permission,omitempty"` // 操作员权限列表
 }
 
-// StudentData 学生数据结构，用于登录响应
-type StudentData struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	FullName string `json:"full_name"`
-	Token    string `json:"token"`
-}
-
 // GenerateToken 生成 JWT 令牌
 func GenerateToken(id int, username string, role UserRole, permissions int) (string, error) {
 	// 获取 JWT 密钥
@@ -157,42 +149,7 @@ func DingTalkLogin(code string) (string, any, error) {
 		return token, user, nil
 	}
 
-	// 如果前面都找不到，可能是家长，尝试获取关联的学生
-	// 直接从数据库中查询缓存的家长-学生关系
-	relations, err := models.GetStudentsByParentID(userInfo.UserID)
-
-	if err != nil || len(relations) == 0 {
-		return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userInfo.UserID)
-	}
-
-	// 获取学生的详细信息
-	var studentsData []StudentData
-	for _, relation := range relations {
-		student, err := models.GetStudentByDingTalkID(relation.StudentID)
-		if err != nil {
-			continue
-		}
-
-		// 为每个学生生成token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
-		if err != nil {
-			continue
-		}
-
-		studentsData = append(studentsData, StudentData{
-			ID:       student.ID,
-			Username: student.Username,
-			FullName: student.FullName,
-			Token:    token,
-		})
-	}
-
-	if len(studentsData) == 0 {
-		return "", nil, errors.New("无法生成学生登录凭证，请联系系统管理员")
-	}
-
-	// 返回所有学生信息和对应的token
-	return "", studentsData, nil
+	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userInfo.UserID)
 }
 
 // DingTalkSSOLogin 钉钉SSO登录（用于非钉钉客户端环境）
@@ -224,38 +181,5 @@ func DingTalkSSOLogin(userID, _ string) (string, any, error) {
 		return token, user, nil
 	}
 
-	// 如果前面都找不到，可能是家长，尝试获取关联的学生
-	relations, err := models.GetStudentsByParentID(userID)
-	if err != nil || len(relations) == 0 {
-		return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userID)
-	}
-
-	// 获取学生的详细信息
-	var studentsData []StudentData
-	for _, relation := range relations {
-		student, err := models.GetStudentByDingTalkID(relation.StudentID)
-		if err != nil {
-			continue
-		}
-
-		// 为每个学生生成token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
-		if err != nil {
-			continue
-		}
-
-		studentsData = append(studentsData, StudentData{
-			ID:       student.ID,
-			Username: student.Username,
-			FullName: student.FullName,
-			Token:    token,
-		})
-	}
-
-	if len(studentsData) == 0 {
-		return "", nil, errors.New("无法生成学生登录凭证，请联系系统管理员")
-	}
-
-	// 返回所有学生信息和对应的token
-	return "", studentsData, nil
+	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userID)
 }
