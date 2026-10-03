@@ -83,7 +83,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, hasPermission } = useAuth();
-  const { name: websiteName } = useWebsite();
+  const { name: websiteName, logo_url } = useWebsite();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const isMobile = useIsMobile();
@@ -374,8 +374,21 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
               color: "#1f2937",
               fontWeight: 700,
               letterSpacing: "-0.5px",
+              display: "flex",
+              alignItems: "center",
             }}
           >
+            {logo_url && (
+              <img
+                src={logo_url}
+                alt="Logo"
+                style={{
+                  height: "32px",
+                  marginRight: "12px",
+                  objectFit: "contain",
+                }}
+              />
+            )}
             {websiteName}
           </Title>
         </div>

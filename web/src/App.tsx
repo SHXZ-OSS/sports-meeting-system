@@ -13,7 +13,7 @@ import "./App.css";
 
 // 打印项目信息：D
 console.log(
-  "%c🏫 运动会管理系统 %c  By Henry  %c  https://itshenryz.com/ ",
+  "%c🏫 上海市行知中学运动会系统 %c  By Henry  %c  https://itshenryz.com/ ",
   "color: #fff; background: #4C80F8",
   "color: #fff; background: #3F3F3F",
   "",

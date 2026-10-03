@@ -33,7 +33,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const { name: websiteName, dingtalk_corp_id } = useWebsite();
+  const { name: websiteName, dingtalk_corp_id, logo_url } = useWebsite();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInDingTalk, setIsInDingTalk] = useState(false);
@@ -156,6 +156,19 @@ const Login: React.FC = () => {
           bodyStyle={{ padding: "40px" }}
         >
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            {logo_url && (
+              <img
+                src={logo_url}
+                alt="logo"
+                style={{
+                  width: 72,
+                  height: 72,
+                  objectFit: "cover",
+                  borderRadius: 12,
+                  marginBottom: "12px",
+                }}
+              />
+            )}
             <Title
               level={2}
               style={{

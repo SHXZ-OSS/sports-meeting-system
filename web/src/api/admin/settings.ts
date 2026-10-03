@@ -13,6 +13,7 @@ export interface SystemSettings {
     icp_beian: string;
     public_sec_beian: string;
     domain: string;
+    logo_url: string;
   };
   competition: {
     submission_start_time: string;
@@ -86,6 +87,15 @@ export const adminSettingsAPI = {
    */
   getSettings: async (): Promise<ApiResponse<SystemSettings>> => {
     return await callApi(() => api.get("/admin/settings"));
+  },
+
+  /**
+   * 上传自定义 logo（Base64 图片）
+   */
+  uploadLogo: async (
+    image: string,
+  ): Promise<ApiResponse<{ logo_url: string }>> => {
+    return await callApi(() => api.post("/admin/settings/logo", { image }));
   },
 
   /**

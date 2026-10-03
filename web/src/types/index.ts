@@ -135,6 +135,7 @@ export interface WebsiteInfo {
   public_sec_beian: string;
   dingtalk_corp_id: string;
   domain: string;
+  logo_url?: string;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -171,3 +172,14 @@ export const PERMISSIONS = {
   SCORE_REVIEW: 32,
   REGISTRATION_MANAGEMENT: 64,
 } as const;
+
+// 后端在 index.html 中注入的初始数据（SPA 服务端注入）
+declare global {
+  interface Window {
+    __INITIAL_DATA__?: {
+      token: string | null;
+      user: unknown;
+      website_info: Partial<WebsiteInfo> | null;
+    };
+  }
+}

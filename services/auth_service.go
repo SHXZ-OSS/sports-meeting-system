@@ -114,6 +114,33 @@ func StudentLogin(username, password string) (string, *types.Student, error) {
 	return token, student, nil
 }
 
+// loginByDingTalkID 通过钉钉用户 ID 登录：先匹配学生，再匹配管理员
+func loginByDingTalkID(dingTalkID string) (string, any, error) {
+	// 先尝试查找学生
+	student, err := models.GetStudentByDingTalkID(dingTalkID)
+	if err == nil {
+		// 学生找到，生成学生 token
+		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, student, nil
+	}
+
+	// 如果找不到学生，尝试查找管理员
+	user, err := models.GetUserByDingTalkID(dingTalkID)
+	if err == nil {
+		// 生成 token
+		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
+		if err != nil {
+			return "", nil, err
+		}
+		return token, user, nil
+	}
+
+	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + dingTalkID)
+}
+
 // DingTalkLogin 钉钉免登录
 func DingTalkLogin(code string) (string, any, error) {
 	// 获取钉钉用户信息
@@ -126,30 +153,7 @@ func DingTalkLogin(code string) (string, any, error) {
 		return "", nil, errors.New("获取用户信息失败")
 	}
 
-	// 先尝试查找学生
-	student, err := models.GetStudentByDingTalkID(userInfo.UserID)
-	if err == nil {
-		// 学生找到，生成学生 token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
-		if err != nil {
-			return "", nil, err
-		}
-		return token, student, nil
-	}
-
-	// 如果找不到学生，尝试查找管理员
-	user, err := models.GetUserByDingTalkID(userInfo.UserID)
-	if err == nil {
-		// 生成 token
-		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
-		if err != nil {
-			return "", nil, err
-		}
-
-		return token, user, nil
-	}
-
-	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userInfo.UserID)
+	return loginByDingTalkID(userInfo.UserID)
 }
 
 // DingTalkSSOLogin 钉钉SSO登录（用于非钉钉客户端环境）
@@ -159,27 +163,5 @@ func DingTalkSSOLogin(userID, _ string) (string, any, error) {
 		return "", nil, errors.New("用户ID为空")
 	}
 
-	// 先尝试查找学生
-	student, err := models.GetStudentByDingTalkID(userID)
-	if err == nil {
-		// 学生找到，生成学生 token
-		token, err := GenerateToken(student.ID, student.Username, RoleStudent, 0)
-		if err != nil {
-			return "", nil, err
-		}
-		return token, student, nil
-	}
-
-	// 如果找不到学生，尝试查找管理员
-	user, err := models.GetUserByDingTalkID(userID)
-	if err == nil {
-		// 生成 token
-		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
-		if err != nil {
-			return "", nil, err
-		}
-		return token, user, nil
-	}
-
-	return "", nil, errors.New("未找到关联的学生或用户，请联系管理员。你的钉钉ID为：" + userID)
+	return loginByDingTalkID(userID)
 }

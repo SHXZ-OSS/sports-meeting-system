@@ -16,6 +16,7 @@ type WebsiteInfoResponse struct {
 	PublicSecBeian string `json:"public_sec_beian"`
 	DingTalkCorpID string `json:"dingtalk_corp_id"`
 	Domain         string `json:"domain"`
+	LogoURL        string `json:"logo_url"`
 }
 
 // GetWebsiteInfo 获取网站信息（公共API）
@@ -30,22 +31,21 @@ func GetWebsiteInfo(c *gin.Context) {
 		PublicSecBeian: cfg.Website.PublicSecBeian,
 		DingTalkCorpID: cfg.DingTalk.CorpID,
 		Domain:         cfg.Website.Domain,
+		LogoURL:        logoURL(cfg),
 	}
 
 	// 返回响应
 	utils.ResponseOK(c, resp)
 }
 
-// GetManifest 获取 manifest.webmanifest 内容
+// GetManifest 获取 manifest.webmanifest 内容。
+// 配置了自定义 logo 时图标使用 logo，否则回退到默认图标
 func GetManifest(c *gin.Context) {
 	// 获取配置
 	cfg := config.Get()
 
-	// 构建manifest
-	resp := fmt.Sprintf(`{
-		"short_name": "%s",
-		"name": "%s",
-		"icons": [
+	// 图标列表：优先自定义 logo，回退到内置图标
+	icons := `[
 			{
 				"src": "logo192.png",
 				"type": "image/png",
@@ -61,12 +61,39 @@ func GetManifest(c *gin.Context) {
 				"sizes": "any",
 				"type": "image/svg+xml"
 			}
-		],
+		]`
+	if cfg.Website.LogoFilepath != "" {
+		logoURL := "/uploads/" + cfg.Website.LogoFilepath
+		contentType := utils.ImageContentType(cfg.Website.LogoFilepath)
+		// SVG 为矢量图标，无需区分尺寸
+		sizes := "192x192"
+		if contentType == "image/svg+xml" {
+			sizes = "any"
+		}
+		icons = fmt.Sprintf(`[
+			{
+				"src": "%s",
+				"type": "%s",
+				"sizes": "%s"
+			},
+			{
+				"src": "%s",
+				"type": "%s",
+				"sizes": "%s"
+			}
+		]`, logoURL, contentType, sizes, logoURL, contentType, sizes)
+	}
+
+	// 构建manifest
+	resp := fmt.Sprintf(`{
+		"short_name": "%s",
+		"name": "%s",
+		"icons": %s,
 		"start_url": ".",
 		"display": "standalone",
 		"theme_color": "#001529",
 		"background_color": "#f5f5f5"
-	}`, cfg.Website.Name, cfg.Website.Name)
+	}`, cfg.Website.Name, cfg.Website.Name, icons)
 
 	// 返回manifest
 	c.Header("Content-Type", "application/manifest+json")

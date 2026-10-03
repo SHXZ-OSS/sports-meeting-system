@@ -58,6 +58,14 @@ export const WebsiteProvider: React.FC<WebsiteProviderProps> = ({
   };
 
   useEffect(() => {
+    // 优先使用后端注入的初始数据，避免额外请求
+    const injected = window.__INITIAL_DATA__?.website_info;
+    if (injected?.name) {
+      setWebsiteInfo((prev) => ({ ...prev, ...injected }));
+      document.title = injected.name;
+      setLoading(false);
+      return;
+    }
     fetchWebsiteInfo();
   }, []);
 

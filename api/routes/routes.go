@@ -4,6 +4,8 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,9 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
+
+// getHead 内容服务端点必须同时注册 GET 与 HEAD
+var getHead = []string{http.MethodGet, http.MethodHead}
 
 func getStaticFSHandler(staticFS fs.FS, path string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -29,6 +34,21 @@ func getStaticFSHandler(staticFS fs.FS, path string) gin.HandlerFunc {
 		}
 		http.ServeContent(c.Writer, c.Request, path, time.Time{}, seeker)
 	}
+}
+
+// noListFS 包装 [fs.FS]，禁止目录列表（Open 目录时返回 ErrPermission）
+type noListFS struct{ fs.FS }
+
+func (n noListFS) Open(name string) (fs.File, error) {
+	f, err := n.FS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if stat, err := f.Stat(); err == nil && stat.IsDir() {
+		f.Close()
+		return nil, fs.ErrPermission
+	}
+	return f, nil
 }
 
 // SetupRouter 设置路由
@@ -160,6 +180,8 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	websiteMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionWebsiteManagement))
 	websiteMgmt.GET("", handlers.GetSettings)
 	websiteMgmt.PUT("", handlers.UpdateSettings)
+	// 自定义 logo 上传
+	websiteMgmt.POST("/logo", handlers.UploadLogo)
 	// 运动会届次管理
 	websiteMgmt.GET("/events", handlers.GetEvents)
 	websiteMgmt.POST("/events", handlers.CreateEvent)
@@ -199,18 +221,34 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 		r.GET("/"+file, getStaticFSHandler(staticFS, file))
 	}
 
-	// 上传文件服务
-	r.Static("/uploads", "./data/uploads")
+	// 上传文件服务（禁止目录列表）
+	uploadsFS := http.FileServerFS(noListFS{os.DirFS("./data/uploads")})
+	for _, method := range getHead {
+		r.Handle(method, "/uploads/*filepath", gin.WrapH(http.StripPrefix("/uploads/", uploadsFS)))
+	}
 
-	// 静态资源服务
+	// 静态资源服务（产物带哈希可长缓存；禁止目录列表）
 	assetsFS, _ := fs.Sub(staticFS, "assets")
-	r.GET("/assets/*filepath", gin.WrapH(http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS)))))
+	for _, method := range getHead {
+		r.Handle(method, "/assets/*filepath", func(c *gin.Context) {
+			// 静态资源通常带有 hash，可以设置超长时间缓存
+			c.Header("Cache-Control", "public, max-age=604800, immutable")
+			http.StripPrefix("/assets/", http.FileServerFS(noListFS{assetsFS})).ServeHTTP(c.Writer, c.Request)
+		})
+	}
 
 	// PWA manifest 服务
 	r.GET("/manifest.webmanifest", handlers.GetManifest)
 
-	// 所有其他请求都指向前端入口点
-	r.NoRoute(getStaticFSHandler(staticFS, "index.html"))
+	// 所有其他请求都指向前端入口点（渲染注入初始数据的 index.html）
+	r.NoRoute(func(c *gin.Context) {
+		// API 请求未匹配任何路由，返回 404 JSON 而非前端页面
+		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+			utils.ResponseError(c, http.StatusNotFound, "接口不存在")
+			return
+		}
+		handlers.ServeIndexHTML(staticFS)(c)
+	})
 
 	return r
 }
