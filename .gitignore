@@ -1,5 +1,29 @@
-static
-data
+# Config & secrets
 config.json
-sports-meeting-system.exe
+*.pem
+*.key
+*.crt
+
+# Runtime data (database, logs, uploads)
+/data/
+/static/
+
+# Build output
 sports-meeting-system
+sports-meeting-system.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Editors & tooling
+.idea/*
+!.idea/.gitignore
+.vscode/*
+!.vscode/extensions.json
+.VSCodeCounter/
+.zcode/
+
+# OS
+.DS_Store
+nul

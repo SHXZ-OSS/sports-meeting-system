@@ -1,0 +1,294 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-checks:
+    name: Code Quality and Build Checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install frontend dependencies
+        working-directory: ./web
+        run: pnpm install
+
+      - name: Build frontend
+        id: build-frontend
+        working-directory: ./web
+        run: |
+          set -o pipefail
+          echo "Building frontend..."
+          if pnpm run build 2>&1 | tee ../frontend-build.log; then
+            echo "Frontend build successful"
+            rm -f ../frontend-build.log
+          else
+            echo "Frontend build failed"
+            exit 1
+          fi
+
+      - name: Run format
+        if: success()
+        working-directory: ./web
+        run: |
+          echo "Running format..."
+          pnpm run format
+
+      - name: Run lint
+        if: success()
+        id: lint
+        working-directory: ./web
+        run: |
+          set -o pipefail
+          echo "Running lint..."
+          if pnpm run lint:fix 2>&1 | tee ../frontend-lint.log; then
+            echo "Frontend lint check passed"
+            rm -f ../frontend-lint.log
+          else
+            echo "Frontend lint check failed"
+            exit 1
+          fi
+
+      - name: Setup Go
+        if: success() || failure()
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27'
+          check-latest: true
+
+      - name: Install golangci-lint
+        if: success()
+        run: curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.14.0
+
+      - name: Run golangci-lint
+        if: success()
+        run: |
+          set -o pipefail
+          if golangci-lint run --fix 2>&1 | tee golangci-lint.log; then
+            rm -f golangci-lint.log
+          else
+            exit 1
+          fi
+
+      - name: Build backend
+        if: success() || failure()
+        id: build-backend
+        run: |
+          set -o pipefail
+          echo "Building backend..."
+          if go build -o sports-meeting-system main.go 2>&1 | tee backend-build.log; then
+            echo "Backend build successful"
+            rm -f backend-build.log
+          else
+            echo "Backend build failed"
+            exit 1
+          fi
+
+      - name: Run go mod tidy
+        if: success()
+        run: |
+          echo "Running go mod tidy..."
+          go mod tidy
+
+      - name: Check PR title format
+        if: success() || failure()
+        id: check-pr-title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "Checking PR title: $PR_TITLE"
+
+          # Conventional Commits Regex
+          if ! echo "$PR_TITLE" | grep -qE '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test){1}(\([[:alnum:]._-]+\))?(!)?: ([[:alnum:]])+([[:space:][:print:]]*)'; then
+            echo "PR title does not follow Conventional Commits format"
+            echo "invalid" > pr-title-check.txt
+            exit 1
+          fi
+
+          echo "PR title format is valid"
+
+      - name: Check for code changes
+        if: success()
+        id: check-changes
+        run: |
+          # Check for any code changes (excluding log files)
+          FRONTEND_CHANGES=$(git status --porcelain | grep -v "^??" | grep -v "\.go$" | grep -v "\.log$" || true)
+          BACKEND_CHANGES=$(git status --porcelain | grep -v "^??" | grep "\.go$" || true)
+
+          if [[ -n "$FRONTEND_CHANGES" || -n "$BACKEND_CHANGES" ]]; then
+            echo "Detected code changes:"
+            git status --porcelain
+            echo ""
+            echo "Detailed diff:"
+            git diff
+
+            # Save frontend changes to file
+            if [[ -n "$FRONTEND_CHANGES" ]]; then
+              echo "$FRONTEND_CHANGES" > frontend-changes.txt
+            fi
+
+            # Save backend changes to file
+            if [[ -n "$BACKEND_CHANGES" ]]; then
+              echo "$BACKEND_CHANGES" > backend-changes.txt
+            fi
+
+            exit 1
+          else
+            echo "No code changes detected, all checks passed!"
+          fi
+
+      - name: Generate error comment
+        if: failure()
+        run: |
+          COMMENT="## ❌ PR 检查失败"$'\n\n'
+
+          # Check for PR title format errors
+          if [[ -f "pr-title-check.txt" ]]; then
+            COMMENT+="### PR 标题格式错误"$'\n\n'
+            COMMENT+="PR 标题不符合 Conventional Commits 规范。"$'\n\n'
+            COMMENT+="**当前标题：** \`${{ github.event.pull_request.title }}\`"$'\n\n'
+          fi
+
+          # Check for frontend build errors
+          if [[ -f "frontend-build.log" ]]; then
+            COMMENT+="### 前端构建失败"$'\n\n'
+            COMMENT+="<details>"$'\n'
+            COMMENT+="<summary>点击查看构建输出</summary>"$'\n\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="$(cat frontend-build.log)"$'\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="</details>"$'\n\n'
+            COMMENT+="请修复上述编译错误。"$'\n\n'
+          fi
+
+          # Check for frontend lint errors
+          if [[ -f "frontend-lint.log" ]]; then
+            COMMENT+="### 前端 Lint 检查失败"$'\n\n'
+            COMMENT+="<details>"$'\n'
+            COMMENT+="<summary>点击查看 Lint 输出</summary>"$'\n\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="$(cat frontend-lint.log)"$'\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="</details>"$'\n\n'
+            COMMENT+="请手动修复或运行以下命令修复问题："$'\n'
+            COMMENT+='```bash'$'\n'
+            COMMENT+="cd web"$'\n'
+            COMMENT+="pnpm run lint:fix"$'\n'
+            COMMENT+='```'$'\n\n'
+          fi
+
+          # Check for golangci-lint errors
+          if [[ -f "golangci-lint.log" ]]; then
+            COMMENT+="### 后端 Lint 检查失败"$'\n\n'
+            COMMENT+="<details>"$'\n'
+            COMMENT+="<summary>点击查看 Lint 输出</summary>"$'\n\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="$(cat golangci-lint.log)"$'\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="</details>"$'\n\n'
+          fi
+
+          # Check for backend build errors
+          if [[ -f "backend-build.log" ]]; then
+            COMMENT+="### 后端构建失败"$'\n\n'
+            COMMENT+="<details>"$'\n'
+            COMMENT+="<summary>点击查看构建输出</summary>"$'\n\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="$(cat backend-build.log)"$'\n'
+            COMMENT+='```'$'\n'
+            COMMENT+="</details>"$'\n\n'
+            COMMENT+="请修复上述编译错误。"$'\n\n'
+          fi
+
+          # Check for formatting issues
+          if [[ -f "frontend-changes.txt" || -f "backend-changes.txt" ]]; then
+            COMMENT+="### 代码格式问题"$'\n\n'
+            COMMENT+="检测到未格式化的代码变化。"$'\n\n'
+
+            if [[ -f "frontend-changes.txt" ]]; then
+              COMMENT+="#### 前端代码问题"$'\n\n'
+              COMMENT+="请在提交 PR 前运行以下命令："$'\n'
+              COMMENT+='```bash'$'\n'
+              COMMENT+="cd web"$'\n'
+              COMMENT+="pnpm install"$'\n'
+              COMMENT+="pnpm run format"$'\n'
+              COMMENT+="pnpm run lint:fix"$'\n'
+              COMMENT+='```'$'\n\n'
+              COMMENT+="变化的文件："$'\n'
+              COMMENT+='```'$'\n'
+              COMMENT+="$(cat frontend-changes.txt)"$'\n'
+              COMMENT+='```'$'\n\n'
+            fi
+
+            if [[ -f "backend-changes.txt" ]]; then
+              COMMENT+="#### 后端代码问题"$'\n\n'
+              COMMENT+="请在提交 PR 前运行以下命令："$'\n'
+              COMMENT+='```bash'$'\n'
+              COMMENT+="go mod tidy"$'\n'
+              COMMENT+="golangci-lint run --fix"$'\n'
+              COMMENT+='```'$'\n\n'
+              COMMENT+="变化的 Go 文件："$'\n'
+              COMMENT+='```'$'\n'
+              COMMENT+="$(cat backend-changes.txt)"$'\n'
+              COMMENT+='```'$'\n\n'
+            fi
+          fi
+
+          COMMENT+="---"$'\n\n'
+          COMMENT+="请修复上述问题后重新推送代码。如有疑问，请查看 [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING.md) 获取更多开发指南。"
+
+          # Save to file
+          echo "$COMMENT" > comment.txt
+
+      - name: Post PR comment on failure
+        if: failure()
+        uses: mshick/add-pr-comment@v3
+        with:
+          message-id: pr-check
+          message-path: comment.txt
+
+      - name: Post PR comment on success
+        if: success()
+        uses: mshick/add-pr-comment@v3
+        with:
+          message-id: pr-check
+          message: |
+            ## ✅ PR 检查通过
+
+            PR 检查已通过，恭喜！🎉 感谢你的贡献！🤝
