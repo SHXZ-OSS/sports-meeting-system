@@ -1,6 +1,6 @@
-import React, { Fragment } from "react";
+import { Fragment } from "react";
 import { Round, Bracket, SeedsList } from "../components/round";
-import SwipeableViews from "react-swipeable-views";
+import SwipeableViews from "../components/SwipeableViews";
 import useMedia from "../hooks/useMedia";
 import { renderSeed, renderTitle } from "../utils/renders";
 import { ISingleEliminationProps } from "../types/SingleElimination";

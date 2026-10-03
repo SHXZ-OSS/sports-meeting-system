@@ -11,7 +11,7 @@ import {
   Select,
 } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
-import JSZip from "jszip";
+import { BlobWriter, ZipWriter } from "@zip.js/zip.js";
 import dayjs, { Dayjs } from "dayjs";
 import { generateCertificatePDF } from "./CertificateDocument";
 import { Score, ClassPointsSummary, Registration } from "../types";
@@ -296,7 +296,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
         });
       } else {
         // 单独模式：生成多个单独的PDF并打包成ZIP
-        const zip = new JSZip();
+        const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
 
         // 为每个奖状生成PDF并添加到ZIP
         for (let i = 0; i < certificates.length; i++) {
@@ -312,7 +312,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
 
           // 添加到ZIP，文件名格式：项目_第X名_参与者.pdf
           const fileName = `${cert.competitionName}_第${cert.ranking}名_${cert.participantName}.pdf`;
-          zip.file(fileName, blob);
+          await zipWriter.add(fileName, blob.stream());
         }
 
         message.loading({
@@ -322,7 +322,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
         });
 
         // 生成ZIP文件
-        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const zipBlob = await zipWriter.close();
 
         // 下载ZIP文件
         const url = URL.createObjectURL(zipBlob);

@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
       const totalResult = results[resultIndex++];
       const pendingApprovalResult = results[resultIndex++];
       const pendingScoreReviewResult = results[resultIndex++];
-      const completedResult = results[resultIndex++];
+      const completedResult = results[resultIndex];
 
       if (totalResult && totalResult.status === "fulfilled") {
         handleRespWithoutNotify(totalResult.value, (_, pagination) => {

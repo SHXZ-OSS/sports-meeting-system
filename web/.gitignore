@@ -1,26 +1,42 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-package-lock.json
-pnpm-lock.yaml
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/dist
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+package-lock.json
+
+# Build output
+dist
+dist-ssr
+*.local
 stats.html
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Testing
+coverage
+*.coveragerc
+
+# Misc
+.cache
+.temp

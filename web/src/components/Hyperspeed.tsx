@@ -807,7 +807,7 @@ class Road {
     this.uTime = { value: 0 };
   }
 
-  createPlane(side: number, width: number, isRoad: boolean) {
+  createPlane(side: number, _width: number, isRoad: boolean) {
     const options = this.options;
     const segments = 100;
     const geometry = new THREE.PlaneGeometry(

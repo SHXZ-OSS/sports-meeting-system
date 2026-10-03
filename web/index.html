@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#000000" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -18,12 +21,12 @@
       (function () {
         var ua = navigator.userAgent;
         var shouldShowWarning = false;
-        var browserInfo = '';
+        var browserInfo = "";
 
         // 检测 IE
-        if (ua.indexOf('MSIE') !== -1 || ua.indexOf('Trident/') !== -1) {
+        if (ua.indexOf("MSIE") !== -1 || ua.indexOf("Trident/") !== -1) {
           shouldShowWarning = true;
-          browserInfo = '您当前使用的是 Internet Explorer';
+          browserInfo = "您当前使用的是 Internet Explorer";
         }
         // 检测 Chrome
         else if (/Chrome\/(\d+)/.test(ua) && !/Edg\//.test(ua)) {
@@ -31,7 +34,7 @@
           var version = match ? parseInt(match[1], 10) : 0;
           if (version > 0 && version <= 87) {
             shouldShowWarning = true;
-            browserInfo = '您当前使用的是 Chrome ' + version;
+            browserInfo = "您当前使用的是 Chrome " + version;
           }
         }
         // 检测 Safari
@@ -40,7 +43,7 @@
           var safariVersion = safariMatch ? parseInt(safariMatch[1], 10) : 0;
           if (safariVersion > 0 && safariVersion < 14) {
             shouldShowWarning = true;
-            browserInfo = '您当前使用的是 Safari ' + safariVersion;
+            browserInfo = "您当前使用的是 Safari " + safariVersion;
           }
         }
         // 检测 Firefox
@@ -49,7 +52,7 @@
           var firefoxVersion = firefoxMatch ? parseInt(firefoxMatch[1], 10) : 0;
           if (firefoxVersion > 0 && firefoxVersion < 78) {
             shouldShowWarning = true;
-            browserInfo = '您当前使用的是 Firefox ' + firefoxVersion;
+            browserInfo = "您当前使用的是 Firefox " + firefoxVersion;
           }
         }
         // 检测 Edge
@@ -58,33 +61,33 @@
           var edgeVersion = edgeMatch ? parseInt(edgeMatch[1], 10) : 0;
           if (edgeVersion > 0 && edgeVersion < 88) {
             shouldShowWarning = true;
-            browserInfo = '您当前使用的是 Edge ' + edgeVersion;
+            browserInfo = "您当前使用的是 Edge " + edgeVersion;
           }
         }
 
         if (shouldShowWarning) {
-          var warningDiv = document.createElement('div');
-          warningDiv.id = 'browser-warning';
+          var warningDiv = document.createElement("div");
+          warningDiv.id = "browser-warning";
           warningDiv.style.cssText =
             'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;';
 
-          var contentDiv = document.createElement('div');
+          var contentDiv = document.createElement("div");
           contentDiv.style.cssText =
-            'background:#fff;padding:40px;border-radius:12px;max-width:500px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+            "background:#fff;padding:40px;border-radius:12px;max-width:500px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
 
           contentDiv.innerHTML =
             '<h2 style="color:#ff4d4f;margin:0 0 20px 0;font-size:24px;font-weight:600;">不受支持的浏览器</h2>' +
             '<p style="color:#333;margin:0 0 15px 0;font-size:16px;line-height:1.6;">' +
             browserInfo +
-            '</p>' +
+            "</p>" +
             '<p style="color:#666;margin:0 0 25px 0;font-size:14px;line-height:1.6;">网站可能无法正常显示，请升级您的浏览器或应用以获得最佳体验。</p>' +
             '<button id="continue-anyway" style="background:#1890ff;color:#fff;border:none;padding:12px 32px;font-size:16px;border-radius:6px;cursor:pointer;transition:background 0.3s ease;" onmouseover="this.style.background=\'#40a9ff\'" onmouseout="this.style.background=\'#1890ff\'">仍要继续</button>';
 
           warningDiv.appendChild(contentDiv);
           document.body.appendChild(warningDiv);
 
-          document.getElementById('continue-anyway').onclick = function () {
-            warningDiv.style.display = 'none';
+          document.getElementById("continue-anyway").onclick = function () {
+            warningDiv.style.display = "none";
           };
         }
       })();

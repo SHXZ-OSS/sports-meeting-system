@@ -26,7 +26,7 @@ import {
   FileExcelOutlined,
   TrophyOutlined,
 } from "@ant-design/icons";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import { adminRegistrationAPI } from "../../api/admin/registration";
 import { Competition, Registration, Class, Student } from "../../types";
 import {

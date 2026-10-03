@@ -5,7 +5,7 @@ import {
   ReloadOutlined,
   TrophyOutlined,
 } from "@ant-design/icons";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import {
   Bracket,
   IRenderSeedProps,

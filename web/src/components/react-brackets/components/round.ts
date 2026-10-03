@@ -1,7 +1,11 @@
 import styled from "styled-components";
-import { ISeedProps } from "../types/Seed";
 
-export const Bracket = styled.div<ISeedProps>(
+interface BracketProps {
+  /** 移动端断点（px） */
+  mobileBreakpoint?: number;
+}
+
+export const Bracket = styled.div<BracketProps>(
   (props) => `
   display: flex;
   flex-direction: row;
@@ -11,7 +15,7 @@ export const Bracket = styled.div<ISeedProps>(
   `,
 );
 
-export const Round = styled.div<ISeedProps>(
+export const Round = styled.div<BracketProps>(
   (props) => `
   flex: 0;
   // min-width:300px;

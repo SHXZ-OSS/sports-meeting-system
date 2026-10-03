@@ -3,61 +3,74 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.4.2",
+      "onFail": "error"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "build:visualize": "tsc --noEmit && vite build -- --visualize",
+    "preview": "vite preview",
+    "format": "prettier --write src \"*.{ts,js,json,css,html}\"",
+    "lint": "eslint . --report-unused-disable-directives",
+    "lint:fix": "eslint . --fix",
+    "jscpd": "jscpd src --min-lines 5 --min-tokens 50 --format typescript,tsx",
+    "react-doctor": "react-doctor --no-telemetry"
+  },
+  "browserslist": [
+    "Chrome >= 63",
+    "not dead"
+  ],
   "dependencies": {
-    "@ant-design/icons": "^6.2.2",
-    "antd": "^6.3.7",
-    "axios": "^1.16.0",
+    "@ant-design/icons": "^6.3.4",
+    "@zip.js/zip.js": "^2.22.0",
+    "antd": "^6.6.5",
+    "axios": "^1.20.0",
     "canvas-confetti": "^1.9.4",
-    "dayjs": "^1.11.20",
+    "dayjs": "^1.11.23",
     "dingtalk-jsapi": "^3.2.9",
-    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.5.0",
     "jspdf": "^4.2.1",
-    "jszip": "^3.10.1",
-    "motion": "^12.38.0",
+    "motion": "^13.5.0",
     "ogl": "^1.0.11",
-    "postprocessing": "^6.39.1",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0",
-    "react-swipeable-views": "^0.14.1",
-    "styled-components": "^6.4.1",
-    "three": "^0.184.0",
+    "postprocessing": "^6.39.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "styled-components": "^6.5.3",
+    "three": "^0.186.1",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/canvas-confetti": "^1.9.0",
-    "@types/node": "^25.7.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@types/react-swipeable-views": "^0.13.6",
-    "@types/three": "^0.184.1",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-prettier": "^5.5.6",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-react-refresh": "^0.5.7",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "prettier": "^3.8.3",
-    "rollup-plugin-visualizer": "^7.0.1",
+    "jscpd": "^5.4.0",
+    "prettier": "^3.9.9",
+    "react-doctor": "^0.9.14",
+    "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
-    "vite": "^8.0.12"
-  },
-  "scripts": {
-    "dev": "vite --host",
-    "build": "vite build",
-    "preview": "vite preview",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-    "lint": "eslint . --ext ts,tsx,js,jsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint . --ext ts,tsx,js,jsx --fix"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2"
   }
 }
