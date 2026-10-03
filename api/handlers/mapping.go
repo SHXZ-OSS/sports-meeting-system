@@ -3,9 +3,10 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // RebuildParentStudentMapping 重建家长-学生映射关系
@@ -35,7 +36,7 @@ func GetMappingLogs(c *gin.Context) {
 	logs := services.GetMappingLogs()
 
 	// 构造响应
-	response := map[string]interface{}{
+	response := map[string]any{
 		"logs": logs,
 	}
 

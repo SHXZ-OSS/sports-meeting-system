@@ -2,11 +2,13 @@ package models
 
 import (
 	"errors"
+	"slices"
+
+	"gorm.io/gorm"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
-	"gorm.io/gorm"
 )
 
 // CreateOrUpdateScores 批量提交比赛成绩
@@ -49,7 +51,10 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 					continue
 				}
 				var regCount int64
-				if err := tx.Model(&types.Registration{}).Where("student_id = ? AND competition_id = ?", *studentScore.StudentID, competitionID).Count(&regCount).Error; err != nil {
+				if err := tx.Model(&types.Registration{}).
+					Where("student_id = ? AND competition_id = ?", *studentScore.StudentID, competitionID).
+					Count(&regCount).
+					Error; err != nil {
 					return err
 				}
 				if regCount == 0 {
@@ -106,7 +111,7 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 		}
 
 		// 更新比赛状态为等待成绩审核，并记录成绩提交人
-		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]interface{}{
+		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]any{
 			"status":             types.StatusPendingScoreReview,
 			"score_submitter_id": submitterID,
 			"score_created_at":   gorm.Expr("CURRENT_TIMESTAMP"),
@@ -148,7 +153,11 @@ func CalculateRankingByCompetitionID(competitionID int) error {
 
 		// 获取按分数排序的成绩记录
 		var scores []types.Score
-		if err := tx.Select("id, score").Where("competition_id = ?", competitionID).Order(order).Find(&scores).Error; err != nil {
+		if err := tx.Select("id, score").
+			Where("competition_id = ?", competitionID).
+			Order(order).
+			Find(&scores).
+			Error; err != nil {
 			return err
 		}
 
@@ -197,7 +206,13 @@ func GetScoresByCompetitionID(competitionID int) ([]*types.Score, error) {
 
 	// 执行查询，包含关联数据
 	var scores []*types.Score
-	err := db.Preload("Competition").Preload("Student.Class").Preload("Class").Where("competition_id = ?", competitionID).Order(order).Find(&scores).Error
+	err := db.Preload("Competition").
+		Preload("Student.Class").
+		Preload("Class").
+		Where("competition_id = ?", competitionID).
+		Order(order).
+		Find(&scores).
+		Error
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +291,7 @@ func GetScoresByStudentID(studentID int) ([]*types.Score, error) {
 	}
 
 	// 合并个人赛和团体赛成绩
-	scores := append(individualScores, teamScores...)
+	scores := slices.Concat(individualScores, teamScores)
 
 	// 设置衍生字段
 	for _, score := range scores {
@@ -318,7 +333,7 @@ func ReviewCompetitionScoresByID(competitionID int, reviewerID int) error {
 		}
 
 		// 更新比赛状态为已完成，并记录审核人
-		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]interface{}{
+		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]any{
 			"status":            types.StatusCompleted,
 			"score_reviewer_id": reviewerID,
 			"score_reviewed_at": gorm.Expr("CURRENT_TIMESTAMP"),
@@ -350,7 +365,7 @@ func DeleteCompetitionScoresByID(competitionID int) error {
 		}
 
 		// 更新比赛状态回到待上传
-		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]interface{}{
+		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]any{
 			"status":             types.StatusApproved,
 			"score_submitter_id": nil,
 			"score_reviewer_id":  nil,

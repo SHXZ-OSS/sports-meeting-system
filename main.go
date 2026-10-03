@@ -43,7 +43,7 @@ func main() {
 
 	// 确保上传目录存在
 	uploadDir := "./data/uploads"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		log.Fatalf("Failed to create uploads directory: %v", err)
 	}
 
@@ -82,11 +82,12 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
+		cancel()
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
+	cancel()
 
 	log.Println("Server exiting")
 }

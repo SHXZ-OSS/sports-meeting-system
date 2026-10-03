@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/api/handlers"
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 func getStaticFSHandler(staticFS fs.FS, path string) gin.HandlerFunc {
@@ -20,7 +21,13 @@ func getStaticFSHandler(staticFS fs.FS, path string) gin.HandlerFunc {
 			return
 		}
 		defer content.Close()
-		http.ServeContent(c.Writer, c.Request, path, time.Time{}, content.(io.ReadSeeker))
+
+		seeker, ok := content.(io.ReadSeeker)
+		if !ok {
+			c.String(http.StatusInternalServerError, "Invalid static file")
+			return
+		}
+		http.ServeContent(c.Writer, c.Request, path, time.Time{}, seeker)
 	}
 }
 
@@ -46,7 +53,7 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	dashboard.GET("/competitions/:id", handlers.GetPublicCompetition)
 	dashboard.GET("/competitions/:id/scores", handlers.GetPublicCompetitionScores)
 	dashboard.GET("/competitions/:id/registrations", handlers.GetCompetitionRegistrationsForPublic)
-	dashboard.GET("/scores/student/:id", handlers.GetStudentScoresById)
+	dashboard.GET("/scores/student/:id", handlers.GetStudentScoresByID)
 	dashboard.GET("/statistics", handlers.GetStatistics)
 	// 得分相关（公开）
 	dashboard.GET("/points/classes/summary", handlers.GetClassPointsSummary)

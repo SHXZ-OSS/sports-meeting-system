@@ -4,11 +4,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/dgrijalva/jwt-go"
 )
 
 // UserRole 用户角色
@@ -21,11 +22,12 @@ const (
 
 // JWTClaims JWT 的自定义声明
 type JWTClaims struct {
+	jwt.RegisteredClaims
+
 	UserID     int      `json:"user_id"`
 	Username   string   `json:"username"`
 	Role       UserRole `json:"role"`
 	Permission int      `json:"permission,omitempty"` // 操作员权限列表
-	jwt.StandardClaims
 }
 
 // StudentData 学生数据结构，用于登录响应
@@ -51,9 +53,7 @@ func GenerateToken(id int, username string, role UserRole, permissions int) (str
 		Username:   username,
 		Role:       role,
 		Permission: permissions,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
+		ExpiresAt:  jwt.NewNumericDate(expirationTime),
 	}
 
 	// 创建未签名的 token
@@ -74,11 +74,10 @@ func ValidateToken(tokenString string) (*JWTClaims, error) {
 	cfg := config.Get()
 	jwtSecret := []byte(cfg.Security.JWTSecret)
 
-	// 解析 token
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	// 解析 token（仅接受 HS256，防止算法混淆）
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(_ *jwt.Token) (any, error) {
 		return jwtSecret, nil
-	})
-
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +123,7 @@ func StudentLogin(username, password string) (string, *types.Student, error) {
 }
 
 // DingTalkLogin 钉钉免登录
-func DingTalkLogin(code string) (string, interface{}, error) {
+func DingTalkLogin(code string) (string, any, error) {
 	// 获取钉钉用户信息
 	userInfo, err := utils.GetDingTalkUserInfo(code)
 	if err != nil {
@@ -149,7 +148,6 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 	// 如果找不到学生，尝试查找管理员
 	user, err := models.GetUserByDingTalkID(userInfo.UserID)
 	if err == nil {
-
 		// 生成 token
 		token, err := GenerateToken(user.ID, user.Username, RoleAdmin, user.Permission)
 		if err != nil {
@@ -199,7 +197,7 @@ func DingTalkLogin(code string) (string, interface{}, error) {
 
 // DingTalkSSOLogin 钉钉SSO登录（用于非钉钉客户端环境）
 // 通过SSO OAuth2方式获取用户信息后进行登录
-func DingTalkSSOLogin(userID, name string) (string, interface{}, error) {
+func DingTalkSSOLogin(userID, _ string) (string, any, error) {
 	if userID == "" {
 		return "", nil, errors.New("用户ID为空")
 	}

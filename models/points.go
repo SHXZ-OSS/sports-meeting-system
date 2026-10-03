@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
-	"gorm.io/gorm"
 )
 
 // RecalculatePointsByCompetitionID 根据比赛ID重新计算得分
@@ -119,12 +121,14 @@ func RecalculatePointsByCompetitionID(competitionID int) error {
 				reason := ""
 				if len(studentNames) > 0 {
 					reason = ""
+					var reasonSb122 strings.Builder
 					for i, name := range studentNames {
 						if i > 0 {
-							reason += "、"
+							reasonSb122.WriteString("、")
 						}
-						reason += name
+						reasonSb122.WriteString(name)
 					}
+					reason += reasonSb122.String()
 				}
 
 				classPoint := &types.Points{
@@ -240,7 +244,6 @@ func GetClassPointsSummary() ([]types.ClassPointsSummary, error) {
 		GROUP BY c.id, c.name
 		ORDER BY total_points DESC
 	`, types.PointTypeRanking, types.PointTypeCustom, currentEventID, -currentEventID).Scan(&results).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +288,6 @@ func GetStudentPointsSummary() ([]types.StudentPointsSummary, error) {
 		HAVING total_points > 0
 		ORDER BY total_points DESC
 	`, types.PointTypeRanking, currentEventID).Scan(&results).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +319,6 @@ func GetClassPointDetails(classID int) ([]types.PointDetail, error) {
 			classID, currentEventID, -currentEventID).
 		Order("created_at DESC").
 		Find(&points).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +369,6 @@ func GetStudentPointDetails(studentID int) ([]types.PointDetail, error) {
 			studentID, currentEventID).
 		Order("created_at DESC").
 		Find(&points).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +401,7 @@ func GetTopClasses(limit int) ([]types.ClassPointsSummary, error) {
 
 	// 返回前N名(按照summary的rank来筛，如果出现并列全部返回)
 	var result []types.ClassPointsSummary
-	for i := 0; i < len(summaries); i++ {
+	for i := range summaries {
 		if i < limit || summaries[i].Rank == summaries[limit-1].Rank {
 			result = append(result, summaries[i])
 		}
@@ -418,7 +418,7 @@ func GetTopStudents(limit int) ([]types.StudentPointsSummary, error) {
 
 	// 返回前N名(按照summary的rank来筛，如果出现并列全部返回)
 	var result []types.StudentPointsSummary
-	for i := 0; i < len(summaries); i++ {
+	for i := range summaries {
 		if i < limit || summaries[i].Rank == summaries[limit-1].Rank {
 			result = append(result, summaries[i])
 		}

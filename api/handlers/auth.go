@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // LoginRequest 登录请求
@@ -120,7 +121,7 @@ func DingTalkLogin(c *gin.Context) {
 	}
 
 	// 返回响应
-	utils.ResponseOK(c, map[string]interface{}{
+	utils.ResponseOK(c, map[string]any{
 		"token": token,
 		"user":  userObj,
 	})

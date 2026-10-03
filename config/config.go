@@ -93,12 +93,12 @@ func Load() error {
 			// 配置文件不存在，创建默认配置
 			data, marshalErr := json.MarshalIndent(config, "", "  ")
 			if marshalErr != nil {
-				err = fmt.Errorf("error creating default config: %v", marshalErr)
+				err = fmt.Errorf("error creating default config: %w", marshalErr)
 				return
 			}
 
-			if writeErr := os.WriteFile("config.json", data, 0644); writeErr != nil {
-				err = fmt.Errorf("error writing default config: %v", writeErr)
+			if writeErr := os.WriteFile("config.json", data, 0o644); writeErr != nil {
+				err = fmt.Errorf("error writing default config: %w", writeErr)
 				return
 			}
 
@@ -107,12 +107,12 @@ func Load() error {
 			// 配置文件存在，读取配置
 			data, readErr := os.ReadFile("config.json")
 			if readErr != nil {
-				err = fmt.Errorf("error reading config: %v", readErr)
+				err = fmt.Errorf("error reading config: %w", readErr)
 				return
 			}
 
 			if unmarshalErr := json.Unmarshal(data, config); unmarshalErr != nil {
-				err = fmt.Errorf("error parsing config: %v", unmarshalErr)
+				err = fmt.Errorf("error parsing config: %w", unmarshalErr)
 				return
 			}
 		}
@@ -136,8 +136,8 @@ func Get() *Config {
 func Save() error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error marshaling config: %v", err)
+		return fmt.Errorf("error marshaling config: %w", err)
 	}
 
-	return os.WriteFile("config.json", data, 0644)
+	return os.WriteFile("config.json", data, 0o644)
 }

@@ -3,9 +3,10 @@ package middlewares
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // DashboardMiddleware 看板功能检查中间件

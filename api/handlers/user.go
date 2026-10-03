@@ -4,29 +4,30 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Username      string `json:"username" binding:"required"`
-	Password      string `json:"password" binding:"required"`
-	FullName      string `json:"full_name" binding:"required"`
-	Permission    int    `json:"permission" binding:"required"`
+	Username      string `json:"username"        binding:"required"`
+	Password      string `json:"password"        binding:"required"`
+	FullName      string `json:"full_name"       binding:"required"`
+	Permission    int    `json:"permission"      binding:"required"`
 	DingTalkID    string `json:"dingtalk_id"`
 	ClassScopeIDs []int  `json:"class_scope_ids" binding:"required"`
 }
 
 // UpdateUserRequest 更新用户请求
 type UpdateUserRequest struct {
-	FullName      string `json:"full_name" binding:"required"`
-	Permission    int    `json:"permission" binding:"required"`
+	FullName      string `json:"full_name"          binding:"required"`
+	Permission    int    `json:"permission"         binding:"required"`
 	Password      string `json:"password,omitempty"`
 	DingTalkID    string `json:"dingtalk_id"`
-	ClassScopeIDs []int  `json:"class_scope_ids" binding:"required"`
+	ClassScopeIDs []int  `json:"class_scope_ids"    binding:"required"`
 }
 
 // GetAllUsers 获取所有用户
@@ -100,7 +101,12 @@ func CreateUser(c *gin.Context) {
 	}
 
 	// 验证用户创建操作
-	if err := utils.ValidateUserCreateOrUpdate(currentUser.Permission, req.Permission, 0, req.ClassScopeIDs); err != nil {
+	if err := utils.ValidateUserCreateOrUpdate(
+		currentUser.Permission,
+		req.Permission,
+		0,
+		req.ClassScopeIDs,
+	); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -158,7 +164,12 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// 验证用户更新操作
-	if err := utils.ValidateUserCreateOrUpdate(currentUser.Permission, req.Permission, user.Permission, req.ClassScopeIDs); err != nil {
+	if err := utils.ValidateUserCreateOrUpdate(
+		currentUser.Permission,
+		req.Permission,
+		user.Permission,
+		req.ClassScopeIDs,
+	); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
 		return
 	}

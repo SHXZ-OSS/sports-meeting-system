@@ -3,14 +3,14 @@ package models
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // 检查用户名是否已存在
@@ -27,9 +27,6 @@ func isStudentUsernameExists(db *gorm.DB, username string) (bool, error) {
 func CreateStudent(fullName string, gender int, classID int, dingTalkID string) (*types.Student, string, error) {
 	// 获取数据库连接
 	db := database.GetDB()
-
-	// 初始化随机数生成器
-	rand.Seed(time.Now().UnixNano())
 
 	// 生成用户名
 	username, err := utils.GenerateStudentUsername(fullName)
@@ -109,7 +106,6 @@ func GetStudentByID(id int) (*types.Student, error) {
 	// 查询学生，包含班级信息
 	var student types.Student
 	err := db.Preload("Class").First(&student, id).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("学生不存在")
@@ -133,7 +129,6 @@ func GetStudentByUsername(username string) (*types.Student, error) {
 	// 查询学生，包含班级信息
 	var student types.Student
 	err := db.Preload("Class").Where("username = ?", username).First(&student).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("学生不存在")
@@ -157,7 +152,6 @@ func GetStudentByDingTalkID(dingTalkID string) (*types.Student, error) {
 	// 查询学生，包含班级信息
 	var student types.Student
 	err := db.Preload("Class").Where("ding_talk_id = ?", dingTalkID).First(&student).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("学生不存在")
@@ -232,7 +226,10 @@ func UpdateStudent(student *types.Student) error {
 	db := database.GetDB()
 
 	// 更新学生数据
-	return db.Select("full_name", "password", "gender", "class_id", "ding_talk_id").Where("id = ?", student.ID).Updates(student).Error
+	return db.Select("full_name", "password", "gender", "class_id", "ding_talk_id").
+		Where("id = ?", student.ID).
+		Updates(student).
+		Error
 }
 
 // DeleteStudent 删除学生

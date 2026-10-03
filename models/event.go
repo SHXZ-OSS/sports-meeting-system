@@ -3,9 +3,10 @@ package models
 import (
 	"errors"
 
+	"gorm.io/gorm"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
-	"gorm.io/gorm"
 )
 
 // CreateEvent 创建运动会届次

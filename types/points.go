@@ -12,16 +12,16 @@ const (
 
 // Points 得分记录模型
 type Points struct {
-	ID            int       `json:"id" gorm:"primaryKey;autoIncrement"`
-	CompetitionID int       `json:"competition_id" gorm:"not null;index"` // 关联的比赛项目
-	StudentID     *int      `json:"student_id,omitempty" gorm:"index"`    // 学生ID（个人得分）
-	ClassID       *int      `json:"class_id,omitempty" gorm:"index"`      // 班级ID（班级得分）
-	Points        float64   `json:"points" gorm:"not null"`               // 得分
-	PointType     PointType `json:"point_type" gorm:"not null"`           // 得分类型
-	Ranking       *int      `json:"ranking,omitempty"`                    // 排名（用于ranking类型）
-	Reason        string    `json:"reason" gorm:"default:''"`             // 得分原因说明（用于custom类型）
-	CreatedBy     *int      `json:"created_by,omitempty" gorm:"index"`    // 创建者（教师ID）
-	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
+	ID            int       `json:"id"                   gorm:"primaryKey;autoIncrement"`
+	CompetitionID int       `json:"competition_id"       gorm:"not null;index"` // 关联的比赛项目
+	StudentID     *int      `json:"student_id,omitempty" gorm:"index"`          // 学生ID（个人得分）
+	ClassID       *int      `json:"class_id,omitempty"   gorm:"index"`          // 班级ID（班级得分）
+	Points        float64   `json:"points"               gorm:"not null"`       // 得分
+	PointType     PointType `json:"point_type"           gorm:"not null"`       // 得分类型
+	Ranking       *int      `json:"ranking,omitempty"`                          // 排名（用于ranking类型）
+	Reason        string    `json:"reason"               gorm:"default:''"`     // 得分原因说明（用于custom类型）
+	CreatedBy     *int      `json:"created_by,omitempty" gorm:"index"`          // 创建者（教师ID）
+	CreatedAt     time.Time `json:"created_at"           gorm:"autoCreateTime"`
 
 	// 关联关系
 	Competition Competition `json:"-" gorm:"foreignKey:CompetitionID"`

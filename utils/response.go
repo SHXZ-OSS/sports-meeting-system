@@ -8,19 +8,19 @@ import (
 
 // Response HTTP响应结构
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // PaginatedResponse 分页响应结构
 type PaginatedResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	Total   int         `json:"total"`
-	Page    int         `json:"page"`
-	Size    int         `json:"size"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
+	Total   int    `json:"total"`
+	Page    int    `json:"page"`
+	Size    int    `json:"size"`
 }
 
 // ResponseOK 成功响应

@@ -3,11 +3,12 @@ package models
 import (
 	"errors"
 
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // HasPermission 检查是否有指定权限
@@ -51,7 +52,7 @@ func GetClassScopeIDs(user *types.User) []int {
 }
 
 // CreateUser 创建新用户
-func CreateUser(username, password, fullName string, permission int, dingtalkId string) (*types.User, error) {
+func CreateUser(username, password, fullName string, permission int, dingtalkID string) (*types.User, error) {
 	// 对密码进行哈希处理
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -67,7 +68,7 @@ func CreateUser(username, password, fullName string, permission int, dingtalkId 
 		Password:   string(hashedPassword),
 		FullName:   fullName,
 		Permission: permission,
-		DingTalkID: dingtalkId,
+		DingTalkID: dingtalkID,
 	}
 
 	// 使用事务创建用户
@@ -77,7 +78,6 @@ func CreateUser(username, password, fullName string, permission int, dingtalkId 
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,6 @@ func GetUserByID(id int) (*types.User, error) {
 	// 查询用户，预加载ClassScopes
 	var user types.User
 	err := db.Preload("ClassScopes").First(&user, id).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -112,7 +111,6 @@ func GetUserByUsername(username string) (*types.User, error) {
 	// 查询用户，预加载ClassScopes
 	var user types.User
 	err := db.Preload("ClassScopes").Where("username = ?", username).First(&user).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -131,7 +129,6 @@ func GetUserByDingTalkID(dingTalkID string) (*types.User, error) {
 	// 查询用户，预加载ClassScopes
 	var user types.User
 	err := db.Preload("ClassScopes").Where("ding_talk_id = ?", dingTalkID).First(&user).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -150,7 +147,10 @@ func UpdateUser(user *types.User) error {
 	// 使用事务更新用户数据和班级scopes
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 更新基本字段
-		if err := tx.Select("full_name", "permission", "ding_talk_id").Where("id = ?", user.ID).Updates(user).Error; err != nil {
+		if err := tx.Select("full_name", "permission", "ding_talk_id").
+			Where("id = ?", user.ID).
+			Updates(user).
+			Error; err != nil {
 			return err
 		}
 

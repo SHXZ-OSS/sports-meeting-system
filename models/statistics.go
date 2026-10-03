@@ -2,8 +2,8 @@ package models
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -21,7 +21,7 @@ var (
 )
 
 // getCompetitionCount 获取已完成和未完成的比赛数量
-func getCompetitionCount() (completed int, remaining int, err error) {
+func getCompetitionCount() (int, int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -31,13 +31,19 @@ func getCompetitionCount() (completed int, remaining int, err error) {
 
 	// 查询已完成的比赛数量
 	var completedCount int64
-	if err = db.Model(&types.Competition{}).Where("status = ? AND event_id = ?", types.StatusCompleted, currentEventID).Count(&completedCount).Error; err != nil {
+	if err := db.Model(&types.Competition{}).
+		Where("status = ? AND event_id = ?", types.StatusCompleted, currentEventID).
+		Count(&completedCount).
+		Error; err != nil {
 		return 0, 0, err
 	}
 
 	// 查询待完成的比赛数量
 	var remainingCount int64
-	if err = db.Model(&types.Competition{}).Where("(status = ? OR status = ?) AND event_id = ?", types.StatusApproved, types.StatusPendingScoreReview, currentEventID).Count(&remainingCount).Error; err != nil {
+	if err := db.Model(&types.Competition{}).
+		Where("(status = ? OR status = ?) AND event_id = ?", types.StatusApproved, types.StatusPendingScoreReview, currentEventID).
+		Count(&remainingCount).
+		Error; err != nil {
 		return 0, 0, err
 	}
 
@@ -129,7 +135,7 @@ func calculateStatisticsHash(stats *types.Statistics) (string, error) {
 
 	// 计算 MD5 哈希（取前8位即可，节省带宽）
 	hash := md5.Sum(data)
-	return fmt.Sprintf("%x", hash[:4]), nil
+	return hex.EncodeToString(hash[:4]), nil
 }
 
 // GetStatisticsHash 获取当前缓存的统计数据哈希值

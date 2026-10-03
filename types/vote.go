@@ -10,10 +10,10 @@ const (
 
 // Vote 投票模型
 type Vote struct {
-	ID            int      `json:"id" gorm:"primaryKey;autoIncrement"`
-	StudentID     int      `json:"student_id" gorm:"not null;index:idx_vote_unique,unique"`
+	ID            int      `json:"id"             gorm:"primaryKey;autoIncrement"`
+	StudentID     int      `json:"student_id"     gorm:"not null;index:idx_vote_unique,unique"`
 	CompetitionID int      `json:"competition_id" gorm:"not null;index:idx_vote_unique,unique"`
-	VoteType      VoteType `json:"vote_type" gorm:"not null"` // 1: upvote, -1: downvote
+	VoteType      VoteType `json:"vote_type"      gorm:"not null"` // 1: upvote, -1: downvote
 
 	// 关联关系
 	Student     Student     `json:"-" gorm:"foreignKey:StudentID"`

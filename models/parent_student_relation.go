@@ -7,11 +7,11 @@ import (
 
 // ParentStudentRelation 家长学生关系模型
 type ParentStudentRelation struct {
-	ID          int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	ParentID    string `json:"parent_id" gorm:"not null;index"`  // 家长钉钉ID
-	StudentID   string `json:"student_id" gorm:"not null;index"` // 学生钉钉ID
-	Relation    string `json:"relation" gorm:"not null"`         // 关系描述
-	StudentName string `json:"student_name" gorm:"-"`            // 忽略该字段，通过join获取
+	ID          int    `json:"id"           gorm:"primaryKey;autoIncrement"`
+	ParentID    string `json:"parent_id"    gorm:"not null;index"` // 家长钉钉ID
+	StudentID   string `json:"student_id"   gorm:"not null;index"` // 学生钉钉ID
+	Relation    string `json:"relation"     gorm:"not null"`       // 关系描述
+	StudentName string `json:"student_name" gorm:"-"`              // 忽略该字段，通过join获取
 
 	// 唯一索引：同一家长和学生的同一种关系只能有一条记录
 	// gorm的uniqueIndex需要在迁移时处理
@@ -30,7 +30,6 @@ func GetStudentsByParentID(parentID string) ([]*ParentStudentRelation, error) {
         JOIN students s ON psr.student_id = s.dingtalk_id
         WHERE psr.parent_id = ?
     `, parentID).Scan(&relations).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +44,10 @@ func SaveParentStudentRelation(parentID string, studentID string, relation strin
 
 	// 检查关系是否已存在
 	var count int64
-	if err := db.Model(&ParentStudentRelation{}).Where("parent_id = ? AND student_id = ? AND relation = ?", parentID, studentID, relation).Count(&count).Error; err != nil {
+	if err := db.Model(&ParentStudentRelation{}).
+		Where("parent_id = ? AND student_id = ? AND relation = ?", parentID, studentID, relation).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 

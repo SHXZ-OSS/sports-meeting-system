@@ -4,21 +4,44 @@ import (
 	"errors"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"gorm.io/gorm"
 )
 
 // CreateCompetition 创建比赛项目（学生提交）
-func CreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int, startTime, endTime *time.Time, allowConcurrent bool) error {
+func CreateCompetition(
+	name, description, imagePath, unit string,
+	gender int,
+	rankingMode types.RankingMode,
+	competitionType types.CompetitionType,
+	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int,
+	startTime, endTime *time.Time,
+	allowConcurrent bool,
+) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
 
 	// 使用验证器验证比赛项目提交（学生提交）
-	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, startTime, endTime, false); err != nil {
+	if err := validator.ValidateCompetitionSubmission(
+		name,
+		unit,
+		gender,
+		rankingMode,
+		minParticipantsPerClass,
+		maxParticipantsPerClass,
+		minFemalePerClass,
+		maxFemalePerClass,
+		minMalePerClass,
+		maxMalePerClass,
+		startTime,
+		endTime,
+		false,
+	); err != nil {
 		return err
 	}
 
@@ -72,24 +95,27 @@ func UpdateCompetition(competition *types.Competition) error {
 
 	// 使用事务更新比赛数据
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Model(competition).Select("name", "description", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time", "allow_concurrent").Updates(map[string]interface{}{
-			"name":                       competition.Name,
-			"description":                competition.Description,
-			"image_path":                 competition.ImagePath,
-			"unit":                       competition.Unit,
-			"gender":                     competition.Gender,
-			"ranking_mode":               competition.RankingMode,
-			"competition_type":           competition.CompetitionType,
-			"min_participants_per_class": competition.MinParticipantsPerClass,
-			"max_participants_per_class": competition.MaxParticipantsPerClass,
-			"min_female_per_class":       competition.MinFemalePerClass,
-			"max_female_per_class":       competition.MaxFemalePerClass,
-			"min_male_per_class":         competition.MinMalePerClass,
-			"max_male_per_class":         competition.MaxMalePerClass,
-			"start_time":                 competition.StartTime,
-			"end_time":                   competition.EndTime,
-			"allow_concurrent":           competition.AllowConcurrent,
-		}).Error
+		return tx.Model(competition).
+			Select("name", "description", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time", "allow_concurrent").
+			Updates(map[string]any{
+				"name":                       competition.Name,
+				"description":                competition.Description,
+				"image_path":                 competition.ImagePath,
+				"unit":                       competition.Unit,
+				"gender":                     competition.Gender,
+				"ranking_mode":               competition.RankingMode,
+				"competition_type":           competition.CompetitionType,
+				"min_participants_per_class": competition.MinParticipantsPerClass,
+				"max_participants_per_class": competition.MaxParticipantsPerClass,
+				"min_female_per_class":       competition.MinFemalePerClass,
+				"max_female_per_class":       competition.MaxFemalePerClass,
+				"min_male_per_class":         competition.MinMalePerClass,
+				"max_male_per_class":         competition.MaxMalePerClass,
+				"start_time":                 competition.StartTime,
+				"end_time":                   competition.EndTime,
+				"allow_concurrent":           competition.AllowConcurrent,
+			}).
+			Error
 	})
 	if err != nil {
 		return err
@@ -117,7 +143,7 @@ func ApproveCompetitionByID(id, reviewerID int) error {
 
 	// 更新比赛状态
 	now := time.Now()
-	return db.Model(&types.Competition{}).Where("id = ?", id).Updates(map[string]interface{}{
+	return db.Model(&types.Competition{}).Where("id = ?", id).Updates(map[string]any{
 		"status":      types.StatusApproved,
 		"reviewed_at": now,
 		"reviewer_id": reviewerID,
@@ -137,7 +163,7 @@ func RejectCompetitionByID(id, reviewerID int) error {
 
 	// 更新比赛状态
 	now := time.Now()
-	return db.Model(&types.Competition{}).Where("id = ?", id).Updates(map[string]interface{}{
+	return db.Model(&types.Competition{}).Where("id = ?", id).Updates(map[string]any{
 		"status":      types.StatusRejected,
 		"reviewed_at": now,
 		"reviewer_id": reviewerID,
@@ -145,13 +171,35 @@ func RejectCompetitionByID(id, reviewerID int) error {
 }
 
 // AdminCreateCompetition 管理员创建比赛项目（不受时间限制）
-func AdminCreateCompetition(name, description, imagePath, unit string, gender int, rankingMode types.RankingMode, competitionType types.CompetitionType, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int, startTime, endTime *time.Time, allowConcurrent bool) error {
+func AdminCreateCompetition(
+	name, description, imagePath, unit string,
+	gender int,
+	rankingMode types.RankingMode,
+	competitionType types.CompetitionType,
+	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int,
+	startTime, endTime *time.Time,
+	allowConcurrent bool,
+) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
 
 	// 使用验证器验证比赛项目提交（管理员提交）
-	if err := validator.ValidateCompetitionSubmission(name, unit, gender, rankingMode, minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, startTime, endTime, true); err != nil {
+	if err := validator.ValidateCompetitionSubmission(
+		name,
+		unit,
+		gender,
+		rankingMode,
+		minParticipantsPerClass,
+		maxParticipantsPerClass,
+		minFemalePerClass,
+		maxFemalePerClass,
+		minMalePerClass,
+		maxMalePerClass,
+		startTime,
+		endTime,
+		true,
+	); err != nil {
 		return err
 	}
 
@@ -207,7 +255,6 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 		Preload("ScoreReviewer").
 		Where("event_id = ?", currentEventID).
 		First(&comp, id).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, utils.ErrCompetitionNotFound
@@ -235,7 +282,10 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 
 	// 获取报名数量
 	var registrationCount int64
-	if err := db.Model(&types.Registration{}).Where("competition_id = ?", id).Count(&registrationCount).Error; err != nil {
+	if err := db.Model(&types.Registration{}).
+		Where("competition_id = ?", id).
+		Count(&registrationCount).
+		Error; err != nil {
 		return nil, err
 	}
 	comp.RegistrationCount = int(registrationCount)
@@ -244,7 +294,12 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 }
 
 // GetAllCompetitions 获取所有比赛项目，支持分页和状态筛选
-func GetAllCompetitions(page, pageSize int, statuses []types.CompetitionStatus, gender int, sortBy string) ([]*types.Competition, int, error) {
+func GetAllCompetitions(
+	page, pageSize int,
+	statuses []types.CompetitionStatus,
+	gender int,
+	sortBy string,
+) ([]*types.Competition, int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -331,7 +386,10 @@ func GetAllCompetitions(page, pageSize int, statuses []types.CompetitionStatus, 
 
 		// 获取报名数量
 		var registrationCount int64
-		if err := db.Model(&types.Registration{}).Where("competition_id = ?", comp.ID).Count(&registrationCount).Error; err == nil {
+		if err := db.Model(&types.Registration{}).
+			Where("competition_id = ?", comp.ID).
+			Count(&registrationCount).
+			Error; err == nil {
 			comp.RegistrationCount = int(registrationCount)
 		}
 	}
@@ -379,7 +437,6 @@ func getLatestCompletedCompetition() (*types.Competition, error) {
 	err := db.Where("status = ? AND event_id = ?", types.StatusCompleted, currentEventID).
 		Order("score_reviewed_at DESC").
 		First(&comp).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 没有找到已完成的比赛

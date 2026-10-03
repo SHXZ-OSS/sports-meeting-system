@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"gorm.io/gorm"
 )
 
 // RegisterForCompetitionForStudent 学生报名比赛（个人赛和团体赛都以学生为单位）
@@ -112,7 +113,12 @@ func GetStudentRegistrationsByStudentID(studentID int) ([]*types.Competition, er
 
 	// 查询学生报名的比赛
 	var registrations []*types.Registration
-	err := db.Preload("Competition.Submitter").Preload("Competition.Reviewer").Where("student_id = ?", studentID).Order("created_at DESC").Find(&registrations).Error
+	err := db.Preload("Competition.Submitter").
+		Preload("Competition.Reviewer").
+		Where("student_id = ?", studentID).
+		Order("created_at DESC").
+		Find(&registrations).
+		Error
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +173,8 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 		if scopeClassIDs != nil && len(*scopeClassIDs) > 0 {
 			query = query.Where("class_id IN ?", *scopeClassIDs)
 		}
-		needGender := comp.Gender == 3 && (comp.MinFemalePerClass > 0 || comp.MaxFemalePerClass > 0 || comp.MinMalePerClass > 0 || comp.MaxMalePerClass > 0)
+		needGender := comp.Gender == 3 &&
+			(comp.MinFemalePerClass > 0 || comp.MaxFemalePerClass > 0 || comp.MinMalePerClass > 0 || comp.MaxMalePerClass > 0)
 		if needGender {
 			query = query.Preload("Student")
 		}
@@ -206,68 +213,29 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 		allOk := true
 
 		for _, class := range classes {
-			total := classTotal[class.ID]
+			var classIssues []map[string]any
+			classOk := true
+			var ok bool
 
 			// 检查总人数
-			if comp.MinParticipantsPerClass > 0 && total < comp.MinParticipantsPerClass {
-				allOk = false
-				issues = append(issues, map[string]any{
-					"competition_id":   comp.ID,
-					"competition_name": comp.Name,
-					"status":           "error",
-					"message":          fmt.Sprintf("班级 %s 报名人数不足（%d/%d）", class.Name, total, comp.MinParticipantsPerClass),
-				})
-			}
-			if comp.MaxParticipantsPerClass > 0 && total > comp.MaxParticipantsPerClass {
-				allOk = false
-				issues = append(issues, map[string]any{
-					"competition_id":   comp.ID,
-					"competition_name": comp.Name,
-					"status":           "error",
-					"message":          fmt.Sprintf("班级 %s 报名人数超出上限（%d/%d）", class.Name, total, comp.MaxParticipantsPerClass),
-				})
-			}
+			classIssues, ok = appendCountIssue(classIssues, &comp, class.Name, "报名人数",
+				classTotal[class.ID], comp.MinParticipantsPerClass, comp.MaxParticipantsPerClass)
+			classOk = classOk && ok
 
 			// 检查性别人数（仅混合性别项目）
 			if needGender {
-				female := classFemale[class.ID]
-				male := classMale[class.ID]
-				if comp.MinFemalePerClass > 0 && female < comp.MinFemalePerClass {
-					allOk = false
-					issues = append(issues, map[string]any{
-						"competition_id":   comp.ID,
-						"competition_name": comp.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("班级 %s 女生人数不足（%d/%d）", class.Name, female, comp.MinFemalePerClass),
-					})
-				}
-				if comp.MaxFemalePerClass > 0 && female > comp.MaxFemalePerClass {
-					allOk = false
-					issues = append(issues, map[string]any{
-						"competition_id":   comp.ID,
-						"competition_name": comp.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("班级 %s 女生人数超出上限（%d/%d）", class.Name, female, comp.MaxFemalePerClass),
-					})
-				}
-				if comp.MinMalePerClass > 0 && male < comp.MinMalePerClass {
-					allOk = false
-					issues = append(issues, map[string]any{
-						"competition_id":   comp.ID,
-						"competition_name": comp.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("班级 %s 男生人数不足（%d/%d）", class.Name, male, comp.MinMalePerClass),
-					})
-				}
-				if comp.MaxMalePerClass > 0 && male > comp.MaxMalePerClass {
-					allOk = false
-					issues = append(issues, map[string]any{
-						"competition_id":   comp.ID,
-						"competition_name": comp.Name,
-						"status":           "error",
-						"message":          fmt.Sprintf("班级 %s 男生人数超出上限（%d/%d）", class.Name, male, comp.MaxMalePerClass),
-					})
-				}
+				classIssues, ok = appendCountIssue(classIssues, &comp, class.Name, "女生人数",
+					classFemale[class.ID], comp.MinFemalePerClass, comp.MaxFemalePerClass)
+				classOk = classOk && ok
+
+				classIssues, ok = appendCountIssue(classIssues, &comp, class.Name, "男生人数",
+					classMale[class.ID], comp.MinMalePerClass, comp.MaxMalePerClass)
+				classOk = classOk && ok
+			}
+
+			if !classOk {
+				allOk = false
+				issues = append(issues, classIssues...)
 			}
 		}
 
@@ -289,6 +257,51 @@ func GetCompetitionChecklist(scopeClassIDs *[]int) ([]map[string]any, error) {
 	return results, nil
 }
 
+// appendCountIssue 检查某项人数是否越出上下限，越界时向 issues 追加问题条目。
+// 返回追加后的切片，以及人数是否符合要求（未越界为 true）
+func appendCountIssue(
+	issues []map[string]any,
+	comp *types.Competition,
+	className, metric string,
+	count, minLimit, maxLimit int,
+) ([]map[string]any, bool) {
+	ok := true
+
+	if minLimit > 0 && count < minLimit {
+		ok = false
+		issues = append(issues, map[string]any{
+			"competition_id":   comp.ID,
+			"competition_name": comp.Name,
+			"status":           "error",
+			"message": fmt.Sprintf(
+				"班级 %s %s不足（%d/%d）",
+				className,
+				metric,
+				count,
+				minLimit,
+			),
+		})
+	}
+
+	if maxLimit > 0 && count > maxLimit {
+		ok = false
+		issues = append(issues, map[string]any{
+			"competition_id":   comp.ID,
+			"competition_name": comp.Name,
+			"status":           "error",
+			"message": fmt.Sprintf(
+				"班级 %s %s超出上限（%d/%d）",
+				className,
+				metric,
+				count,
+				maxLimit,
+			),
+		})
+	}
+
+	return issues, ok
+}
+
 // checkStudentTimeConflicts 检查学生报名的比赛时间是否有冲突
 func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]any {
 	var issues []map[string]any
@@ -296,7 +309,9 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 	// 获取当前届次所有有时间信息的比赛
 	cfg := config.Get()
 	var competitions []types.Competition
-	if err := db.Where("event_id = ? AND start_time IS NOT NULL AND end_time IS NOT NULL", cfg.CurrentEventID).Find(&competitions).Error; err != nil {
+	if err := db.Where("event_id = ? AND start_time IS NOT NULL AND end_time IS NOT NULL", cfg.CurrentEventID).
+		Find(&competitions).
+		Error; err != nil {
 		return issues
 	}
 
@@ -334,7 +349,7 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 		}
 
 		// 检查该学生报名的比赛时间是否有重叠
-		for i := 0; i < len(regs); i++ {
+		for i := range regs {
 			comp1 := compMap[regs[i].CompetitionID]
 			if comp1 == nil || comp1.StartTime == nil || comp1.EndTime == nil {
 				continue
@@ -347,21 +362,47 @@ func checkStudentTimeConflicts(db *gorm.DB, scopeClassIDs *[]int) []map[string]a
 				}
 
 				// 检查时间是否重叠，且两个比赛都不允许兼项时才报错
-				if timesOverlap(comp1.StartTime, comp1.EndTime, comp2.StartTime, comp2.EndTime) && !comp1.AllowConcurrent && !comp2.AllowConcurrent {
+				if timesOverlap(comp1.StartTime, comp1.EndTime, comp2.StartTime, comp2.EndTime) &&
+					!comp1.AllowConcurrent &&
+					!comp2.AllowConcurrent {
 					cst, _ := time.LoadLocation("Asia/Shanghai")
-					time1 := fmt.Sprintf("%s-%s", comp1.StartTime.In(cst).Format("06-01-02 15:04"), comp1.EndTime.In(cst).Format("06-01-02 15:04"))
-					time2 := fmt.Sprintf("%s-%s", comp2.StartTime.In(cst).Format("06-01-02 15:04"), comp2.EndTime.In(cst).Format("06-01-02 15:04"))
+					time1 := fmt.Sprintf(
+						"%s-%s",
+						comp1.StartTime.In(cst).Format("06-01-02 15:04"),
+						comp1.EndTime.In(cst).Format("06-01-02 15:04"),
+					)
+					time2 := fmt.Sprintf(
+						"%s-%s",
+						comp2.StartTime.In(cst).Format("06-01-02 15:04"),
+						comp2.EndTime.In(cst).Format("06-01-02 15:04"),
+					)
 					issues = append(issues, map[string]any{
 						"competition_id":   comp1.ID,
 						"competition_name": comp1.Name,
 						"status":           "error",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"message": fmt.Sprintf(
+							"学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）",
+							student.Class.Name,
+							student.FullName,
+							comp1.Name,
+							time1,
+							comp2.Name,
+							time2,
+						),
 					})
 					issues = append(issues, map[string]any{
 						"competition_id":   comp2.ID,
 						"competition_name": comp2.Name,
 						"status":           "error",
-						"message":          fmt.Sprintf("学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）", student.Class.Name, student.FullName, comp1.Name, time1, comp2.Name, time2),
+						"message": fmt.Sprintf(
+							"学生 %s %s 报名的比赛时间冲突：%s（%s）和 %s（%s）",
+							student.Class.Name,
+							student.FullName,
+							comp1.Name,
+							time1,
+							comp2.Name,
+							time2,
+						),
 					})
 				}
 			}

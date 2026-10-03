@@ -1,11 +1,12 @@
 package services
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
@@ -49,7 +50,7 @@ func addMappingLog(message string) {
 	mappingLogs = append(mappingLogs, logEntry)
 
 	// 同时输出到标准日志
-	log.Println(message)
+	logger.L.Info(message)
 }
 
 // ClearMappingLogs 清除映射日志
@@ -66,7 +67,7 @@ func RebuildParentStudentMapping() error {
 	rebuildingMutex.Lock()
 	if isRebuilding {
 		rebuildingMutex.Unlock()
-		return fmt.Errorf("映射关系重建已在进行中，请等待完成")
+		return errors.New("映射关系重建已在进行中，请等待完成")
 	}
 
 	// 设置重建状态为 true
@@ -91,7 +92,7 @@ func RebuildParentStudentMapping() error {
 	if err != nil {
 		errMsg := fmt.Sprintf("获取班级列表失败: %v", err)
 		addMappingLog(errMsg)
-		return fmt.Errorf(errMsg)
+		return errors.New(errMsg)
 	}
 
 	addMappingLog(fmt.Sprintf("共获取到 %d 个班级需要处理", len(classIDs)))
@@ -100,7 +101,7 @@ func RebuildParentStudentMapping() error {
 	if err := models.ClearAllParentStudentRelations(); err != nil {
 		errMsg := fmt.Sprintf("清空映射关系失败: %v", err)
 		addMappingLog(errMsg)
-		return fmt.Errorf(errMsg)
+		return errors.New(errMsg)
 	}
 
 	addMappingLog("已清空现有映射关系")
@@ -136,7 +137,7 @@ func RebuildParentStudentMapping() error {
 				return
 			}
 
-			if relations == nil || len(relations) == 0 {
+			if len(relations) == 0 {
 				addMappingLog(fmt.Sprintf("班级 %s (%d/%d) 没有家长-学生关系", cid, index+1, len(classIDs)))
 				return
 			}
@@ -147,10 +148,10 @@ func RebuildParentStudentMapping() error {
 			// 保存获取到的关系
 			for _, rel := range relations {
 				// 保存关系到数据库
-				err := models.SaveParentStudentRelation(rel.GuardianUserID, rel.StudentUserId, rel.Relation)
+				err := models.SaveParentStudentRelation(rel.GuardianUserID, rel.StudentUserID, rel.Relation)
 				if err != nil {
 					errMsg := fmt.Sprintf("保存关系失败 (家长: %s, 学生: %s): %v",
-						rel.GuardianUserID, rel.StudentUserId, err)
+						rel.GuardianUserID, rel.StudentUserID, err)
 					addMappingLog(errMsg)
 				} else {
 					localRelationCount++

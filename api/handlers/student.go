@@ -4,26 +4,28 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
-	"github.com/SHXZ-OSS/sports-meeting-system/models"
-	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
+	"github.com/SHXZ-OSS/sports-meeting-system/models"
+	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
 // CreateStudentRequest 创建学生请求
 type CreateStudentRequest struct {
-	FullName   string `json:"full_name" binding:"required"`
-	ClassName  string `json:"class_name" binding:"required"`
-	Gender     int    `json:"gender" binding:"required,min=1,max=2"`
+	FullName   string `json:"full_name"   binding:"required"`
+	ClassName  string `json:"class_name"  binding:"required"`
+	Gender     int    `json:"gender"      binding:"required,min=1,max=2"`
 	DingTalkID string `json:"dingtalk_id"`
 }
 
 // UpdateStudentRequest 更新学生请求
 type UpdateStudentRequest struct {
-	FullName   string `json:"full_name" binding:"required"`
-	ClassName  string `json:"class_name" binding:"required"`
-	Gender     int    `json:"gender" binding:"required,min=1,max=2"`
+	FullName   string `json:"full_name"   binding:"required"`
+	ClassName  string `json:"class_name"  binding:"required"`
+	Gender     int    `json:"gender"      binding:"required,min=1,max=2"`
 	DingTalkID string `json:"dingtalk_id"`
 }
 
@@ -76,7 +78,7 @@ func GetAllStudents(c *gin.Context) {
 
 	// 返回响应
 	if page > 0 && pageSize > 0 {
-		utils.ResponsePaginated(c, students, int(total), page, pageSize)
+		utils.ResponsePaginated(c, students, total, page, pageSize)
 	} else {
 		utils.ResponseOK(c, students)
 	}
@@ -154,7 +156,9 @@ func CreateStudent(c *gin.Context) {
 	if !models.HasClassScope(user, class) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		if isCreated {
-			models.DeleteClass(class)
+			if err := models.DeleteClass(class); err != nil {
+				logger.L.Warn("回滚新建班级失败", "error", err)
+			}
 		}
 		return
 	}
@@ -167,7 +171,7 @@ func CreateStudent(c *gin.Context) {
 	}
 
 	// 返回响应
-	utils.ResponseOK(c, map[string]interface{}{
+	utils.ResponseOK(c, map[string]any{
 		"student":  student,
 		"password": password, // 返回初始密码
 	})
@@ -225,7 +229,9 @@ func UpdateStudent(c *gin.Context) {
 	if !models.HasClassScope(user, class) {
 		utils.ResponseError(c, http.StatusForbidden, "没有权限将学生转移到该班级")
 		if isCreated {
-			models.DeleteClass(class)
+			if err := models.DeleteClass(class); err != nil {
+				logger.L.Warn("回滚新建班级失败", "error", err)
+			}
 		}
 		return
 	}
@@ -290,7 +296,7 @@ func DeleteStudent(c *gin.Context) {
 	utils.ResponseOK(c, map[string]bool{"success": true})
 }
 
-// 重置学生密码
+// ResetStudentPassword 重置学生密码
 func ResetStudentPassword(c *gin.Context) {
 	// 解析路径参数
 	id, err := strconv.Atoi(c.Param("id"))

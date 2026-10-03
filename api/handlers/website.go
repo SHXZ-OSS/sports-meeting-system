@@ -3,9 +3,10 @@ package handlers
 import (
 	"fmt"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // WebsiteInfoResponse 网站信息响应
@@ -69,5 +70,5 @@ func GetManifest(c *gin.Context) {
 
 	// 返回manifest
 	c.Header("Content-Type", "application/manifest+json")
-	c.Writer.Write([]byte(resp))
+	_, _ = c.Writer.Write([]byte(resp))
 }

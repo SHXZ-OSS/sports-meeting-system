@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // splitAndTrim 分割字符串并去除空格
@@ -46,19 +47,19 @@ func isValidCompetitionStatus(status types.CompetitionStatus) bool {
 
 // CreateCompetitionRequest 创建比赛项目请求
 type CreateCompetitionRequest struct {
-	Name                    string                `json:"name" binding:"required"`
+	Name                    string                `json:"name"                       binding:"required"`
 	Description             string                `json:"description"`
-	RankingMode             types.RankingMode     `json:"ranking_mode" binding:"required,oneof=higher_first lower_first"`
-	Gender                  int                   `json:"gender" binding:"required,min=1,max=3"`
-	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"`
+	RankingMode             types.RankingMode     `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
+	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
+	CompetitionType         types.CompetitionType `json:"competition_type"           binding:"required,oneof=individual team"`
 	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
 	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
-	MinFemalePerClass       int                   `json:"min_female_per_class" binding:"min=0"`
-	MaxFemalePerClass       int                   `json:"max_female_per_class" binding:"min=0"`
-	MinMalePerClass         int                   `json:"min_male_per_class" binding:"min=0"`
-	MaxMalePerClass         int                   `json:"max_male_per_class" binding:"min=0"`
+	MinFemalePerClass       int                   `json:"min_female_per_class"       binding:"min=0"`
+	MaxFemalePerClass       int                   `json:"max_female_per_class"       binding:"min=0"`
+	MinMalePerClass         int                   `json:"min_male_per_class"         binding:"min=0"`
+	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
-	Unit                    string                `json:"unit" binding:"required"`
+	Unit                    string                `json:"unit"                       binding:"required"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
@@ -66,19 +67,19 @@ type CreateCompetitionRequest struct {
 
 // UpdateCompetitionRequest 更新比赛项目请求
 type UpdateCompetitionRequest struct {
-	Name                    string                `json:"name" binding:"required"`
+	Name                    string                `json:"name"                       binding:"required"`
 	Description             string                `json:"description"`
-	RankingMode             types.RankingMode     `json:"ranking_mode" binding:"required,oneof=higher_first lower_first"`
-	CompetitionType         types.CompetitionType `json:"competition_type" binding:"required,oneof=individual team"`
+	RankingMode             types.RankingMode     `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
+	CompetitionType         types.CompetitionType `json:"competition_type"           binding:"required,oneof=individual team"`
 	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
 	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
-	MinFemalePerClass       int                   `json:"min_female_per_class" binding:"min=0"`
-	MaxFemalePerClass       int                   `json:"max_female_per_class" binding:"min=0"`
-	MinMalePerClass         int                   `json:"min_male_per_class" binding:"min=0"`
-	MaxMalePerClass         int                   `json:"max_male_per_class" binding:"min=0"`
+	MinFemalePerClass       int                   `json:"min_female_per_class"       binding:"min=0"`
+	MaxFemalePerClass       int                   `json:"max_female_per_class"       binding:"min=0"`
+	MinMalePerClass         int                   `json:"min_male_per_class"         binding:"min=0"`
+	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
-	Unit                    string                `json:"unit" binding:"required"`
-	Gender                  int                   `json:"gender" binding:"required,min=1,max=3"`
+	Unit                    string                `json:"unit"                       binding:"required"`
+	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
@@ -162,15 +163,19 @@ func GetAllEligibleCompetitions(c *gin.Context) {
 		}
 	} else {
 		// 默认显示非审核非拒绝比赛
-		statuses = []types.CompetitionStatus{types.StatusCompleted, types.StatusApproved, types.StatusPendingScoreReview}
+		statuses = []types.CompetitionStatus{
+			types.StatusCompleted,
+			types.StatusApproved,
+			types.StatusPendingScoreReview,
+		}
 	}
 
-	studentId, ok := middlewares.GetUserIDFromContext(c)
+	studentID, ok := middlewares.GetUserIDFromContext(c)
 	if !ok {
 		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
 		return
 	}
-	student, err := models.GetStudentByID(studentId)
+	student, err := models.GetStudentByID(studentID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取学生信息失败")
 		return
@@ -292,8 +297,8 @@ func GetCompetition(c *gin.Context) {
 func CreateCompetition(c *gin.Context) {
 	// 解析请求
 	var req CreateCompetitionRequest
-	var studentID, ID int
-	var fileprefix = "competition"
+	var studentID, userID int
+	fileprefix := "competition"
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
 		return
@@ -314,12 +319,12 @@ func CreateCompetition(c *gin.Context) {
 		}
 		fileprefix = "competition_" + strconv.Itoa(studentID)
 	case services.RoleAdmin:
-		ID, ok = middlewares.GetUserIDFromContext(c)
+		userID, ok = middlewares.GetUserIDFromContext(c)
 		if !ok {
 			utils.ResponseError(c, http.StatusUnauthorized, "未授权")
 			return
 		}
-		fileprefix = "competition_" + strconv.Itoa(ID)
+		fileprefix = "competition_" + strconv.Itoa(userID)
 	}
 
 	// 验证排名方式
@@ -329,7 +334,7 @@ func CreateCompetition(c *gin.Context) {
 
 	// 确保图片目录存在
 	uploadDir := "./data/uploads"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建目录失败")
 		return
 	}
@@ -356,9 +361,45 @@ func CreateCompetition(c *gin.Context) {
 	// 创建比赛项目
 	var err error
 	if role == services.RoleStudent {
-		err = models.CreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, studentID, req.StartTime, req.EndTime, req.AllowConcurrent)
+		err = models.CreateCompetition(
+			req.Name,
+			req.Description,
+			imagePath,
+			req.Unit,
+			req.Gender,
+			req.RankingMode,
+			req.CompetitionType,
+			req.MinParticipantsPerClass,
+			req.MaxParticipantsPerClass,
+			req.MinFemalePerClass,
+			req.MaxFemalePerClass,
+			req.MinMalePerClass,
+			req.MaxMalePerClass,
+			studentID,
+			req.StartTime,
+			req.EndTime,
+			req.AllowConcurrent,
+		)
 	} else {
-		err = models.AdminCreateCompetition(req.Name, req.Description, imagePath, req.Unit, req.Gender, req.RankingMode, req.CompetitionType, req.MinParticipantsPerClass, req.MaxParticipantsPerClass, req.MinFemalePerClass, req.MaxFemalePerClass, req.MinMalePerClass, req.MaxMalePerClass, ID, req.StartTime, req.EndTime, req.AllowConcurrent)
+		err = models.AdminCreateCompetition(
+			req.Name,
+			req.Description,
+			imagePath,
+			req.Unit,
+			req.Gender,
+			req.RankingMode,
+			req.CompetitionType,
+			req.MinParticipantsPerClass,
+			req.MaxParticipantsPerClass,
+			req.MinFemalePerClass,
+			req.MaxFemalePerClass,
+			req.MinMalePerClass,
+			req.MaxMalePerClass,
+			userID,
+			req.StartTime,
+			req.EndTime,
+			req.AllowConcurrent,
+		)
 	}
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建比赛项目失败: "+err.Error())
@@ -385,13 +426,12 @@ func UpdateCompetition(c *gin.Context) {
 		return
 	}
 
-	var fileprefix = "competition"
-	ID, ok := middlewares.GetUserIDFromContext(c)
+	userID, ok := middlewares.GetUserIDFromContext(c)
 	if !ok {
 		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
 		return
 	}
-	fileprefix = "competition_" + strconv.Itoa(ID)
+	fileprefix := "competition_" + strconv.Itoa(userID)
 
 	// 获取比赛项目
 	competition, err := models.GetCompetitionByID(id)
@@ -418,7 +458,7 @@ func UpdateCompetition(c *gin.Context) {
 
 	// 确保图片目录存在
 	uploadDir := "./data/uploads"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建目录失败")
 		return
 	}

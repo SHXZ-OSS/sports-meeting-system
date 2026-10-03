@@ -2,16 +2,18 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 )
 
 // DingTalkToken 钉钉访问令牌结构
@@ -21,9 +23,7 @@ type DingTalkToken struct {
 	ExpiresAt   time.Time
 }
 
-var (
-	dingTalkToken *DingTalkToken
-)
+var dingTalkToken *DingTalkToken
 
 // GetDingTalkToken 获取钉钉访问令牌
 func GetDingTalkToken() (string, error) {
@@ -39,7 +39,7 @@ func GetDingTalkToken() (string, error) {
 
 	// 检查配置是否完整
 	if appKey == "" || appSecret == "" {
-		return "", fmt.Errorf("钉钉配置不完整")
+		return "", errors.New("钉钉配置不完整")
 	}
 
 	// 请求URL
@@ -49,18 +49,23 @@ func GetDingTalkToken() (string, error) {
 	maxRetries := 3
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		// 如果不是第一次尝试，等待一段时间再重试
 		if attempt > 0 {
 			backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
 			time.Sleep(backoffTime)
-			log.Printf("重试获取钉钉访问令牌，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+			logger.L.Warn(fmt.Sprintf("重试获取钉钉访问令牌，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime))
 		}
 
 		// 发送请求
-		resp, err := http.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		if err != nil {
-			lastErr = fmt.Errorf("failed to request DingTalk token: %v", err)
+			lastErr = fmt.Errorf("failed to create DingTalk token request: %w", err)
+			continue
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to request DingTalk token: %w", err)
 			continue
 		}
 
@@ -68,7 +73,7 @@ func GetDingTalkToken() (string, error) {
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			lastErr = fmt.Errorf("failed to read response: %v", err)
+			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
 		}
 
@@ -80,7 +85,7 @@ func GetDingTalkToken() (string, error) {
 			ExpiresIn   int    `json:"expires_in"`
 		}
 		if err := json.Unmarshal(body, &result); err != nil {
-			lastErr = fmt.Errorf("failed to parse response: %v", err)
+			lastErr = fmt.Errorf("failed to parse response: %w", err)
 			continue
 		}
 
@@ -105,7 +110,7 @@ func GetDingTalkToken() (string, error) {
 		return dingTalkToken.AccessToken, nil
 	}
 
-	return "", fmt.Errorf("获取钉钉访问令牌失败，已重试 %d 次: %v", maxRetries, lastErr)
+	return "", fmt.Errorf("获取钉钉访问令牌失败，已重试 %d 次: %w", maxRetries, lastErr)
 }
 
 // GetDingTalkUserInfo 获取钉钉用户信息
@@ -114,13 +119,13 @@ func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
 	maxRetries := 3
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		// 如果不是第一次尝试，等待一段时间再重试
 		// 等待时间随着重试次数增加而增加 (500ms, 1000ms, 2000ms)
 		if attempt > 0 {
 			backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
 			time.Sleep(backoffTime)
-			log.Printf("重试获取钉钉用户信息，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+			logger.L.Warn(fmt.Sprintf("重试获取钉钉用户信息，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime))
 		}
 
 		// 获取访问令牌
@@ -134,9 +139,14 @@ func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
 		url := fmt.Sprintf("https://oapi.dingtalk.com/user/getuserinfo?access_token=%s&code=%s", accessToken, code)
 
 		// 发送请求
-		resp, err := http.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		if err != nil {
-			lastErr = fmt.Errorf("failed to request DingTalk user info: %v", err)
+			lastErr = fmt.Errorf("failed to create DingTalk user info request: %w", err)
+			continue
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to request DingTalk user info: %w", err)
 			continue
 		}
 
@@ -144,7 +154,7 @@ func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			lastErr = fmt.Errorf("failed to read response: %v", err)
+			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
 		}
 
@@ -158,7 +168,7 @@ func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
 		}
 
 		if err := json.Unmarshal(body, &result); err != nil {
-			lastErr = fmt.Errorf("failed to parse response: %v", err)
+			lastErr = fmt.Errorf("failed to parse response: %w", err)
 			continue
 		}
 
@@ -181,7 +191,7 @@ func GetDingTalkUserInfo(code string) (*DingTalkUserInfo, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("获取钉钉用户信息失败，已重试 %d 次: %v", maxRetries, lastErr)
+	return nil, fmt.Errorf("获取钉钉用户信息失败，已重试 %d 次: %w", maxRetries, lastErr)
 }
 
 // DingTalkUserInfo 钉钉用户信息结构
@@ -195,7 +205,7 @@ type DingTalkUserInfo struct {
 type DingTalkGuardianStudentRel struct {
 	GuardianUserID string `json:"guardian_userid"`
 	Relation       string `json:"relation"`
-	StudentUserId  string `json:"student_userid"`
+	StudentUserID  string `json:"student_userid"`
 }
 
 // GetAllClassIDs 获取所有班级的ID
@@ -224,7 +234,7 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 	url := "https://oapi.dingtalk.com/topapi/edu/dept/list"
 
 	// 构建请求数据
-	data := map[string]interface{}{
+	data := map[string]any{
 		"page_size": 30,
 		"page_no":   1,
 	}
@@ -242,7 +252,7 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 		data["page_no"] = pageNo
 		jsonData, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("编码请求失败: %v", err)
+			return fmt.Errorf("编码请求失败: %w", err)
 		}
 
 		// 最大重试次数
@@ -264,21 +274,21 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 		}
 
 		// 重试逻辑
-		for attempt := 0; attempt < maxRetries; attempt++ {
+		for attempt := range maxRetries {
 			// 如果不是第一次尝试，等待一段时间再重试
 			if attempt > 0 {
 				backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
 				time.Sleep(backoffTime)
-				log.Printf("重试获取部门列表，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+				logger.L.Warn(fmt.Sprintf("重试获取部门列表，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime))
 			} else {
 				// 第一次请求也要有延迟，避免QPS限制
 				time.Sleep(500 * time.Millisecond)
 			}
 
 			// 发送请求
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+			req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 			if err != nil {
-				lastErr = fmt.Errorf("创建请求失败: %v", err)
+				lastErr = fmt.Errorf("创建请求失败: %w", err)
 				continue
 			}
 
@@ -290,7 +300,7 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				lastErr = fmt.Errorf("发送请求失败: %v", err)
+				lastErr = fmt.Errorf("发送请求失败: %w", err)
 				continue
 			}
 
@@ -298,13 +308,13 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 			body, err := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if err != nil {
-				lastErr = fmt.Errorf("读取响应失败: %v", err)
+				lastErr = fmt.Errorf("读取响应失败: %w", err)
 				continue
 			}
 
 			// 解析响应
 			if err := json.Unmarshal(body, &result); err != nil {
-				lastErr = fmt.Errorf("解析响应失败: %v", err)
+				lastErr = fmt.Errorf("解析响应失败: %w", err)
 				continue
 			}
 
@@ -329,7 +339,7 @@ func findClassDepartments(accessToken string, superID int, classIDs *[]string, a
 
 		// 如果重试后仍然失败
 		if result.ErrCode != 0 && result.ErrCode != 60123 {
-			return fmt.Errorf("获取部门列表失败，已重试 %d 次: %v", maxRetries, lastErr)
+			return fmt.Errorf("获取部门列表失败，已重试 %d 次: %w", maxRetries, lastErr)
 		}
 
 		// 处理当前页的部门
@@ -377,7 +387,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 		url := "https://oapi.dingtalk.com/topapi/edu/user/relation/list"
 
 		// 构建请求数据
-		data := map[string]interface{}{
+		data := map[string]any{
 			"class_id":  classID,
 			"page_size": 30,
 			"page_no":   pageNo,
@@ -385,7 +395,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 
 		jsonData, err := json.Marshal(data)
 		if err != nil {
-			return nil, fmt.Errorf("编码请求失败: %v", err)
+			return nil, fmt.Errorf("编码请求失败: %w", err)
 		}
 
 		// 最大重试次数
@@ -408,21 +418,21 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 		}
 
 		// 重试逻辑
-		for attempt := 0; attempt < maxRetries; attempt++ {
+		for attempt := range maxRetries {
 			// 如果不是第一次尝试，等待一段时间再重试
 			if attempt > 0 {
 				backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
 				time.Sleep(backoffTime)
-				log.Printf("重试获取家长-学生关系，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+				logger.L.Warn(fmt.Sprintf("重试获取家长-学生关系，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime))
 			} else {
 				// 第一次请求也要有延迟，避免QPS限制
 				time.Sleep(500 * time.Millisecond)
 			}
 
 			// 发送请求
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+			req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 			if err != nil {
-				lastErr = fmt.Errorf("创建请求失败: %v", err)
+				lastErr = fmt.Errorf("创建请求失败: %w", err)
 				continue
 			}
 
@@ -434,7 +444,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				lastErr = fmt.Errorf("发送请求失败: %v", err)
+				lastErr = fmt.Errorf("发送请求失败: %w", err)
 				continue
 			}
 
@@ -442,13 +452,13 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 			body, err := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if err != nil {
-				lastErr = fmt.Errorf("读取响应失败: %v", err)
+				lastErr = fmt.Errorf("读取响应失败: %w", err)
 				continue
 			}
 
 			// 解析响应
 			if err := json.Unmarshal(body, &result); err != nil {
-				lastErr = fmt.Errorf("解析响应失败: %v", err)
+				lastErr = fmt.Errorf("解析响应失败: %w", err)
 				continue
 			}
 
@@ -473,7 +483,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 
 		// 如果重试后仍然失败
 		if result.ErrCode != 0 && result.ErrCode != 60123 {
-			return nil, fmt.Errorf("获取家长-学生关系失败，已重试 %d 次: %v", maxRetries, lastErr)
+			return nil, fmt.Errorf("获取家长-学生关系失败，已重试 %d 次: %w", maxRetries, lastErr)
 		}
 
 		// 添加获取到的关系
@@ -481,7 +491,7 @@ func GetClassParentStudentRelations(classID string) ([]DingTalkGuardianStudentRe
 			relation := DingTalkGuardianStudentRel{
 				GuardianUserID: rel.FromUserid,
 				Relation:       rel.RelationName,
-				StudentUserId:  rel.ToUserid,
+				StudentUserID:  rel.ToUserid,
 			}
 			allRelations = append(allRelations, relation)
 		}
@@ -520,10 +530,7 @@ func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
 	if len(userIDs) > 100 {
 		var batches [][]string
 		for i := 0; i < len(userIDs); i += 100 {
-			end := i + 100
-			if end > len(userIDs) {
-				end = len(userIDs)
-			}
+			end := min(i+100, len(userIDs))
 			batches = append(batches, userIDs[i:end])
 		}
 
@@ -545,10 +552,10 @@ func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
 // sendDingTalkActionCardBatch 按批次发送钉钉卡片消息
 func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, card ActionCardMessage) error {
 	// 构建请求数据
-	data := map[string]interface{}{
+	data := map[string]any{
 		"agent_id":    agentID,
 		"userid_list": strings.Join(userIDs, ","),
-		"msg": map[string]interface{}{
+		"msg": map[string]any{
 			"msgtype": "action_card",
 			"action_card": map[string]string{
 				"title":        card.Title,
@@ -562,28 +569,37 @@ func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, 
 	// 编码请求数据
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to encode request: %v", err)
+		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
 	// 请求URL
-	url := fmt.Sprintf("https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=%s", accessToken)
+	url := fmt.Sprintf(
+		"https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=%s",
+		accessToken,
+	)
 
 	// 最大重试次数
 	maxRetries := 3
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		// 如果不是第一次尝试，等待一段时间再重试
 		if attempt > 0 {
 			backoffTime := time.Duration(500*1<<uint(attempt-1)) * time.Millisecond
 			time.Sleep(backoffTime)
-			log.Printf("重试发送钉钉卡片消息，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime)
+			logger.L.Warn(fmt.Sprintf("重试发送钉钉卡片消息，第 %d 次尝试, 等待时间: %v", attempt+1, backoffTime))
 		}
 
 		// 发送请求
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewBuffer(jsonData))
 		if err != nil {
-			lastErr = fmt.Errorf("failed to send DingTalk action card: %v", err)
+			lastErr = fmt.Errorf("failed to create DingTalk action card request: %w", err)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to send DingTalk action card: %w", err)
 			continue
 		}
 
@@ -591,7 +607,7 @@ func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, 
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			lastErr = fmt.Errorf("failed to read response: %v", err)
+			lastErr = fmt.Errorf("failed to read response: %w", err)
 			continue
 		}
 
@@ -601,7 +617,7 @@ func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, 
 			ErrMsg  string `json:"errmsg"`
 		}
 		if err := json.Unmarshal(body, &result); err != nil {
-			lastErr = fmt.Errorf("failed to parse response: %v", err)
+			lastErr = fmt.Errorf("failed to parse response: %w", err)
 			continue
 		}
 
@@ -619,18 +635,18 @@ func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, 
 		return nil
 	}
 
-	return fmt.Errorf("发送钉钉卡片消息失败，已重试 %d 次: %v", maxRetries, lastErr)
+	return fmt.Errorf("发送钉钉卡片消息失败，已重试 %d 次: %w", maxRetries, lastErr)
 }
 
 // GetDingTalkSSOUserInfo 通过SSO OAuth2授权码获取钉钉用户信息
 // 用于非钉钉客户端环境下的登录
 func GetDingTalkSSOUserInfo(code string) (*DingTalkUserInfo, error) {
 	cfg := config.Get()
-	clientID := cfg.DingTalk.AppKey       // AppKey 即为 ClientID
+	clientID := cfg.DingTalk.AppKey        // AppKey 即为 ClientID
 	clientSecret := cfg.DingTalk.AppSecret // AppSecret 即为 ClientSecret
 
 	if clientID == "" || clientSecret == "" {
-		return nil, fmt.Errorf("钉钉SSO配置不完整")
+		return nil, errors.New("钉钉SSO配置不完整")
 	}
 
 	// Step 1: 获取用户访问令牌
@@ -643,32 +659,32 @@ func GetDingTalkSSOUserInfo(code string) (*DingTalkUserInfo, error) {
 	}
 	tokenBodyBytes, _ := json.Marshal(tokenBody)
 
-	req, err := http.NewRequest("POST", tokenURL, bytes.NewBuffer(tokenBodyBytes))
+	req, err := http.NewRequest(http.MethodPost, tokenURL, bytes.NewBuffer(tokenBodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %v", err)
+		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("请求用户令牌失败: %v", err)
+		return nil, fmt.Errorf("请求用户令牌失败: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %v", err)
+		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
 	var tokenResult struct {
 		AccessToken  string `json:"accessToken"`
 		RefreshToken string `json:"refreshToken"`
 		ExpireIn     int    `json:"expireIn"`
-		CorpId       string `json:"corpId"`
+		CorpID       string `json:"corpId"`
 	}
 	if err := json.Unmarshal(body, &tokenResult); err != nil {
-		return nil, fmt.Errorf("解析令牌响应失败: %v", err)
+		return nil, fmt.Errorf("解析令牌响应失败: %w", err)
 	}
 
 	if tokenResult.AccessToken == "" {
@@ -680,48 +696,48 @@ func GetDingTalkSSOUserInfo(code string) (*DingTalkUserInfo, error) {
 		if err := json.Unmarshal(body, &errResult); err == nil && errResult.Message != "" {
 			return nil, fmt.Errorf("获取访问令牌失败: %s", errResult.Message)
 		}
-		return nil, fmt.Errorf("获取访问令牌失败")
+		return nil, errors.New("获取访问令牌失败")
 	}
 
 	// Step 2: 获取用户信息
 	userURL := "https://api.dingtalk.com/v1.0/contact/users/me"
-	userReq, err := http.NewRequest("GET", userURL, nil)
+	userReq, err := http.NewRequest(http.MethodGet, userURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("创建用户请求失败: %v", err)
+		return nil, fmt.Errorf("创建用户请求失败: %w", err)
 	}
-	userReq.Header.Set("x-acs-dingtalk-access-token", tokenResult.AccessToken)
+	userReq.Header.Set("X-Acs-Dingtalk-Access-Token", tokenResult.AccessToken)
 
 	userResp, err := client.Do(userReq)
 	if err != nil {
-		return nil, fmt.Errorf("请求用户信息失败: %v", err)
+		return nil, fmt.Errorf("请求用户信息失败: %w", err)
 	}
 	defer userResp.Body.Close()
 
 	userBody, err := io.ReadAll(userResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取用户信息响应失败: %v", err)
+		return nil, fmt.Errorf("读取用户信息响应失败: %w", err)
 	}
 
 	var userResult struct {
 		Nick    string `json:"nick"`
-		UnionId string `json:"unionId"`
-		OpenId  string `json:"openId"`
+		UnionID string `json:"unionId"`
+		OpenID  string `json:"openId"`
 	}
 	if err := json.Unmarshal(userBody, &userResult); err != nil {
-		return nil, fmt.Errorf("解析用户信息失败: %v", err)
+		return nil, fmt.Errorf("解析用户信息失败: %w", err)
 	}
 
-	if userResult.UnionId == "" {
-		return nil, fmt.Errorf("获取用户信息失败: unionId为空")
+	if userResult.UnionID == "" {
+		return nil, errors.New("获取用户信息失败: unionId为空")
 	}
 
 	return &DingTalkUserInfo{
-		UserID: userResult.UnionId,
+		UserID: userResult.UnionID,
 		Name:   userResult.Nick,
 	}, nil
 }
 
 // LogError 记录错误信息到日志
 func LogError(message string) {
-	log.Printf("ERROR: %s", message)
+	logger.L.Error(message)
 }

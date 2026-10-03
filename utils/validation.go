@@ -2,11 +2,13 @@ package utils
 
 import (
 	"errors"
+	"slices"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
-	"gorm.io/gorm"
 )
 
 // 验证相关的错误定义
@@ -161,16 +163,18 @@ func ValidateCompetitionStatus(status types.CompetitionStatus) bool {
 		types.StatusCompleted,
 	}
 
-	for _, validStatus := range validStatuses {
-		if status == validStatus {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(validStatuses, status)
 }
 
 // ValidateCompetitionSubmission 验证比赛项目提交
-func (cv *CompetitionValidator) ValidateCompetitionSubmission(name, unit string, gender int, rankingMode types.RankingMode, minParticipants, maxParticipants, minFemale, maxFemale, minMale, maxMale int, startTime, endTime *time.Time, isAdmin bool) error {
+func (cv *CompetitionValidator) ValidateCompetitionSubmission(
+	name, _ string,
+	gender int,
+	rankingMode types.RankingMode,
+	minParticipants, maxParticipants, minFemale, maxFemale, minMale, maxMale int,
+	startTime, endTime *time.Time,
+	isAdmin bool,
+) error {
 	// 获取当前选中的 EventID
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
@@ -207,7 +211,10 @@ func (cv *CompetitionValidator) ValidateCompetitionSubmission(name, unit string,
 
 	// 检查项目名称是否已存在
 	var count int64
-	if err := cv.db.Model(&types.Competition{}).Where("name = ? AND event_id = ?", name, currentEventID).Count(&count).Error; err != nil {
+	if err := cv.db.Model(&types.Competition{}).
+		Where("name = ? AND event_id = ?", name, currentEventID).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -234,12 +241,20 @@ func (cv *CompetitionValidator) ValidateCompetitionUpdate(competition *types.Com
 	}
 
 	// 验证参与人数限制
-	if err := ValidateParticipantsLimit(competition.MinParticipantsPerClass, competition.MaxParticipantsPerClass); err != nil {
+	if err := ValidateParticipantsLimit(
+		competition.MinParticipantsPerClass,
+		competition.MaxParticipantsPerClass,
+	); err != nil {
 		return err
 	}
 
 	// 验证性别人数限制
-	if err := ValidateGenderLimits(competition.MinFemalePerClass, competition.MaxFemalePerClass, competition.MinMalePerClass, competition.MaxMalePerClass); err != nil {
+	if err := ValidateGenderLimits(
+		competition.MinFemalePerClass,
+		competition.MaxFemalePerClass,
+		competition.MinMalePerClass,
+		competition.MaxMalePerClass,
+	); err != nil {
 		return err
 	}
 
@@ -250,7 +265,10 @@ func (cv *CompetitionValidator) ValidateCompetitionUpdate(competition *types.Com
 
 	// 验证项目名称是否已存在且不属于当前项目
 	var count int64
-	if err := cv.db.Model(&types.Competition{}).Where("name = ? AND id != ? AND event_id = ?", competition.Name, competition.ID, currentEventID).Count(&count).Error; err != nil {
+	if err := cv.db.Model(&types.Competition{}).
+		Where("name = ? AND id != ? AND event_id = ?", competition.Name, competition.ID, currentEventID).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -284,7 +302,12 @@ func (cv *CompetitionValidator) CheckCompetitionExists(id int) (*types.Competiti
 // ==== 报名相关验证函数 ====
 
 // ValidateRegistration 验证报名请求
-func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *int, competitionID int, user *types.User) error {
+func (rv *RegistrationValidator) ValidateRegistration(
+	studentID *int,
+	_ *int,
+	competitionID int,
+	user *types.User,
+) error {
 	// 获取当前选中的 EventID
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
@@ -298,7 +321,10 @@ func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *i
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status, gender, competition_type").Where("id = ? AND event_id = ?", competitionID, currentEventID).First(&competition).Error; err != nil {
+	if err := rv.db.Select("status, gender, competition_type").
+		Where("id = ? AND event_id = ?", competitionID, currentEventID).
+		First(&competition).
+		Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCompetitionNotFound
 		}
@@ -330,7 +356,10 @@ func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *i
 
 	// 检查是否已经报名
 	var count int64
-	if err := rv.db.Model(&types.Registration{}).Where("student_id = ? AND competition_id = ?", *studentID, competitionID).Count(&count).Error; err != nil {
+	if err := rv.db.Model(&types.Registration{}).
+		Where("student_id = ? AND competition_id = ?", *studentID, competitionID).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -360,7 +389,12 @@ func (rv *RegistrationValidator) ValidateRegistration(studentID *int, classID *i
 }
 
 // ValidateUnregistration 验证取消报名请求
-func (rv *RegistrationValidator) ValidateUnregistration(studentID *int, classID *int, competitionID int, user *types.User) error {
+func (rv *RegistrationValidator) ValidateUnregistration(
+	studentID *int,
+	_ *int,
+	competitionID int,
+	user *types.User,
+) error {
 	// 获取当前选中的 EventID
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
@@ -374,7 +408,10 @@ func (rv *RegistrationValidator) ValidateUnregistration(studentID *int, classID 
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status").Where("id = ? AND event_id = ?", competitionID, currentEventID).First(&competition).Error; err != nil {
+	if err := rv.db.Select("status").
+		Where("id = ? AND event_id = ?", competitionID, currentEventID).
+		First(&competition).
+		Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCompetitionNotFound
 		}
@@ -404,7 +441,10 @@ func (rv *RegistrationValidator) ValidateUnregistration(studentID *int, classID 
 // CheckRegistrationExists 检查报名记录是否存在
 func (rv *RegistrationValidator) CheckRegistrationExists(studentID, competitionID int) error {
 	var count int64
-	if err := rv.db.Model(&types.Registration{}).Where("student_id = ? AND competition_id = ?", studentID, competitionID).Count(&count).Error; err != nil {
+	if err := rv.db.Model(&types.Registration{}).
+		Where("student_id = ? AND competition_id = ?", studentID, competitionID).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 	if count == 0 {

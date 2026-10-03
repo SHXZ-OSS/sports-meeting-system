@@ -3,9 +3,10 @@ package models
 import (
 	"errors"
 
+	"gorm.io/gorm"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
-	"gorm.io/gorm"
 )
 
 // GetClassByID 通过ID获取班级
@@ -16,7 +17,6 @@ func GetClassByID(id int) (*types.Class, error) {
 	// 查询班级
 	var class types.Class
 	err := db.First(&class, id).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("班级不存在")
@@ -85,7 +85,6 @@ func GetOrCreateClassByName(name string) (int, bool, error) {
 		classID = newClass.ID
 		return nil
 	})
-
 	if err != nil {
 		return 0, isCreated, err
 	}
@@ -123,7 +122,10 @@ func UpdateClass(class *types.Class) error {
 
 	// 检查班级名称是否已被其他班级使用
 	var count int64
-	if err := db.Model(&types.Class{}).Where("name = ? AND id != ?", class.Name, class.ID).Count(&count).Error; err != nil {
+	if err := db.Model(&types.Class{}).
+		Where("name = ? AND id != ?", class.Name, class.ID).
+		Count(&count).
+		Error; err != nil {
 		return err
 	}
 	if count > 0 {

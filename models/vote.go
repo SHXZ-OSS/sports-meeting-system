@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"gorm.io/gorm"
+
+	"github.com/SHXZ-OSS/sports-meeting-system/types"
 )
 
 // VoteCompetition 对比赛项目进行投票
@@ -24,7 +25,7 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("比赛项目不存在")
 		}
-		return fmt.Errorf("查询比赛项目失败: %v", err)
+		return fmt.Errorf("查询比赛项目失败: %w", err)
 	}
 
 	// 检查学生是否存在
@@ -33,7 +34,7 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("学生不存在")
 		}
-		return fmt.Errorf("查询学生失败: %v", err)
+		return fmt.Errorf("查询学生失败: %w", err)
 	}
 
 	// 使用事务处理投票逻辑
@@ -48,7 +49,7 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 			if existingVote.VoteType == voteType {
 				// 相同投票类型，取消投票
 				if err := tx.Delete(&existingVote).Error; err != nil {
-					return fmt.Errorf("删除投票失败: %v", err)
+					return fmt.Errorf("删除投票失败: %w", err)
 				}
 
 				// 更新比赛项目的投票计数
@@ -56,32 +57,34 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 				if err := tx.Model(&types.Competition{}).
 					Where("id = ?", competitionID).
 					UpdateColumn("vote_count", gorm.Expr("vote_count + ?", voteDelta)).Error; err != nil {
-					return fmt.Errorf("更新投票计数失败: %v", err)
-				}
-
-				return nil
-			} else {
-				// 不同投票类型，更新投票
-				oldVoteType := existingVote.VoteType
-				existingVote.VoteType = voteType
-
-				if err := tx.Save(&existingVote).Error; err != nil {
-					return fmt.Errorf("更新投票失败: %v", err)
-				}
-
-				// 更新比赛项目的投票计数
-				// 从旧投票类型切换到新投票类型，变化量为 2 * voteType
-				// 例如：从 -1 切换到 +1，变化量为 +2
-				voteDelta := int(voteType - oldVoteType)
-				if err := tx.Model(&types.Competition{}).
-					Where("id = ?", competitionID).
-					UpdateColumn("vote_count", gorm.Expr("vote_count + ?", voteDelta)).Error; err != nil {
-					return fmt.Errorf("更新投票计数失败: %v", err)
+					return fmt.Errorf("更新投票计数失败: %w", err)
 				}
 
 				return nil
 			}
-		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+
+			// 不同投票类型，更新投票
+			oldVoteType := existingVote.VoteType
+			existingVote.VoteType = voteType
+
+			if err := tx.Save(&existingVote).Error; err != nil {
+				return fmt.Errorf("更新投票失败: %w", err)
+			}
+
+			// 更新比赛项目的投票计数
+			// 从旧投票类型切换到新投票类型，变化量为 2 * voteType
+			// 例如：从 -1 切换到 +1，变化量为 +2
+			voteDelta := int(voteType - oldVoteType)
+			if err := tx.Model(&types.Competition{}).
+				Where("id = ?", competitionID).
+				UpdateColumn("vote_count", gorm.Expr("vote_count + ?", voteDelta)).Error; err != nil {
+				return fmt.Errorf("更新投票计数失败: %w", err)
+			}
+
+			return nil
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 不存在投票记录，创建新投票
 			newVote := types.Vote{
 				StudentID:     studentID,
@@ -90,20 +93,20 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 			}
 
 			if err := tx.Create(&newVote).Error; err != nil {
-				return fmt.Errorf("创建投票失败: %v", err)
+				return fmt.Errorf("创建投票失败: %w", err)
 			}
 
 			// 更新比赛项目的投票计数
 			if err := tx.Model(&types.Competition{}).
 				Where("id = ?", competitionID).
 				UpdateColumn("vote_count", gorm.Expr("vote_count + ?", int(voteType))).Error; err != nil {
-				return fmt.Errorf("更新投票计数失败: %v", err)
+				return fmt.Errorf("更新投票计数失败: %w", err)
 			}
 
 			return nil
-		} else {
-			return fmt.Errorf("查询投票记录失败: %v", err)
 		}
+
+		return fmt.Errorf("查询投票记录失败: %w", err)
 	})
 }
 
@@ -112,12 +115,11 @@ func GetStudentVote(db *gorm.DB, studentID, competitionID int) (*types.Vote, err
 	var vote types.Vote
 	err := db.Where("student_id = ? AND competition_id = ?", studentID, competitionID).
 		First(&vote).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 没有投票记录
 		}
-		return nil, fmt.Errorf("查询投票失败: %v", err)
+		return nil, fmt.Errorf("查询投票失败: %w", err)
 	}
 
 	return &vote, nil
@@ -133,9 +135,8 @@ func GetStudentVotesForCompetitions(db *gorm.DB, studentID int, competitionIDs [
 	var votes []types.Vote
 	err := db.Where("student_id = ? AND competition_id IN ?", studentID, competitionIDs).
 		Find(&votes).Error
-
 	if err != nil {
-		return nil, fmt.Errorf("查询投票失败: %v", err)
+		return nil, fmt.Errorf("查询投票失败: %w", err)
 	}
 
 	result := make(map[int]types.VoteType)

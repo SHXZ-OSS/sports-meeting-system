@@ -3,10 +3,11 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // UpdateSettingsRequest 更新设置请求
@@ -47,20 +48,20 @@ func GetSettings(c *gin.Context) {
 	cfg := config.Get()
 
 	// 构建响应
-	settings := map[string]interface{}{
-		"dingtalk": map[string]interface{}{
+	settings := map[string]any{
+		"dingtalk": map[string]any{
 			"app_key":    cfg.DingTalk.AppKey,
 			"app_secret": cfg.DingTalk.AppSecret,
 			"agent_id":   cfg.DingTalk.AgentID,
 			"corp_id":    cfg.DingTalk.CorpID,
 		},
-		"website": map[string]interface{}{
+		"website": map[string]any{
 			"name":             cfg.Website.Name,
 			"icp_beian":        cfg.Website.ICPBeian,
 			"public_sec_beian": cfg.Website.PublicSecBeian,
 			"domain":           cfg.Website.Domain,
 		},
-		"competition": map[string]interface{}{
+		"competition": map[string]any{
 			"submission_start_time":        cfg.Competition.SubmissionStartTime,
 			"submission_end_time":          cfg.Competition.SubmissionEndTime,
 			"voting_start_time":            cfg.Competition.VotingStartTime,
@@ -69,10 +70,10 @@ func GetSettings(c *gin.Context) {
 			"registration_end_time":        cfg.Competition.RegistrationEndTime,
 			"max_registrations_per_person": cfg.Competition.MaxRegistrationsPerPerson,
 		},
-		"dashboard": map[string]interface{}{
+		"dashboard": map[string]any{
 			"enabled": cfg.Dashboard.Enabled,
 		},
-		"scoring": map[string]interface{}{
+		"scoring": map[string]any{
 			"team_points_mapping":       cfg.Scoring.TeamPointsMapping,
 			"individual_points_mapping": cfg.Scoring.IndividualPointsMapping,
 		},
@@ -154,7 +155,7 @@ func GetEvents(c *gin.Context) {
 	}
 
 	cfg := config.Get()
-	response := map[string]interface{}{
+	response := map[string]any{
 		"list":             events,
 		"current_event_id": cfg.CurrentEventID,
 	}

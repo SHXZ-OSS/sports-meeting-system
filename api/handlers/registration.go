@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
-	"github.com/gin-gonic/gin"
 )
 
 // RegisterCompetitionRequest 报名比赛请求
@@ -18,7 +19,7 @@ type RegisterCompetitionRequest struct {
 
 // AdminRegisterRequest 管理员替学生报名请求
 type AdminRegisterRequest struct {
-	StudentID     int `json:"student_id" binding:"required"`
+	StudentID     int `json:"student_id"     binding:"required"`
 	CompetitionID int `json:"competition_id" binding:"required"`
 }
 
@@ -69,7 +70,8 @@ func GetCompetitionRegistrationsForPublic(c *gin.Context) {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取比赛状态失败")
 		return
 	}
-	if competition.Status != types.StatusApproved && competition.Status != types.StatusCompleted && competition.Status != types.StatusPendingScoreReview {
+	if competition.Status != types.StatusApproved && competition.Status != types.StatusCompleted &&
+		competition.Status != types.StatusPendingScoreReview {
 		utils.ResponseError(c, http.StatusForbidden, "仅允许查看已批准的比赛报名列表")
 		return
 	}
@@ -83,7 +85,6 @@ func GetCompetitionRegistrationsForPublic(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseOK(c, registrations)
-
 }
 
 // RegisterForCompetitionForStudent 学生报名比赛

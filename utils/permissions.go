@@ -74,7 +74,7 @@ func HasMorePermissions(userPermission, targetPermission int) bool {
 // CountPermissions 计算权限数量
 func CountPermissions(permission int) int {
 	count := 0
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		if permission&(1<<i) != 0 {
 			count++
 		}
