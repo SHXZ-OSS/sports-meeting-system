@@ -39,18 +39,6 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse 登录响应
-type LoginResponse struct {
-	Token string `json:"token"`
-	User  struct {
-		ID         int    `json:"id"`
-		Username   string `json:"username"`
-		FullName   string `json:"full_name"`
-		Role       string `json:"role"`
-		Permission int    `json:"permission"`
-	} `json:"user"`
-}
-
 // DingTalkLoginRequest 钉钉登录请求
 type DingTalkLoginRequest struct {
 	Code string `json:"code"`
@@ -66,62 +54,27 @@ func Login(c *gin.Context) {
 	}
 
 	// 验证用户凭据
-	token, user, err := services.Login(req.Username, req.Password)
+	session, err := services.Login(req.Username, req.Password)
 	if err != nil {
 		// 尝试学生登录
 		studentLogin(c, req)
 		return
 	}
 
-	// 构建响应
-	resp := LoginResponse{
-		Token: token,
-		User: struct {
-			ID         int    `json:"id"`
-			Username   string `json:"username"`
-			FullName   string `json:"full_name"`
-			Role       string `json:"role"`
-			Permission int    `json:"permission"`
-		}{
-			ID:         user.ID,
-			Username:   user.Username,
-			FullName:   user.FullName,
-			Role:       string(services.RoleAdmin),
-			Permission: user.Permission,
-		},
-	}
-
 	// 返回响应
-	utils.ResponseOK(c, resp)
+	utils.ResponseOK(c, session)
 }
 
 // studentLogin 学生登录
 func studentLogin(c *gin.Context, req LoginRequest) {
 	// 验证学生凭据
-	token, student, err := services.StudentLogin(req.Username, req.Password)
+	session, err := services.StudentLogin(req.Username, req.Password)
 	if err != nil {
 		utils.ResponseError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
-	// 构建响应
-	resp := LoginResponse{
-		Token: token,
-		User: struct {
-			ID         int    `json:"id"`
-			Username   string `json:"username"`
-			FullName   string `json:"full_name"`
-			Role       string `json:"role"`
-			Permission int    `json:"permission"`
-		}{
-			ID:         student.ID,
-			Username:   student.Username,
-			FullName:   student.FullName,
-			Role:       string(services.RoleStudent),
-			Permission: 0,
-		},
-	}
 	// 返回响应
-	utils.ResponseOK(c, resp)
+	utils.ResponseOK(c, session)
 }
 
 // DingTalkLogin 钉钉登录
@@ -134,17 +87,14 @@ func DingTalkLogin(c *gin.Context) {
 	}
 
 	// 进行钉钉免登录
-	token, userObj, err := services.DingTalkLogin(req.Code)
+	session, err := services.DingTalkLogin(req.Code)
 	if err != nil {
 		utils.ResponseError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	// 返回响应
-	utils.ResponseOK(c, map[string]any{
-		"token": token,
-		"user":  userObj,
-	})
+	utils.ResponseOK(c, session)
 }
 
 // DingTalkSSORedirect 钉钉SSO登录重定向
@@ -205,7 +155,7 @@ func DingTalkSSOCallback(c *gin.Context) {
 	}
 
 	// 尝试登录
-	token, userObj, err := services.DingTalkSSOLogin(userInfo.UserID, userInfo.Name)
+	session, err := services.DingTalkSSOLogin(userInfo.UserID, userInfo.Name)
 	if err != nil {
 		redirectURL := fmt.Sprintf("%s%s?dingtalk_error=%s", baseURL, redirectPath, url.QueryEscape(err.Error()))
 		c.Redirect(http.StatusFound, redirectURL)
@@ -213,7 +163,7 @@ func DingTalkSSOCallback(c *gin.Context) {
 	}
 
 	// 重定向到登录页面处理
-	userJSON, err := json.Marshal(userObj)
+	userJSON, err := json.Marshal(session.User)
 	if err != nil {
 		redirectURL := fmt.Sprintf("%s/login?dingtalk_error=%s", baseURL, url.QueryEscape("用户信息序列化失败"))
 		c.Redirect(http.StatusFound, redirectURL)
@@ -222,7 +172,7 @@ func DingTalkSSOCallback(c *gin.Context) {
 
 	redirectURL := fmt.Sprintf("%s/login?dingtalk_token=%s&dingtalk_user=%s",
 		baseURL,
-		url.QueryEscape(token),
+		url.QueryEscape(session.Token),
 		url.QueryEscape(string(userJSON)))
 	c.Redirect(http.StatusFound, redirectURL)
 }
@@ -308,13 +258,13 @@ func OIDCSSOCallback(c *gin.Context) {
 	}
 
 	// 按用户名匹配本地账号并签发本系统的 JWT
-	token, userObj, err := services.OIDCLogin(userInfo.PreferredUsername)
+	session, err := services.OIDCLogin(userInfo.PreferredUsername)
 	if err != nil {
 		failRedirect(err)
 		return
 	}
 
-	userJSON, err := json.Marshal(userObj)
+	userJSON, err := json.Marshal(session.User)
 	if err != nil {
 		failRedirect(errors.New("用户信息序列化失败"))
 		return
@@ -322,6 +272,6 @@ func OIDCSSOCallback(c *gin.Context) {
 
 	c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?oidc_token=%s&oidc_user=%s",
 		baseURL,
-		url.QueryEscape(token),
+		url.QueryEscape(session.Token),
 		url.QueryEscape(string(userJSON))))
 }
