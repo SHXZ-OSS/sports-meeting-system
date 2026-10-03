@@ -44,6 +44,15 @@ export interface UpdateCompetitionRequest {
  */
 export const adminCompetitionAPI = {
   /**
+   * 班级账号提交推荐项目（进入待审核；全局管理员调用则直接生效）
+   */
+  submitCompetition: async (
+    data: CreateCompetitionRequest,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() => api.post("/admin/competitions/submit", data));
+  },
+
+  /**
    * 获取所有比赛项目（支持分页和筛选）
    */
   getCompetitions: async (params?: {

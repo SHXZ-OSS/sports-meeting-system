@@ -33,7 +33,18 @@ type UpdateSettingsRequest struct {
 		RegistrationStartTime     string `json:"registration_start_time"`
 		RegistrationEndTime       string `json:"registration_end_time"`
 		MaxRegistrationsPerPerson int    `json:"max_registrations_per_person"`
+		AllowStudentRegistration  *bool  `json:"allow_student_registration"`
+		AllowStudentSubmission    *bool  `json:"allow_student_submission"`
 	} `json:"competition"`
+	Oidc struct {
+		Enabled      *bool  `json:"enabled"`
+		AuthorizeURL string `json:"authorize_url"`
+		TokenURL     string `json:"token_url"`
+		UserinfoURL  string `json:"userinfo_url"`
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+		Scopes       string `json:"scopes"`
+	} `json:"oidc"`
 	Dashboard struct {
 		Enabled *bool `json:"enabled"`
 	} `json:"dashboard"`
@@ -71,6 +82,17 @@ func GetSettings(c *gin.Context) {
 			"registration_start_time":      cfg.Competition.RegistrationStartTime,
 			"registration_end_time":        cfg.Competition.RegistrationEndTime,
 			"max_registrations_per_person": cfg.Competition.MaxRegistrationsPerPerson,
+			"allow_student_registration":   cfg.Competition.AllowStudentRegistration,
+			"allow_student_submission":     cfg.Competition.AllowStudentSubmission,
+		},
+		"oidc": map[string]any{
+			"enabled":       cfg.Oidc.Enabled,
+			"authorize_url": cfg.Oidc.AuthorizeURL,
+			"token_url":     cfg.Oidc.TokenURL,
+			"userinfo_url":  cfg.Oidc.UserinfoURL,
+			"client_id":     cfg.Oidc.ClientID,
+			"client_secret": cfg.Oidc.ClientSecret,
+			"scopes":        cfg.Oidc.Scopes,
 		},
 		"dashboard": map[string]any{
 			"enabled": cfg.Dashboard.Enabled,
@@ -115,6 +137,24 @@ func UpdateSettings(c *gin.Context) {
 	cfg.Competition.RegistrationStartTime = req.Competition.RegistrationStartTime
 	cfg.Competition.RegistrationEndTime = req.Competition.RegistrationEndTime
 	cfg.Competition.MaxRegistrationsPerPerson = req.Competition.MaxRegistrationsPerPerson
+	if req.Competition.AllowStudentRegistration != nil {
+		cfg.Competition.AllowStudentRegistration = *req.Competition.AllowStudentRegistration
+	}
+	if req.Competition.AllowStudentSubmission != nil {
+		cfg.Competition.AllowStudentSubmission = *req.Competition.AllowStudentSubmission
+	}
+
+	if req.Oidc.Enabled != nil {
+		cfg.Oidc.Enabled = *req.Oidc.Enabled
+	}
+	cfg.Oidc.AuthorizeURL = req.Oidc.AuthorizeURL
+	cfg.Oidc.TokenURL = req.Oidc.TokenURL
+	cfg.Oidc.UserinfoURL = req.Oidc.UserinfoURL
+	cfg.Oidc.ClientID = req.Oidc.ClientID
+	cfg.Oidc.ClientSecret = req.Oidc.ClientSecret
+	if req.Oidc.Scopes != "" {
+		cfg.Oidc.Scopes = req.Oidc.Scopes
+	}
 
 	if req.Dashboard.Enabled != nil {
 		cfg.Dashboard.Enabled = *req.Dashboard.Enabled

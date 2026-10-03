@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
+	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
@@ -294,10 +295,12 @@ func GetCompetition(c *gin.Context) {
 }
 
 // CreateCompetition 创建比赛项目
+// 学生与班级账号提交的推荐项目进入待审核状态，由全局管理员审核；全局管理员创建的项目直接生效
 func CreateCompetition(c *gin.Context) {
 	// 解析请求
 	var req CreateCompetitionRequest
 	var studentID, userID int
+	var user *types.User
 	fileprefix := "competition"
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
@@ -311,6 +314,12 @@ func CreateCompetition(c *gin.Context) {
 	}
 	switch role {
 	case services.RoleStudent:
+		// 学生本人提交受开关限制（管理员与班级账号代提交不受限）
+		if !config.Get().Competition.AllowStudentSubmission {
+			utils.ResponseError(c, http.StatusForbidden, "当前未开放学生提交推荐项目，请联系管理员或班级账号代为提交")
+			return
+		}
+
 		// 从上下文获取学生ID
 		studentID, ok = middlewares.GetUserIDFromContext(c)
 		if !ok {
@@ -325,6 +334,14 @@ func CreateCompetition(c *gin.Context) {
 			return
 		}
 		fileprefix = "competition_" + strconv.Itoa(userID)
+
+		// 加载用户信息以区分全局管理员与班级账号
+		u, err := models.GetUserByID(userID)
+		if err != nil {
+			utils.ResponseError(c, http.StatusUnauthorized, "用户信息获取失败")
+			return
+		}
+		user = u
 	}
 
 	// 验证排名方式
@@ -360,7 +377,8 @@ func CreateCompetition(c *gin.Context) {
 
 	// 创建比赛项目
 	var err error
-	if role == services.RoleStudent {
+	switch {
+	case role == services.RoleStudent:
 		err = models.CreateCompetition(
 			req.Name,
 			req.Description,
@@ -376,11 +394,34 @@ func CreateCompetition(c *gin.Context) {
 			req.MinMalePerClass,
 			req.MaxMalePerClass,
 			studentID,
+			0,
 			req.StartTime,
 			req.EndTime,
 			req.AllowConcurrent,
 		)
-	} else {
+	case user != nil && models.IsClassBound(user):
+		// 班级账号代学生提交推荐项目，与学生提交一致走待审核路径
+		err = models.CreateCompetition(
+			req.Name,
+			req.Description,
+			imagePath,
+			req.Unit,
+			req.Gender,
+			req.RankingMode,
+			req.CompetitionType,
+			req.MinParticipantsPerClass,
+			req.MaxParticipantsPerClass,
+			req.MinFemalePerClass,
+			req.MaxFemalePerClass,
+			req.MinMalePerClass,
+			req.MaxMalePerClass,
+			0,
+			userID,
+			req.StartTime,
+			req.EndTime,
+			req.AllowConcurrent,
+		)
+	default:
 		err = models.AdminCreateCompetition(
 			req.Name,
 			req.Description,

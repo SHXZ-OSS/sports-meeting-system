@@ -13,21 +13,21 @@ import (
 
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Username      string `json:"username"        binding:"required"`
-	Password      string `json:"password"        binding:"required"`
-	FullName      string `json:"full_name"       binding:"required"`
-	Permission    int    `json:"permission"      binding:"required"`
-	DingTalkID    string `json:"dingtalk_id"`
-	ClassScopeIDs []int  `json:"class_scope_ids" binding:"required"`
+	Username   string `json:"username"    binding:"required"`
+	Password   string `json:"password"    binding:"required"`
+	FullName   string `json:"full_name"   binding:"required"`
+	Permission int    `json:"permission"  binding:"required"`
+	DingTalkID string `json:"dingtalk_id"`
+	ClassID    *int   `json:"class_id"` // 班级账号所属班级；空表示全局管理员
 }
 
 // UpdateUserRequest 更新用户请求
 type UpdateUserRequest struct {
-	FullName      string `json:"full_name"          binding:"required"`
-	Permission    int    `json:"permission"         binding:"required"`
-	Password      string `json:"password,omitempty"`
-	DingTalkID    string `json:"dingtalk_id"`
-	ClassScopeIDs []int  `json:"class_scope_ids"    binding:"required"`
+	FullName   string `json:"full_name"          binding:"required"`
+	Permission int    `json:"permission"         binding:"required"`
+	Password   string `json:"password,omitempty"`
+	DingTalkID string `json:"dingtalk_id"`
+	ClassID    *int   `json:"class_id"` // 班级账号所属班级；空表示全局管理员
 }
 
 // GetAllUsers 获取所有用户
@@ -105,21 +105,15 @@ func CreateUser(c *gin.Context) {
 		currentUser.Permission,
 		req.Permission,
 		0,
-		req.ClassScopeIDs,
+		req.ClassID,
 	); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	user, err := models.CreateUser(req.Username, req.Password, req.FullName, req.Permission, req.DingTalkID)
+	_, err = models.CreateUser(req.Username, req.Password, req.FullName, req.Permission, req.DingTalkID, req.ClassID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "用户创建失败: "+err.Error())
-		return
-	}
-
-	// 更新班级权限
-	if err := models.UpdateUserClassScopes(user.ID, req.ClassScopeIDs); err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "更新班级权限失败")
 		return
 	}
 
@@ -168,7 +162,7 @@ func UpdateUser(c *gin.Context) {
 		currentUser.Permission,
 		req.Permission,
 		user.Permission,
-		req.ClassScopeIDs,
+		req.ClassID,
 	); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
 		return
@@ -178,19 +172,7 @@ func UpdateUser(c *gin.Context) {
 	user.FullName = req.FullName
 	user.Permission = req.Permission
 	user.DingTalkID = req.DingTalkID
-
-	// 更新班级权限
-	if err := models.UpdateUserClassScopes(user.ID, req.ClassScopeIDs); err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "更新班级权限失败")
-		return
-	}
-
-	// 重新加载user以获取更新后的ClassScopes
-	user, err = models.GetUserByID(user.ID)
-	if err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "重新加载用户信息失败")
-		return
-	}
+	user.ClassID = req.ClassID
 
 	// 如果提供了新密码，更新密码
 	if req.Password != "" {

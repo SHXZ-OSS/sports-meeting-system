@@ -28,6 +28,7 @@ import {
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { studentAPI } from "../../api/student";
+import { useWebsite } from "../../contexts/WebsiteContext";
 import { Competition, VoteType } from "../../types";
 import {
   handleResp,
@@ -48,6 +49,7 @@ const { Option } = Select;
 
 const StudentCompetitions: React.FC = () => {
   const isMobile = useIsMobile();
+  const { allow_student_registration } = useWebsite();
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [total, setTotal] = useState(0);
@@ -260,6 +262,10 @@ const StudentCompetitions: React.FC = () => {
   };
 
   const canRegister = (competition: Competition) => {
+    // 学生本人报名被配置关闭时，不展示报名入口（仅管理员与班级账号可报名）
+    if (!allow_student_registration) {
+      return false;
+    }
     return competition.status !== "rejected" && !isRegistered(competition.id);
   };
 

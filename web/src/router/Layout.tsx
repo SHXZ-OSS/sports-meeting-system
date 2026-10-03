@@ -9,7 +9,13 @@ import {
   Space,
   Drawer,
 } from "antd";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+  Link,
+} from "react-router-dom";
 import {
   UserOutlined,
   LogoutOutlined,
@@ -26,9 +32,11 @@ import {
   FormOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  PlusCircleOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../contexts/AuthContext";
 import { useWebsite } from "../contexts/WebsiteContext";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { PERMISSIONS } from "../types";
 import { useIsMobile } from "../utils";
 import Footer from "../components/Footer";
@@ -37,6 +45,9 @@ import NotFound from "../components/NotFound";
 
 // Admin 懒加载组件
 const AdminDashboard = React.lazy(() => import("../pages/admin/Dashboard"));
+const AdminSubmitCompetition = React.lazy(
+  () => import("../pages/admin/SubmitCompetition"),
+);
 const UserManagement = React.lazy(
   () => import("../pages/admin/UserManagement"),
 );
@@ -79,24 +90,122 @@ interface LayoutProps {
   userType: "admin" | "student";
 }
 
+// 路径到页面标题的映射，包含权限要求
+interface PageTitleConfig {
+  title?: string; // dynamic 为 true 时无需填写
+  permission?: number; // 需要的权限
+  dynamic?: boolean; // 标题由页面自身根据运行时状态设置，Layout 不写入
+}
+
+const PAGE_TITLES: Record<string, PageTitleConfig> = {
+  // 管理端
+  "/admin": { title: "仪表板" },
+  "/admin/submit-competition": { title: "提交推荐项目" },
+  "/admin/users": {
+    title: "用户管理",
+    permission: PERMISSIONS.USER_MANAGEMENT,
+  },
+  "/admin/students": {
+    title: "学生管理",
+    permission: PERMISSIONS.STUDENT_AND_CLASS_MANAGEMENT,
+  },
+  "/admin/classes": {
+    title: "班级管理",
+    permission: PERMISSIONS.STUDENT_AND_CLASS_MANAGEMENT,
+  },
+  "/admin/competitions": {
+    title: "项目管理",
+    permission: PERMISSIONS.PROJECT_MANAGEMENT,
+  },
+  "/admin/registrations": {
+    title: "报名管理",
+    permission: PERMISSIONS.REGISTRATION_MANAGEMENT,
+  },
+  "/admin/score-input": {
+    title: "成绩录入",
+    permission: PERMISSIONS.SCORE_INPUT,
+  },
+  "/admin/score-review": {
+    title: "成绩审核",
+    permission: PERMISSIONS.SCORE_REVIEW,
+  },
+  "/admin/points": {
+    title: "得分管理",
+    permission: PERMISSIONS.PROJECT_MANAGEMENT,
+  },
+  "/admin/settings": {
+    title: "系统设置",
+    permission: PERMISSIONS.WEBSITE_MANAGEMENT,
+  },
+  // 学生端
+  "/student": { title: "个人中心" },
+  "/student/competitions": { title: "报名项目" },
+  "/student/submit": { title: "推荐项目" },
+  "/student/registrations": { title: "我的报名" },
+  "/student/scores": { title: "我的成绩" },
+};
+
 const Layout: React.FC<LayoutProps> = ({ userType }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, hasPermission } = useAuth();
-  const { name: websiteName, logo_url } = useWebsite();
+  const {
+    name: websiteName,
+    logo_url,
+    allow_student_submission,
+  } = useWebsite();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const isMobile = useIsMobile();
+  const siderWidth = isMobile ? 0 : collapsed ? 64 : 256;
   const [drawerVisible, setDrawerVisible] = useState(false);
+
+  // 查找当前路径对应的标题配置（支持 :id 参数模式）
+  const pageTitleConfig =
+    PAGE_TITLES[location.pathname] ??
+    Object.entries(PAGE_TITLES).find(([pattern]) =>
+      new RegExp(`^${pattern.replace(/:[^/]+/g, "[^/]+")}$`).test(
+        location.pathname,
+      ),
+    )?.[1];
+
+  // 获取当前页面标题（带权限检查）
+  const getPageTitle = (): string | undefined => {
+    const config = pageTitleConfig;
+    if (!config) return undefined;
+
+    // 检查权限
+    if (config.permission && !hasPermission(config.permission)) {
+      return undefined;
+    }
+
+    return config.title;
+  };
+
+  // dynamic 路由交由页面自身设置标题，Layout 不写入
+  usePageTitle(getPageTitle(), { skip: pageTitleConfig?.dynamic });
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
+  // 回到角色对应的后台首页
+  const goHome = () => {
+    navigate(userType === "admin" ? "/admin" : "/student");
+  };
+
+  // 返回公开看板
   const handleGoHome = () => {
     navigate("/");
   };
+
+  // 菜单项 label 使用 Link，保留中键新开与链接语义
+  const navLink = (key: string, text: string) => (
+    <Link to={key} onClick={() => isMobile && setDrawerVisible(false)}>
+      {text}
+    </Link>
+  );
 
   // 构建管理员菜单项
   const getAdminMenuItems = () => {
@@ -104,12 +213,18 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       {
         key: "/admin",
         icon: <DashboardOutlined />,
-        label: "仪表板",
+        label: navLink("/admin", "仪表板"),
+      },
+      // 班级账号专属：代本班学生提交推荐项目
+      user?.class_id && {
+        key: "/admin/submit-competition",
+        icon: <PlusCircleOutlined />,
+        label: navLink("/admin/submit-competition", "提交推荐项目"),
       },
       hasPermission(PERMISSIONS.USER_MANAGEMENT) && {
         key: "/admin/users",
         icon: <UserOutlined />,
-        label: "用户管理",
+        label: navLink("/admin/users", "用户管理"),
       },
       hasPermission(PERMISSIONS.STUDENT_AND_CLASS_MANAGEMENT) && {
         key: "student-class",
@@ -119,24 +234,24 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           {
             key: "/admin/students",
             icon: <UserOutlined />,
-            label: "学生管理",
+            label: navLink("/admin/students", "学生管理"),
           },
           {
             key: "/admin/classes",
             icon: <BookOutlined />,
-            label: "班级管理",
+            label: navLink("/admin/classes", "班级管理"),
           },
         ],
       },
       hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && {
         key: "/admin/competitions",
         icon: <TrophyOutlined />,
-        label: "项目管理",
+        label: navLink("/admin/competitions", "项目管理"),
       },
       hasPermission(PERMISSIONS.REGISTRATION_MANAGEMENT) && {
         key: "/admin/registrations",
         icon: <FormOutlined />,
-        label: "报名管理",
+        label: navLink("/admin/registrations", "报名管理"),
       },
       (hasPermission(PERMISSIONS.SCORE_INPUT) ||
         hasPermission(PERMISSIONS.SCORE_REVIEW)) && {
@@ -147,24 +262,24 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           hasPermission(PERMISSIONS.SCORE_INPUT) && {
             key: "/admin/score-input",
             icon: <EditOutlined />,
-            label: "成绩录入",
+            label: navLink("/admin/score-input", "成绩录入"),
           },
           hasPermission(PERMISSIONS.SCORE_REVIEW) && {
             key: "/admin/score-review",
             icon: <CheckCircleOutlined />,
-            label: "成绩审核",
+            label: navLink("/admin/score-review", "成绩审核"),
           },
         ],
       },
       hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && {
         key: "/admin/points",
         icon: <TrophyOutlined />,
-        label: "得分管理",
+        label: navLink("/admin/points", "得分管理"),
       },
       hasPermission(PERMISSIONS.WEBSITE_MANAGEMENT) && {
         key: "/admin/settings",
         icon: <SettingOutlined />,
-        label: "网站设置",
+        label: navLink("/admin/settings", "网站设置"),
       },
     ].filter(Boolean);
   };
@@ -175,29 +290,30 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       {
         key: "/student",
         icon: <DashboardOutlined />,
-        label: "个人中心",
+        label: navLink("/student", "个人中心"),
       },
       {
         key: "/student/competitions",
         icon: <TrophyOutlined />,
-        label: "报名项目",
+        label: navLink("/student/competitions", "报名项目"),
       },
-      {
+      // 学生本人提交被配置关闭时隐藏入口（班级账号走管理端）
+      allow_student_submission && {
         key: "/student/submit",
         icon: <FormOutlined />,
-        label: "推荐项目",
+        label: navLink("/student/submit", "推荐项目"),
       },
       {
         key: "/student/registrations",
         icon: <FileTextOutlined />,
-        label: "我的报名",
+        label: navLink("/student/registrations", "我的报名"),
       },
       {
         key: "/student/scores",
         icon: <BarChartOutlined />,
-        label: "我的成绩",
+        label: navLink("/student/scores", "我的成绩"),
       },
-    ];
+    ].filter(Boolean);
   };
 
   const menuItems =
@@ -224,7 +340,17 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
   };
 
   const getSelectedKeys = () => {
-    return [location.pathname];
+    const pathname = location.pathname;
+    // 子页面 → 父菜单项 key 的显式映射，新增子路由页面时在此登记
+    const subPageMap: Array<{ prefix: string; key: string }> = [
+      // { prefix: "/admin/students/", key: "/admin/students" },
+    ];
+    for (const { prefix, key } of subPageMap) {
+      if (pathname === prefix || pathname.startsWith(prefix)) {
+        return [key];
+      }
+    }
+    return [pathname];
   };
 
   const getDefaultOpenKeys = () => {
@@ -272,18 +398,17 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
     }
   };
 
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
-    if (isMobile) {
-      setDrawerVisible(false);
-    }
-  };
-
   const renderRoutes = () => {
     if (userType === "admin") {
       return (
         <Routes>
           <Route path="/" element={<AdminDashboard />} />
+          {user?.class_id && (
+            <Route
+              path="/submit-competition"
+              element={<AdminSubmitCompetition />}
+            />
+          )}
           {hasPermission(PERMISSIONS.USER_MANAGEMENT) && (
             <Route path="/users" element={<UserManagement />} />
           )}
@@ -344,13 +469,25 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           background: "rgba(255, 255, 255, 0.8)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
-          borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
           boxShadow: "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
+        {/* 顶栏底边线：从侧边栏右缘开始 */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: siderWidth - 1,
+            right: 0,
+            bottom: 0,
+            height: 1,
+            background: "rgba(226, 232, 240, 0.8)",
+            transition: "left 0.2s",
+          }}
+        />
         <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
           <Button
             type="text"
@@ -362,21 +499,21 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
               )
             }
             onClick={handleMenuToggle}
+            aria-label={collapsed || isMobile ? "展开菜单" : "收起菜单"}
             style={{ marginRight: 16, color: "#666" }}
           />
-          <Title
-            level={4}
-            style={{
-              margin: 0,
-              whiteSpace: "nowrap",
-              fontSize: isMobile ? "16px" : "20px",
-              textAlign: "left",
-              color: "#1f2937",
-              fontWeight: 700,
-              letterSpacing: "-0.5px",
-              display: "flex",
-              alignItems: "center",
+
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={goHome}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                goHome();
+              }
             }}
+            style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
           >
             {logo_url && (
               <img
@@ -389,8 +526,23 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
                 }}
               />
             )}
-            {websiteName}
-          </Title>
+            <Title
+              level={4}
+              style={{
+                margin: 0,
+                whiteSpace: "nowrap",
+                fontSize: isMobile ? "16px" : "20px",
+                textAlign: "left",
+                color: "#1f2937",
+                fontWeight: 700,
+                letterSpacing: "-0.5px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {websiteName}
+            </Title>
+          </div>
         </div>
 
         <Dropdown menu={userMenu} placement="bottomRight">
@@ -432,7 +584,6 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
               openKeys={openKeys}
               onOpenChange={handleOpenChange}
               items={menuItems as any}
-              onClick={handleMenuClick}
               style={{ border: 0 }}
             />
           </Drawer>
@@ -463,7 +614,6 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
               openKeys={openKeys}
               onOpenChange={handleOpenChange}
               items={menuItems as any}
-              onClick={({ key }) => navigate(key)}
               style={{ borderRight: 0 }}
             />
           </Sider>
@@ -471,15 +621,19 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
 
         <AntLayout
           style={{
-            marginLeft: isMobile ? 0 : collapsed ? 64 : 256,
+            marginLeft: siderWidth,
             transition: "margin-left 0.2s",
+            background: "#F7F8F9",
+            minHeight: "calc(100vh - 64px)",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <Content
             style={{
               padding: isMobile ? "16px" : "24px",
               background: "#F7F8F9",
-              minHeight: "calc(100vh - 64px - 70px)",
+              flex: 1,
             }}
           >
             <Suspense fallback={<LoadingSpinner />}>{renderRoutes()}</Suspense>

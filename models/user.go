@@ -16,38 +16,27 @@ func HasPermission(user *types.User, permission int) bool {
 	return utils.HasPermission(user.Permission, permission)
 }
 
-// IsGlobalAdmin 检查是否是全局管理员（没有班级scope限制）
-func IsGlobalAdmin(user *types.User) bool {
-	return len(user.ClassScopes) == 0
+// IsClassBound 判断是否为班级账号（绑定了班级的管理员）
+func IsClassBound(user *types.User) bool {
+	return user.ClassID != nil
 }
 
-// HasClassScope 检查是否有指定班级的权限
-func HasClassScope(user *types.User, classID int) bool {
-	// 如果是全局管理员，有所有班级的权限
-	if IsGlobalAdmin(user) {
+// CanAccessClass 检查用户是否有指定班级的数据权限
+// 全局管理员可访问所有班级，班级账号只能访问自己绑定的班级
+func CanAccessClass(user *types.User, classID int) bool {
+	if user.ClassID == nil {
 		return true
 	}
-
-	// 检查是否在班级scope中
-	for _, class := range user.ClassScopes {
-		if class.ID == classID {
-			return true
-		}
-	}
-	return false
-}
-
-// GetClassScopeIDs 获取所有班级scope的ID列表
-func GetClassScopeIDs(user *types.User) []int {
-	ids := make([]int, len(user.ClassScopes))
-	for i, class := range user.ClassScopes {
-		ids[i] = class.ID
-	}
-	return ids
+	return *user.ClassID == classID
 }
 
 // CreateUser 创建新用户
-func CreateUser(username, password, fullName string, permission int, dingtalkID string) (*types.User, error) {
+func CreateUser(
+	username, password, fullName string,
+	permission int,
+	dingtalkID string,
+	classID *int,
+) (*types.User, error) {
 	// 对密码进行哈希处理
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -64,6 +53,7 @@ func CreateUser(username, password, fullName string, permission int, dingtalkID 
 		FullName:   fullName,
 		Permission: permission,
 		DingTalkID: dingtalkID,
+		ClassID:    classID,
 	}
 
 	// 使用事务创建用户
@@ -85,9 +75,8 @@ func GetUserByID(id int) (*types.User, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 查询用户，预加载ClassScopes
 	var user types.User
-	err := db.Preload("ClassScopes").First(&user, id).Error
+	err := db.First(&user, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -103,9 +92,8 @@ func GetUserByUsername(username string) (*types.User, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 查询用户，预加载ClassScopes
 	var user types.User
-	err := db.Preload("ClassScopes").Where("username = ?", username).First(&user).Error
+	err := db.Where("username = ?", username).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -121,9 +109,8 @@ func GetUserByDingTalkID(dingTalkID string) (*types.User, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 查询用户，预加载ClassScopes
 	var user types.User
-	err := db.Preload("ClassScopes").Where("ding_talk_id = ?", dingTalkID).First(&user).Error
+	err := db.Where("ding_talk_id = ?", dingTalkID).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("用户不存在")
@@ -139,44 +126,11 @@ func UpdateUser(user *types.User) error {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 使用事务更新用户数据和班级scopes
-	return db.Transaction(func(tx *gorm.DB) error {
-		// 更新基本字段
-		if err := tx.Select("full_name", "permission", "ding_talk_id").
-			Where("id = ?", user.ID).
-			Updates(user).
-			Error; err != nil {
-			return err
-		}
-
-		// 更新班级scopes关联
-		if err := tx.Model(user).Association("ClassScopes").Replace(user.ClassScopes); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
-// UpdateUserClassScopes 更新用户的班级scopes
-func UpdateUserClassScopes(userID int, classScopeIDs []int) error {
-	db := database.GetDB()
-
-	user := &types.User{ID: userID}
-
-	// 如果classScopeIDs为空，清空所有scopes（全局管理员）
-	if len(classScopeIDs) == 0 {
-		return db.Model(user).Association("ClassScopes").Clear()
-	}
-
-	// 查询班级对象
-	var classes []types.Class
-	if err := db.Where("id IN ?", classScopeIDs).Find(&classes).Error; err != nil {
-		return err
-	}
-
-	// 替换关联
-	return db.Model(user).Association("ClassScopes").Replace(classes)
+	// 更新基本字段
+	return db.Select("full_name", "permission", "ding_talk_id", "class_id").
+		Where("id = ?", user.ID).
+		Updates(user).
+		Error
 }
 
 // UpdatePassword 更新用户密码
@@ -233,8 +187,8 @@ func GetAllUsers(page, pageSize int) ([]*types.User, int, error) {
 		return nil, 0, err
 	}
 
-	// 构建查询，预加载ClassScopes
-	query := db.Preload("ClassScopes").Order("id")
+	// 构建查询，预加载班级信息
+	query := db.Preload("Class").Order("id")
 
 	// 如果指定了分页参数
 	if page > 0 && pageSize > 0 {

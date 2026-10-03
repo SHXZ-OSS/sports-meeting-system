@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -24,40 +25,61 @@ func isStudentUsernameExists(db *gorm.DB, username string) (bool, error) {
 }
 
 // CreateStudent 创建新学生
-func CreateStudent(fullName string, gender int, classID int, dingTalkID string) (*types.Student, string, error) {
+func CreateStudent(
+	username, fullName string,
+	gender int,
+	classID int,
+	dingTalkID string,
+) (*types.Student, string, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
-	// 生成用户名
-	username, err := utils.GenerateStudentUsername(fullName)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// 检查用户名是否已存在，如果已存在则重新生成
-	exists, err := isStudentUsernameExists(db, username)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// 如果用户名已存在，尝试重新生成最多5次
-	attempts := 0
-	for exists && attempts < 5 {
+	if username != "" {
+		// 预定义用户名：校验格式与唯一性，冲突直接报错，不静默改名
+		username = strings.TrimSpace(username)
+		if err := utils.ValidateUsernameFormat(username); err != nil {
+			return nil, "", err
+		}
+		exists, err := isStudentUsernameExists(db, username)
+		if err != nil {
+			return nil, "", err
+		}
+		if exists {
+			return nil, "", fmt.Errorf("用户名 %s 已存在", username)
+		}
+	} else {
+		// 自动生成用户名：stu+姓名拼音首字母+随机数
+		var err error
 		username, err = utils.GenerateStudentUsername(fullName)
 		if err != nil {
 			return nil, "", err
 		}
-		exists, err = isStudentUsernameExists(db, username)
+
+		// 检查用户名是否已存在，如果已存在则重新生成
+		exists, err := isStudentUsernameExists(db, username)
 		if err != nil {
 			return nil, "", err
 		}
-		attempts++
-	}
 
-	// 如果用户名仍然存在，使用时间戳确保唯一性
-	if exists {
-		timestamp := time.Now().UnixNano() / 1000000
-		username = fmt.Sprintf("%s%d", username, timestamp)
+		// 如果用户名已存在，尝试重新生成最多5次
+		attempts := 0
+		for exists && attempts < 5 {
+			username, err = utils.GenerateStudentUsername(fullName)
+			if err != nil {
+				return nil, "", err
+			}
+			exists, err = isStudentUsernameExists(db, username)
+			if err != nil {
+				return nil, "", err
+			}
+			attempts++
+		}
+
+		// 如果用户名仍然存在，使用时间戳确保唯一性
+		if exists {
+			timestamp := time.Now().UnixNano() / 1000000
+			username = fmt.Sprintf("%s%d", username, timestamp)
+		}
 	}
 
 	// 如果没有提供钉钉ID，设置为空字符串
@@ -168,7 +190,8 @@ func GetStudentByDingTalkID(dingTalkID string) (*types.Student, error) {
 }
 
 // GetAllStudents 获取所有学生，支持分页
-func GetAllStudents(page, pageSize int, scopeClassIDs *[]int, classID int) ([]*types.Student, int, error) {
+// scopeClassID: 数据权限过滤的班级ID，0 表示不过滤（全局管理员）
+func GetAllStudents(page, pageSize int, scopeClassID int, classID int) ([]*types.Student, int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -176,14 +199,10 @@ func GetAllStudents(page, pageSize int, scopeClassIDs *[]int, classID int) ([]*t
 	query := db.Preload("Class")
 	countQuery := db.Model(&types.Student{})
 
-	// 如果提供了scopeClassIDs，应用班级scope过滤
-	if scopeClassIDs != nil {
-		if len(*scopeClassIDs) == 0 {
-			// 没有任何班级权限，返回空列表
-			return []*types.Student{}, 0, nil
-		}
-		query = query.Where("class_id IN ?", *scopeClassIDs)
-		countQuery = countQuery.Where("class_id IN ?", *scopeClassIDs)
+	// 如果限定了数据权限班级，应用过滤
+	if scopeClassID > 0 {
+		query = query.Where("class_id = ?", scopeClassID)
+		countQuery = countQuery.Where("class_id = ?", scopeClassID)
 	}
 
 	// 如果指定了classID，对classID过滤

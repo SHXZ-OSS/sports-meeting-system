@@ -12,13 +12,13 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
-// CreateCompetition 创建比赛项目（学生提交）
+// CreateCompetition 创建待审核比赛项目（学生提交或班级账号代提交，班级账号归属记录在 classSubmitterUserID）
 func CreateCompetition(
 	name, description, imagePath, unit string,
 	gender int,
 	rankingMode types.RankingMode,
 	competitionType types.CompetitionType,
-	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int,
+	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterStudentID, classSubmitterUserID int,
 	startTime, endTime *time.Time,
 	allowConcurrent bool,
 ) error {
@@ -26,7 +26,7 @@ func CreateCompetition(
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
 
-	// 使用验证器验证比赛项目提交（学生提交）
+	// 使用验证器验证比赛项目提交（受项目征集时间限制）
 	if err := validator.ValidateCompetitionSubmission(
 		name,
 		unit,
@@ -66,10 +66,16 @@ func CreateCompetition(
 		MinMalePerClass:         minMalePerClass,
 		MaxMalePerClass:         maxMalePerClass,
 		Status:                  types.StatusPendingApproval,
-		SubmitterID:             &submitterID,
 		StartTime:               startTime,
 		EndTime:                 endTime,
 		AllowConcurrent:         allowConcurrent,
+	}
+	// 提交者归属二选一：学生提交记 submitter_id（students.id），班级账号代提交记 class_submitter_id（users.id）
+	if submitterStudentID > 0 {
+		competition.SubmitterID = &submitterStudentID
+	}
+	if classSubmitterUserID > 0 {
+		competition.ClassSubmitterID = &classSubmitterUserID
 	}
 
 	// 使用事务插入比赛数据
@@ -250,6 +256,7 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 	// 查询比赛项目，包含关联数据
 	var comp types.Competition
 	err := db.Preload("Submitter.Class").
+		Preload("ClassSubmitter").
 		Preload("Reviewer").
 		Preload("ScoreSubmitter").
 		Preload("ScoreReviewer").
@@ -265,6 +272,10 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 	// 设置衍生字段
 	if comp.Submitter != nil {
 		submitterName := comp.Submitter.Class.Name + " " + comp.Submitter.FullName
+		comp.SubmitterName = &submitterName
+	} else if comp.ClassSubmitter != nil {
+		// 班级账号代提交，展示账号姓名便于审核追溯
+		submitterName := comp.ClassSubmitter.FullName + "（班级账号提交）"
 		comp.SubmitterName = &submitterName
 	}
 
@@ -311,6 +322,7 @@ func GetAllCompetitions(
 	query := db.Model(&types.Competition{}).
 		Where("event_id = ?", currentEventID).
 		Preload("Submitter.Class").
+		Preload("ClassSubmitter").
 		Preload("Reviewer").
 		Preload("ScoreSubmitter").
 		Preload("ScoreReviewer")
@@ -366,6 +378,10 @@ func GetAllCompetitions(
 		// 设置提交者名称
 		if comp.Submitter != nil && comp.Submitter.Class.Name != "" {
 			submitterName := comp.Submitter.Class.Name + " " + comp.Submitter.FullName
+			comp.SubmitterName = &submitterName
+		} else if comp.ClassSubmitter != nil {
+			// 班级账号代提交，展示账号姓名便于审核追溯
+			submitterName := comp.ClassSubmitter.FullName + "（班级账号提交）"
 			comp.SubmitterName = &submitterName
 		}
 

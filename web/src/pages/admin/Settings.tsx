@@ -140,6 +140,19 @@ const Settings: React.FC = () => {
               : undefined,
           max_registrations_per_person:
             data?.competition.max_registrations_per_person || 3,
+          "competition.allow_student_registration":
+            data?.competition.allow_student_registration !== false,
+          "competition.allow_student_submission":
+            data?.competition.allow_student_submission !== false,
+
+          // 统一认证设置
+          "oidc.enabled": data?.oidc.enabled === true,
+          "oidc.authorize_url": data?.oidc.authorize_url || "",
+          "oidc.token_url": data?.oidc.token_url || "",
+          "oidc.userinfo_url": data?.oidc.userinfo_url || "",
+          "oidc.client_id": data?.oidc.client_id || "",
+          "oidc.client_secret": data?.oidc.client_secret || "",
+          "oidc.scopes": data?.oidc.scopes || "openid profile",
 
           // 看板设置
           "dashboard.enabled": data?.dashboard.enabled !== false,
@@ -194,6 +207,19 @@ const Settings: React.FC = () => {
       competition: {
         max_registrations_per_person:
           values["max_registrations_per_person"] || 0,
+        allow_student_registration:
+          values["competition.allow_student_registration"] !== false,
+        allow_student_submission:
+          values["competition.allow_student_submission"] !== false,
+      },
+      oidc: {
+        enabled: values["oidc.enabled"] === true,
+        authorize_url: values["oidc.authorize_url"] || "",
+        token_url: values["oidc.token_url"] || "",
+        userinfo_url: values["oidc.userinfo_url"] || "",
+        client_id: values["oidc.client_id"] || "",
+        client_secret: values["oidc.client_secret"] || "",
+        scopes: values["oidc.scopes"] || "openid profile",
       },
       dashboard: {
         enabled: values["dashboard.enabled"] !== false,
@@ -683,6 +709,62 @@ const Settings: React.FC = () => {
             </Row>
           </Card>
 
+          {/* 统一认证设置 */}
+          <Card title="统一认证设置" style={{ marginBottom: 24 }}>
+            <Alert
+              message="说明"
+              description="接入 OIDC 单点登录（如慧云统一认证）。三个端点地址均填完整 URL，需在认证提供方注册回调地址为「本站域名 + /api/public/oidc/callback」。登录时按用户名匹配本系统账号（先学生后管理员）。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Form.Item
+              label="启用统一认证登录"
+              name="oidc.enabled"
+              valuePropName="checked"
+            >
+              <Switch checkedChildren="启用" unCheckedChildren="关闭" />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="授权端点" name="oidc.authorize_url">
+                  <Input placeholder="如 https://sis.example.com/api/oauth/authorize" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="令牌端点" name="oidc.token_url">
+                  <Input placeholder="如 https://sis.example.com/api/oauth/token" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="用户信息端点" name="oidc.userinfo_url">
+                  <Input placeholder="如 https://sis.example.com/api/oauth/userinfo" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="授权范围" name="oidc.scopes">
+                  <Input placeholder="openid profile" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="Client ID" name="oidc.client_id">
+                  <Input placeholder="认证提供方注册的客户端 ID" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Client Secret" name="oidc.client_secret">
+                  <Input.Password placeholder="认证提供方注册的客户端密钥" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
           {/* 比赛设置 */}
           <Card title="比赛设置" style={{ marginBottom: 24 }}>
             <Alert
@@ -733,6 +815,28 @@ const Settings: React.FC = () => {
                   extra="仅统计个人比赛，团体比赛不计入限制。0表示无限制"
                 >
                   <InputNumber min={0} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="允许学生本人报名"
+                  name="competition.allow_student_registration"
+                  valuePropName="checked"
+                  extra="关闭后仅管理员与班级账号可为学生报名"
+                >
+                  <Switch checkedChildren="允许" unCheckedChildren="关闭" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="允许学生本人提交推荐项目"
+                  name="competition.allow_student_submission"
+                  valuePropName="checked"
+                  extra="关闭后仅管理员与班级账号可提交推荐项目"
+                >
+                  <Switch checkedChildren="允许" unCheckedChildren="关闭" />
                 </Form.Item>
               </Col>
             </Row>

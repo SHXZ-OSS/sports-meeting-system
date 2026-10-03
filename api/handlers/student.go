@@ -19,6 +19,7 @@ type CreateStudentRequest struct {
 	ClassName  string `json:"class_name"  binding:"required"`
 	Gender     int    `json:"gender"      binding:"required,min=1,max=2"`
 	DingTalkID string `json:"dingtalk_id"`
+	Username   string `json:"username"` // 预定义用户名；留空自动生成
 }
 
 // UpdateStudentRequest 更新学生请求
@@ -56,21 +57,20 @@ func GetAllStudents(c *gin.Context) {
 		pageSize = 0
 	}
 
-	// 计算scope
-	var scopeClassIDs *[]int
-	if !models.IsGlobalAdmin(user) {
-		ids := models.GetClassScopeIDs(user)
-		scopeClassIDs = &ids
+	// 计算数据权限：班级账号只能看到自己班级的学生
+	scopeClassID := 0
+	if models.IsClassBound(user) {
+		scopeClassID = *user.ClassID
 
 		// 如果指定了classID，检查权限
-		if classID > 0 && !models.HasClassScope(user, classID) {
+		if classID > 0 && !models.CanAccessClass(user, classID) {
 			utils.ResponseError(c, http.StatusForbidden, "没有权限查看该班级的学生")
 			return
 		}
 	}
 
 	// 获取学生列表
-	students, total, err := models.GetAllStudents(page, pageSize, scopeClassIDs, classID)
+	students, total, err := models.GetAllStudents(page, pageSize, scopeClassID, classID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取学生列表失败: "+err.Error())
 		return
@@ -113,8 +113,8 @@ func GetStudent(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该学生所在班级权限的用户可以查看
-	if !models.HasClassScope(user, student.ClassID) {
+	// 权限验证：全局管理员可查看任意班级的学生，班级账号仅限自己班级
+	if !models.CanAccessClass(user, student.ClassID) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -152,8 +152,8 @@ func CreateStudent(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该班级权限的用户可以创建学生
-	if !models.HasClassScope(user, class) {
+	// 权限验证：班级账号只能在本班创建学生
+	if !models.CanAccessClass(user, class) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		if isCreated {
 			if err := models.DeleteClass(class); err != nil {
@@ -164,7 +164,7 @@ func CreateStudent(c *gin.Context) {
 	}
 
 	// 创建学生
-	student, password, err := models.CreateStudent(req.FullName, req.Gender, class, req.DingTalkID)
+	student, password, err := models.CreateStudent(req.Username, req.FullName, req.Gender, class, req.DingTalkID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建学生失败: "+err.Error())
 		return
@@ -213,8 +213,8 @@ func UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该学生所在班级权限的用户可以更新
-	if !models.HasClassScope(user, student.ClassID) {
+	// 权限验证：全局管理员可更新任意班级的学生，班级账号仅限自己班级
+	if !models.CanAccessClass(user, student.ClassID) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -226,7 +226,7 @@ func UpdateStudent(c *gin.Context) {
 		return
 	}
 	// 如果更改班级，需要检查新班级的权限
-	if !models.HasClassScope(user, class) {
+	if !models.CanAccessClass(user, class) {
 		utils.ResponseError(c, http.StatusForbidden, "没有权限将学生转移到该班级")
 		if isCreated {
 			if err := models.DeleteClass(class); err != nil {
@@ -280,8 +280,8 @@ func DeleteStudent(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该学生所在班级权限的用户可以删除
-	if !models.HasClassScope(user, student.ClassID) {
+	// 权限验证：全局管理员可删除任意班级的学生，班级账号仅限自己班级
+	if !models.CanAccessClass(user, student.ClassID) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -325,8 +325,8 @@ func ResetStudentPassword(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该学生所在班级权限的用户可以重置密码
-	if !models.HasClassScope(user, student.ClassID) {
+	// 权限验证：全局管理员可重置任意班级学生密码，班级账号仅限自己班级
+	if !models.CanAccessClass(user, student.ClassID) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}

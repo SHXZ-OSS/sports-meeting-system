@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"regexp"
 	"time"
 
 	"gorm.io/gorm"
@@ -77,6 +78,26 @@ func IsTimeInRange(startTime, endTime string) bool {
 	}
 
 	return now.After(start) && now.Before(end)
+}
+
+// usernamePattern 用户名格式：仅限字母、数字、下划线
+var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+
+// 用户名格式校验相关错误
+var (
+	ErrInvalidUsernameFormat = errors.New("用户名只能包含字母、数字和下划线")
+	ErrInvalidUsernameLength = errors.New("用户名长度需在3-20个字符之间")
+)
+
+// ValidateUsernameFormat 校验预定义用户名格式（留空由系统自动生成的用户名不经此校验）
+func ValidateUsernameFormat(username string) error {
+	if len(username) < 3 || len(username) > 20 {
+		return ErrInvalidUsernameLength
+	}
+	if !usernamePattern.MatchString(username) {
+		return ErrInvalidUsernameFormat
+	}
+	return nil
 }
 
 // IsSubmissionAllowed 检查是否允许项目征集提交
@@ -298,9 +319,9 @@ func (rv *RegistrationValidator) ValidateRegistration(
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 
-	// 检查报名时间限制（学生报名时需要检查，非全局管理员也需要检查）
-	// 全局管理员的判断标准：user不为空且ClassScopes为空（没有班级范围限制）
-	isGlobalAdmin := user != nil && len(user.ClassScopes) == 0
+	// 检查报名时间限制（学生报名和班级账号代报名需要检查，全局管理员不需要）
+	// 全局管理员的判断标准：user不为空且未绑定班级
+	isGlobalAdmin := user != nil && user.ClassID == nil
 	if !isGlobalAdmin && !IsRegistrationAllowed() {
 		return ErrRegistrationNotAllowed
 	}
@@ -385,9 +406,9 @@ func (rv *RegistrationValidator) ValidateUnregistration(
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 
-	// 检查报名时间限制（学生报名时需要检查，非全局管理员也需要检查）
-	// 全局管理员的判断标准：user不为空且ClassScopes为空（没有班级范围限制）
-	isGlobalAdmin := user != nil && len(user.ClassScopes) == 0
+	// 检查报名时间限制（学生报名和班级账号代报名需要检查，全局管理员不需要）
+	// 全局管理员的判断标准：user不为空且未绑定班级
+	isGlobalAdmin := user != nil && user.ClassID == nil
 	if !isGlobalAdmin && !IsRegistrationAllowed() {
 		return ErrRegistrationNotAllowed
 	}
@@ -427,14 +448,17 @@ func (rv *RegistrationValidator) ValidateUnregistration(
 // ==== 用户管理相关验证函数 ====
 
 var (
-	ErrScopeNotAllowedForPermissions    = errors.New("用户拥有学生管理和报名管理以外的权限时不能指定班级scope")
+	// classBoundAllowedPermissions 班级账号允许持有的权限位：学生与班级管理、报名管理
+	classBoundAllowedPermissions = PermissionStudentAndClassManagement | PermissionRegistrationManagement
+
+	ErrScopeNotAllowedForPermissions    = errors.New("班级账号只能持有学生与班级管理和报名管理权限")
 	ErrPermissionExceedsOperator        = errors.New("不能创建/修改超出自己权限范围的用户")
 	ErrCannotModifyHigherPermissionUser = errors.New("不能修改权限更高的用户")
 	ErrNoPermissionsAssigned            = errors.New("必须为用户分配至少一种权限")
 )
 
 // ValidateUserCreateOrUpdate 验证用户创建或更新操作
-func ValidateUserCreateOrUpdate(operatorPermission, targetPermission, originalPermission int, classScopes []int) error {
+func ValidateUserCreateOrUpdate(operatorPermission, targetPermission, originalPermission int, classID *int) error {
 	// 检查是否设置超出自己权限范围的权限
 	if HasMorePermissions(targetPermission, operatorPermission) {
 		return ErrPermissionExceedsOperator
@@ -445,17 +469,9 @@ func ValidateUserCreateOrUpdate(operatorPermission, targetPermission, originalPe
 		return ErrCannotModifyHigherPermissionUser
 	}
 
-	// 验证权限和scope的配置
-	hasNonScopedPermissions := HasPermission(targetPermission, PermissionProjectManagement) ||
-		HasPermission(targetPermission, PermissionScoreInput) ||
-		HasPermission(targetPermission, PermissionScoreReview) ||
-		HasPermission(targetPermission, PermissionUserManagement) ||
-		HasPermission(targetPermission, PermissionWebsiteManagement)
-
-	hasScope := len(classScopes) > 0
-
-	// 如果有其他权限（不支持scope的权限），但指定了scope，返回错误
-	if hasNonScopedPermissions && hasScope {
+	// 班级账号权限位固定为：学生与班级管理、报名管理（须与权限位集合完全一致）
+	isClassBound := classID != nil && *classID > 0
+	if isClassBound && targetPermission != classBoundAllowedPermissions {
 		return ErrScopeNotAllowedForPermissions
 	}
 

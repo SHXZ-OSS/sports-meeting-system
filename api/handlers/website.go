@@ -17,6 +17,17 @@ type WebsiteInfoResponse struct {
 	DingTalkCorpID string `json:"dingtalk_corp_id"`
 	Domain         string `json:"domain"`
 	LogoURL        string `json:"logo_url"`
+	// 学生端功能开关，前端据此隐藏对应入口
+	AllowStudentRegistration bool `json:"allow_student_registration"`
+	AllowStudentSubmission   bool `json:"allow_student_submission"`
+	// OIDC 登录开关，前端据此展示登录按钮
+	OIDCEnabled bool `json:"oidc_enabled"`
+}
+
+// oidcLoginReady 统一认证是否已具备可用配置（与 OIDCSSORedirect 的校验保持一致）
+func oidcLoginReady(cfg *config.Config) bool {
+	return cfg.Oidc.Enabled && cfg.Oidc.ClientID != "" &&
+		cfg.Oidc.AuthorizeURL != "" && cfg.Oidc.TokenURL != "" && cfg.Oidc.UserinfoURL != ""
 }
 
 // GetWebsiteInfo 获取网站信息（公共API）
@@ -26,12 +37,15 @@ func GetWebsiteInfo(c *gin.Context) {
 
 	// 构建响应
 	resp := WebsiteInfoResponse{
-		Name:           cfg.Website.Name,
-		ICPBeian:       cfg.Website.ICPBeian,
-		PublicSecBeian: cfg.Website.PublicSecBeian,
-		DingTalkCorpID: cfg.DingTalk.CorpID,
-		Domain:         cfg.Website.Domain,
-		LogoURL:        logoURL(cfg),
+		Name:                     cfg.Website.Name,
+		ICPBeian:                 cfg.Website.ICPBeian,
+		PublicSecBeian:           cfg.Website.PublicSecBeian,
+		DingTalkCorpID:           cfg.DingTalk.CorpID,
+		Domain:                   cfg.Website.Domain,
+		LogoURL:                  logoURL(cfg),
+		AllowStudentRegistration: cfg.Competition.AllowStudentRegistration,
+		AllowStudentSubmission:   cfg.Competition.AllowStudentSubmission,
+		OIDCEnabled:              oidcLoginReady(cfg),
 	}
 
 	// 返回响应

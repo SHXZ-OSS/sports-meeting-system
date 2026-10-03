@@ -31,9 +31,11 @@ func Initialize() error {
 	isFirstRun := !fileExists(dbPath)
 
 	// 打开数据库连接（ncruces/go-sqlite3 纯 Go 驱动，无 CGO 依赖）
+	// SQLite 加外键需整表重建，由 syncForeignKeys 在关闭外键检查后统一处理
 	var err error
 	db, err = gorm.Open(gormlite.Open(dbPath), &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Silent), // 设置日志级别
+		Logger:                                   gormlogger.Default.LogMode(gormlogger.Silent), // 设置日志级别
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
@@ -116,12 +118,11 @@ func setupInitialSystem() error {
 
 	// 插入管理员用户
 	adminUser := types.User{
-		Username:    "admin",
-		Password:    string(hashedPassword),
-		FullName:    "系统管理员",
-		Permission:  utils.GetAllPermissions(),
-		DingTalkID:  "0",
-		ClassScopes: []types.Class{},
+		Username:   "admin",
+		Password:   string(hashedPassword),
+		FullName:   "系统管理员",
+		Permission: utils.GetAllPermissions(),
+		DingTalkID: "0",
 	}
 
 	err = db.Create(&adminUser).Error
@@ -174,22 +175,16 @@ func Close() error {
 	return nil
 }
 
-// autoMigrate 自动迁移数据库表
+// autoMigrate 自动迁移所有数据表，并校正已存在外键的定义
 func autoMigrate() error {
-	// 执行自动迁移
-	err := db.AutoMigrate(
-		&types.User{},
-		&types.Class{},
-		&types.Student{},
-		&types.Event{},
-		&types.Competition{},
-		&types.Registration{},
-		&types.Score{},
-		&types.Vote{},
-		&types.Points{},
-	)
-	if err != nil {
+	if err := checkForeignKeysMigratable(); err != nil {
+		return err
+	}
+	if err := db.AutoMigrate(allModels()...); err != nil {
 		return fmt.Errorf("failed to auto migrate: %w", err)
+	}
+	if err := syncForeignKeys(); err != nil {
+		return err
 	}
 
 	// 添加唯一索引
@@ -199,7 +194,31 @@ func autoMigrate() error {
 		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for registrations: %v", err))
 	}
 
+	// 清除遗留的班级权限多对多关联表（已由 users.class_id 取代）
+	if db.Migrator().HasTable("user_class_scopes") {
+		if err := db.Migrator().DropTable("user_class_scopes"); err != nil {
+			logger.L.Warn(fmt.Sprintf("Warning: failed to drop legacy table user_class_scopes: %v", err))
+		} else {
+			logger.L.Info("已删除遗留的班级权限关联表 user_class_scopes")
+		}
+	}
+
 	return nil
+}
+
+// allModels 返回全部需要迁移的模型，供 autoMigrate 与外键对账共用
+func allModels() []any {
+	return []any{
+		&types.User{},
+		&types.Class{},
+		&types.Student{},
+		&types.Event{},
+		&types.Competition{},
+		&types.Registration{},
+		&types.Score{},
+		&types.Vote{},
+		&types.Points{},
+	}
 }
 
 // fileExists 检查文件是否存在

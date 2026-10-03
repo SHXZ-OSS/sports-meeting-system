@@ -23,6 +23,17 @@ export interface SystemSettings {
     registration_start_time: string;
     registration_end_time: string;
     max_registrations_per_person: number;
+    allow_student_registration: boolean;
+    allow_student_submission: boolean;
+  };
+  oidc: {
+    enabled: boolean;
+    authorize_url: string;
+    token_url: string;
+    userinfo_url: string;
+    client_id: string;
+    client_secret: string;
+    scopes: string;
   };
   dashboard: {
     enabled: boolean;
@@ -53,6 +64,17 @@ export interface UpdateSettingsRequest {
     voting_end_time?: string;
     registration_start_time?: string;
     registration_end_time?: string;
+    allow_student_registration?: boolean;
+    allow_student_submission?: boolean;
+  };
+  oidc?: {
+    enabled?: boolean;
+    authorize_url?: string;
+    token_url?: string;
+    userinfo_url?: string;
+    client_id?: string;
+    client_secret?: string;
+    scopes?: string;
   };
   scoring?: {
     team_points_mapping?: Record<string, number>;

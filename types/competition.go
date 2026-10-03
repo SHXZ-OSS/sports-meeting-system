@@ -50,7 +50,8 @@ type Competition struct {
 	MinMalePerClass         int               `json:"min_male_per_class"             gorm:"default:0"`            // 每班最少男生人数，gender=3时有效，0表示无限制
 	MaxMalePerClass         int               `json:"max_male_per_class"             gorm:"default:0"`            // 每班最多男生人数，gender=3时有效，0表示无限制
 	SubmitterID             *int              `json:"submitter_id,omitempty"         gorm:"index"`
-	SubmitterName           *string           `json:"submitter_name,omitempty"       gorm:"-"` // 忽略该字段，通过join获取
+	SubmitterName           *string           `json:"submitter_name,omitempty"       gorm:"-"`     // 忽略该字段，通过join获取
+	ClassSubmitterID        *int              `json:"class_submitter_id,omitempty"   gorm:"index"` // 班级账号代提交者（users.id；submitter_id 外键指向 students.id，不能复用）
 	ReviewerID              *int              `json:"reviewer_id,omitempty"`
 	ReviewerName            string            `json:"reviewer_name,omitempty"        gorm:"-"` // 忽略该字段，通过join获取
 	ScoreSubmitterID        *int              `json:"score_submitter_id,omitempty"`
@@ -67,7 +68,9 @@ type Competition struct {
 	AllowConcurrent         bool              `json:"allow_concurrent"               gorm:"default:false"` // 允许兼项
 
 	// 关联关系，不响应到前端
+	Event          *Event         `json:"-" gorm:"foreignKey:EventID"`
 	Submitter      *Student       `json:"-" gorm:"foreignKey:SubmitterID"`
+	ClassSubmitter *User          `json:"-" gorm:"foreignKey:ClassSubmitterID"` // 班级账号代提交者（submitter_id 外键指向 students.id，不能复用）
 	Reviewer       *User          `json:"-" gorm:"foreignKey:ReviewerID"`
 	ScoreSubmitter *User          `json:"-" gorm:"foreignKey:ScoreSubmitterID"`
 	ScoreReviewer  *User          `json:"-" gorm:"foreignKey:ScoreReviewerID"`

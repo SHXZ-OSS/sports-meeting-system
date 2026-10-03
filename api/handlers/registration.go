@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
+	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
@@ -77,7 +78,7 @@ func GetCompetitionRegistrationsForPublic(c *gin.Context) {
 	}
 
 	// 获取报名列表
-	registrations, err := models.GetCompetitionRegistrations(id, nil)
+	registrations, err := models.GetCompetitionRegistrations(id, 0)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取报名列表失败")
 		return
@@ -89,6 +90,12 @@ func GetCompetitionRegistrationsForPublic(c *gin.Context) {
 
 // RegisterForCompetitionForStudent 学生报名比赛
 func RegisterForCompetitionForStudent(c *gin.Context) {
+	// 学生本人报名受开关限制（管理员与班级账号代报名不受限）
+	if !config.Get().Competition.AllowStudentRegistration {
+		utils.ResponseError(c, http.StatusForbidden, "当前未开放学生自主报名，请联系管理员或班级账号协助报名")
+		return
+	}
+
 	// 解析请求
 	var req RegisterCompetitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -129,7 +136,7 @@ func RegisterForCompetitionForStudent(c *gin.Context) {
 
 	if competition.MaxParticipantsPerClass > 0 {
 		// 获取该比赛的所有报名信息
-		allRegistrations, err := models.GetCompetitionRegistrations(req.CompetitionID, nil)
+		allRegistrations, err := models.GetCompetitionRegistrations(req.CompetitionID, 0)
 		if err == nil {
 			// 筛选出同班的报名学生
 			var classRegistrations []*types.Registration
@@ -209,15 +216,14 @@ func GetCompetitionRegistrations(c *gin.Context) {
 		return
 	}
 
-	// 计算scope
-	var scopeClassIDs *[]int
-	if !models.IsGlobalAdmin(user) {
-		ids := models.GetClassScopeIDs(user)
-		scopeClassIDs = &ids
+	// 计算数据权限：班级账号只能看到自己班级的报名
+	scopeClassID := 0
+	if models.IsClassBound(user) {
+		scopeClassID = *user.ClassID
 	}
 
 	// 获取报名列表
-	registrations, err := models.GetCompetitionRegistrations(id, scopeClassIDs)
+	registrations, err := models.GetCompetitionRegistrations(id, scopeClassID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取报名列表失败")
 		return
@@ -258,12 +264,10 @@ func RegisterForCompetitionForAdmin(c *gin.Context) {
 		return
 	}
 
-	// 如果不是全局管理员，检查学生是否在管理员的班级scope内
-	if !models.IsGlobalAdmin(user) {
-		if !models.HasClassScope(user, student.ClassID) {
-			utils.ResponseError(c, http.StatusForbidden, "您只能为自己班级的学生报名")
-			return
-		}
+	// 班级账号只能为本班学生报名
+	if !models.CanAccessClass(user, student.ClassID) {
+		utils.ResponseError(c, http.StatusForbidden, "您只能为自己班级的学生报名")
+		return
 	}
 
 	// 执行报名（传入user对象，只有全局管理员可以跳过时间和数量限制）
@@ -313,12 +317,10 @@ func UnregisterFromCompetitionForAdmin(c *gin.Context) {
 		return
 	}
 
-	// 如果不是全局管理员，检查学生是否在管理员的班级scope内
-	if !models.IsGlobalAdmin(user) {
-		if !models.HasClassScope(user, student.ClassID) {
-			utils.ResponseError(c, http.StatusForbidden, "您只能取消自己班级学生的报名")
-			return
-		}
+	// 班级账号只能取消本班学生的报名
+	if !models.CanAccessClass(user, student.ClassID) {
+		utils.ResponseError(c, http.StatusForbidden, "您只能取消自己班级学生的报名")
+		return
 	}
 
 	// 执行取消报名（传入user对象，只有全局管理员可以跳过时间限制）
@@ -345,15 +347,14 @@ func GetCompetitionChecklist(c *gin.Context) {
 		return
 	}
 
-	// 计算scope
-	var scopeClassIDs *[]int
-	if !models.IsGlobalAdmin(user) {
-		ids := models.GetClassScopeIDs(user)
-		scopeClassIDs = &ids
+	// 计算数据权限：班级账号只能检查自己班级
+	scopeClassID := 0
+	if models.IsClassBound(user) {
+		scopeClassID = *user.ClassID
 	}
 
 	// 获取检查清单
-	results, err := models.GetCompetitionChecklist(scopeClassIDs)
+	results, err := models.GetCompetitionChecklist(scopeClassID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取检查清单失败")
 		return

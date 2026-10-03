@@ -47,8 +47,8 @@ func GetAllClasses(c *gin.Context) {
 		return
 	}
 
-	// 如果是全局管理员，返回所有班级
-	if models.IsGlobalAdmin(user) {
+	// 全局管理员返回所有班级
+	if !models.IsClassBound(user) {
 		classes, _, err := models.GetAllClasses(page, pageSize)
 		if err != nil {
 			utils.ResponseError(c, http.StatusInternalServerError, "获取班级列表失败")
@@ -58,8 +58,13 @@ func GetAllClasses(c *gin.Context) {
 		return
 	}
 
-	// 否则只返回用户有权限的班级
-	utils.ResponseOK(c, user.ClassScopes)
+	// 班级账号只返回自己绑定的班级
+	class, err := models.GetClassByID(*user.ClassID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "获取班级列表失败")
+		return
+	}
+	utils.ResponseOK(c, []any{class})
 }
 
 // GetClass 获取班级信息
@@ -91,8 +96,8 @@ func GetClass(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该班级权限的用户可以查看
-	if !models.HasClassScope(user, id) {
+	// 权限验证：全局管理员可查看任意班级，班级账号仅可查看自己绑定的班级
+	if !models.CanAccessClass(user, id) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -123,8 +128,8 @@ func CreateClass(c *gin.Context) {
 		return
 	}
 
-	// 如果不是全局管理员，拒绝操作
-	if !models.IsGlobalAdmin(user) {
+	// 班级账号不能创建班级
+	if models.IsClassBound(user) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -176,8 +181,8 @@ func UpdateClass(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：全局管理员或有该班级权限的用户可以更新
-	if !models.HasClassScope(user, id) {
+	// 权限验证：全局管理员可更新任意班级，班级账号仅可更新自己绑定的班级
+	if !models.CanAccessClass(user, id) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
@@ -217,7 +222,7 @@ func DeleteClass(c *gin.Context) {
 	}
 
 	// 权限验证：只有全局管理员可以删除班级
-	if !models.IsGlobalAdmin(user) {
+	if models.IsClassBound(user) {
 		utils.ResponseError(c, http.StatusForbidden, "权限不足")
 		return
 	}
