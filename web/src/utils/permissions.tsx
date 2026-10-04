@@ -32,9 +32,9 @@ export const PERMISSION_OPTIONS: PermissionItem[] = [
     description: "管理系统设置和网站信息",
   },
   {
-    value: PERMISSIONS.SCORE_INPUT,
-    label: "成绩录入",
-    description: "录入比赛成绩",
+    value: PERMISSIONS.SCORE_AND_PROGRESS,
+    label: "成绩与赛事进程管理",
+    description: "录入比赛成绩、检录与赛事进程流转",
   },
   {
     value: PERMISSIONS.SCORE_REVIEW,

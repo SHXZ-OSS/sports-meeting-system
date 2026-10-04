@@ -1,4 +1,5 @@
-import { message } from "antd";
+import { message, Modal } from "antd";
+import React from "react";
 import { ApiResponse, PaginatedResponse } from "../types";
 import { BatchResult } from "../components/BatchResults";
 
@@ -31,6 +32,41 @@ const handleRespCore = <T>(
   } = {},
 ) => {
   const { auth = true, notifyError = true, notifySuccess = false } = options;
+
+  // 检测到非 JSON 响应（HTML 错误页等），弹窗用 iframe srcdoc 渲染原始内容
+  if (
+    resp == null ||
+    typeof resp === "string" ||
+    (typeof resp === "object" &&
+      !("code" in (resp as unknown as Record<string, unknown>)))
+  ) {
+    const raw =
+      typeof resp === "string"
+        ? resp
+        : resp == null
+          ? "响应为空"
+          : JSON.stringify(resp, null, 2);
+    Modal.info({
+      title: "服务器返回异常",
+      width: 900,
+      icon: null,
+      content: React.createElement("iframe", {
+        srcDoc: raw,
+        style: {
+          width: "100%",
+          height: "60vh",
+          maxHeight: 640,
+          border: "none",
+          borderRadius: 8,
+          background: "#fff",
+        },
+        sandbox: "allow-scripts",
+        title: "错误详情",
+      }),
+    });
+    fail?.("服务器返回异常", 500);
+    return;
+  }
 
   if (resp.code === 200) {
     if (notifySuccess && resp.message) {

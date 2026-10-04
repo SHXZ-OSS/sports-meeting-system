@@ -1,13 +1,16 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
+	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
@@ -20,7 +23,8 @@ type CreateScoreRequest struct {
 
 // ReviewScoreRequest 审核成绩请求
 type ReviewScoreRequest struct {
-	CompetitionID int `json:"competition_id" binding:"required"`
+	CompetitionID   int  `json:"competition_id"   binding:"required"`
+	NotifyPublished bool `json:"notify_published"` // 审核通过后钉钉通知有成绩的学生
 }
 
 // GetPublicCompetitionScores 获取比赛的所有成绩（游客）
@@ -161,6 +165,16 @@ func ReviewScores(c *gin.Context) {
 	if err := models.ReviewCompetitionScoresByID(req.CompetitionID, reviewerID); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "审核成绩失败: "+err.Error())
 		return
+	}
+
+	// 按操作者选择钉钉通知成绩公布（个人赛只发有成绩的学生，团体赛发全部报名学生）
+	if req.NotifyPublished {
+		competition, err := models.GetCompetitionByID(req.CompetitionID)
+		if err == nil {
+			if err := services.SendScorePublishedNotice(competition); err != nil {
+				logger.L.Warn(fmt.Sprintf("发送成绩公布通知失败 competition=%d: %v", competition.ID, err))
+			}
+		}
 	}
 
 	// 返回响应

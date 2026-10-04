@@ -5,6 +5,7 @@ type Score struct {
 	ID              int     `json:"id"                         gorm:"primaryKey;autoIncrement"`
 	CompetitionID   int     `json:"competition_id"             gorm:"not null;index"`
 	CompetitionName string  `json:"competition_name,omitempty" gorm:"-"`     // 忽略该字段，通过join获取
+	Unit            string  `json:"unit,omitempty"             gorm:"-"`     // 成绩单位，来自比赛项目
 	StudentID       *int    `json:"student_id,omitempty"       gorm:"index"` // 个人比赛时使用
 	ClassID         *int    `json:"class_id,omitempty"         gorm:"index"` // 团体比赛时使用
 	StudentName     string  `json:"student_name,omitempty"     gorm:"-"`     // 忽略该字段，通过join获取

@@ -6,7 +6,7 @@ const (
 	PermissionUserManagement                        // 用户管理 (2)
 	PermissionStudentAndClassManagement             // 学生与班级管理 (4)
 	PermissionWebsiteManagement                     // 网站信息与设置管理 (8)
-	PermissionScoreInput                            // 成绩提交 (16)
+	PermissionScoreAndProgress                      // 成绩与赛事进程管理 (16)
 	PermissionScoreReview                           // 成绩审核 (32)
 	PermissionRegistrationManagement                // 报名管理 (64)
 )
@@ -24,7 +24,7 @@ func GetAllPermissions() int {
 		PermissionUserManagement |
 		PermissionStudentAndClassManagement |
 		PermissionWebsiteManagement |
-		PermissionScoreInput |
+		PermissionScoreAndProgress |
 		PermissionScoreReview |
 		PermissionRegistrationManagement
 }

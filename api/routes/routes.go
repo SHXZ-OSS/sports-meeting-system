@@ -125,7 +125,6 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	studentMgmt.GET("/:id", handlers.GetStudent)
 	studentMgmt.PUT("/:id", handlers.UpdateStudent)
 	studentMgmt.DELETE("/:id", handlers.DeleteStudent)
-	studentMgmt.POST("/:id/reset_password", handlers.ResetStudentPassword)
 
 	classMgmt := adminAPI.Group("/classes")
 	classMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionStudentAndClassManagement))
@@ -158,24 +157,25 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	registrationMgmt.DELETE("/unregister/:id", handlers.UnregisterFromCompetitionForAdmin)        // 取消学生报名
 	registrationMgmt.GET("/checklist", handlers.GetCompetitionChecklist)                          // 检查清单
 
-	// 成绩管理
-	scoreMgmt := adminAPI.Group("/scores")
-
-	// 成绩提交（需要成绩提交权限）
-	scoreInput := scoreMgmt.Group("/input")
-	scoreInput.Use(middlewares.PermissionMiddleware(utils.PermissionScoreInput))
-	scoreInput.GET("/competitions", handlers.GetAllCompetitions)
-	scoreInput.GET("/:id/registrations", handlers.GetCompetitionRegistrations)
-	scoreInput.POST("", handlers.CreateOrUpdateScores)
-	scoreInput.GET("/:id", handlers.GetCompetitionScores)
-	scoreInput.DELETE("/:id", handlers.DeleteScores)
+	// 成绩与赛事进程管理（需要成绩与赛事进程权限）
+	progressMgmt := adminAPI.Group("/progress")
+	progressMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionScoreAndProgress))
+	progressMgmt.GET("/competitions", handlers.GetAllCompetitions)
+	progressMgmt.GET("/:id/registrations", handlers.GetCompetitionRegistrations)
+	progressMgmt.POST("/remind", handlers.RemindStudent)
+	// 赛事进程状态流转：开始检录（钉钉通知已报名学生）、开始比赛、退回等，body.status 为目标状态
+	progressMgmt.POST("/:id/status", handlers.UpdateCompetitionProgressStatus)
+	progressScores := progressMgmt.Group("/scores")
+	progressScores.POST("", handlers.CreateOrUpdateScores)
+	progressScores.GET("/:id", handlers.GetCompetitionScores)
+	progressScores.DELETE("/:id", handlers.DeleteScores)
 
 	// 成绩审核（需要成绩审核权限）
-	scoreReview := scoreMgmt.Group("/review")
-	scoreReview.Use(middlewares.PermissionMiddleware(utils.PermissionScoreReview))
-	scoreReview.GET("/competitions", handlers.GetAllCompetitions)
-	scoreReview.GET("/:id", handlers.GetCompetitionScores)
-	scoreReview.POST("", handlers.ReviewScores)
+	reviewMgmt := adminAPI.Group("/review")
+	reviewMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionScoreReview))
+	reviewMgmt.GET("/competitions", handlers.GetAllCompetitions)
+	reviewMgmt.GET("/:id", handlers.GetCompetitionScores)
+	reviewMgmt.POST("", handlers.ReviewScores)
 
 	// 得分管理（需要项目管理权限）
 	pointsMgmt := adminAPI.Group("/points")
@@ -254,11 +254,11 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	// PWA manifest 服务
 	r.GET("/manifest.webmanifest", handlers.GetManifest)
 
-	// 所有其他请求都指向前端入口点（渲染注入初始数据的 index.html）
+	// 所有其他请求的处理
 	r.NoRoute(func(c *gin.Context) {
-		// API 请求未匹配任何路由，返回 404 JSON 而非前端页面
+		// 如果是 API 请求，返回 Alert 页面
 		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			utils.ResponseError(c, http.StatusNotFound, "接口不存在")
+			handlers.APINotFound(c)
 			return
 		}
 		handlers.ServeIndexHTML(staticFS)(c)

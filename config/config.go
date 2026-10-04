@@ -40,11 +40,9 @@ type Config struct {
 		JWTSecret string `json:"jwt_secret"`
 	} `json:"security"`
 	Website struct {
-		Name           string `json:"name"`
-		ICPBeian       string `json:"icp_beian"`
-		PublicSecBeian string `json:"public_sec_beian"`
-		Domain         string `json:"domain"`
-		LogoFilepath   string `json:"logo_filepath"` // 自定义 logo（uploads 目录下的文件名），留空使用默认图标
+		Name         string `json:"name"`
+		Domain       string `json:"domain"`
+		LogoFilepath string `json:"logo_filepath"` // 自定义 logo（uploads 目录下的文件名），留空使用默认图标
 	} `json:"website"`
 	Competition struct {
 		SubmissionStartTime       string `json:"submission_start_time"`        // 项目征集开始时间
@@ -79,8 +77,6 @@ func Load() error {
 		config.Database.Path = "./data/sports.db"
 		config.Security.JWTSecret = "default-jwt-secret-please-change-in-production"
 		config.Website.Name = "上海市行知中学运动会系统"
-		config.Website.ICPBeian = ""
-		config.Website.PublicSecBeian = ""
 		config.Website.Domain = ""
 		config.Competition.SubmissionStartTime = ""
 		config.Competition.SubmissionEndTime = ""

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   Card,
+  Checkbox,
   Table,
   Button,
   Space,
@@ -325,6 +326,7 @@ const CompetitionManagement: React.FC = () => {
       form.setFieldsValue({
         name: competition.name,
         description: competition.description,
+        venue: competition.venue || "",
         competition_type: competition.competition_type || "individual",
         ranking_mode: competition.ranking_mode,
         gender: competition.gender,
@@ -375,6 +377,8 @@ const CompetitionManagement: React.FC = () => {
         {
           name: values.name,
           description: values.description,
+          venue: values.venue || "",
+          notify_changes: values.notify_changes ?? true,
           competition_type: values.competition_type,
           ranking_mode: values.ranking_mode,
           gender: values.gender,
@@ -403,6 +407,7 @@ const CompetitionManagement: React.FC = () => {
       const response = await adminCompetitionAPI.createCompetition({
         name: values.name,
         description: values.description,
+        venue: values.venue || "",
         competition_type: values.competition_type,
         ranking_mode: values.ranking_mode,
         gender: values.gender,
@@ -470,7 +475,6 @@ const CompetitionManagement: React.FC = () => {
         danger: true,
       });
     }
-
     return items;
   };
 
@@ -497,6 +501,11 @@ const CompetitionManagement: React.FC = () => {
             {record.description && (
               <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
                 {record.description}
+              </div>
+            )}
+            {record.venue && (
+              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                地点：{record.venue}
               </div>
             )}
             {record.start_time && record.end_time && (
@@ -639,6 +648,8 @@ const CompetitionManagement: React.FC = () => {
             >
               <Option value="pending_approval">待审核</Option>
               <Option value="approved">已审核</Option>
+              <Option value="checking_in">检录中</Option>
+              <Option value="in_progress">进行中</Option>
               <Option value="rejected">已拒绝</Option>
               <Option value="pending_score_review">待审核成绩</Option>
               <Option value="completed">已完成</Option>
@@ -730,6 +741,8 @@ const CompetitionManagement: React.FC = () => {
               >
                 <Option value="pending_approval">待审核</Option>
                 <Option value="approved">已审核</Option>
+                <Option value="checking_in">检录中</Option>
+                <Option value="in_progress">进行中</Option>
                 <Option value="rejected">已拒绝</Option>
                 <Option value="pending_score_review">待审核成绩</Option>
                 <Option value="completed">已完成</Option>
@@ -876,6 +889,21 @@ const CompetitionManagement: React.FC = () => {
           <Form.Item label="项目描述" name="description">
             <TextArea rows={3} placeholder="项目描述（可选）" />
           </Form.Item>
+
+          <Form.Item label="比赛地点" name="venue">
+            <Input placeholder="如：田径场东跑道（可选）" />
+          </Form.Item>
+
+          {editingCompetition && (
+            <Form.Item
+              name="notify_changes"
+              valuePropName="checked"
+              initialValue={true}
+              extra="仅当保存时检测到时间或地点实际发生变化才会发送"
+            >
+              <Checkbox>时间或地点有变更时，钉钉通知已报名学生</Checkbox>
+            </Form.Item>
+          )}
 
           <Form.Item
             label="比赛类型"

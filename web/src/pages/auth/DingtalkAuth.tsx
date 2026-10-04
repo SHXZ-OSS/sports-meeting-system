@@ -6,7 +6,6 @@ import { authAPI } from "../../api/auth";
 import { handleRespWithoutAuthAndNotify } from "../../utils/handleResp";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
-import Footer from "../../components/Footer";
 import * as dd from "dingtalk-jsapi";
 
 const DingtalkAuth = () => {
@@ -137,9 +136,7 @@ const DingtalkAuth = () => {
           <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
           <p>钉钉授权登录中...</p>
         </div>
-        <div>
-          <Footer />
-        </div>
+        <div></div>
       </div>
     );
   }
@@ -157,9 +154,7 @@ const DingtalkAuth = () => {
             </Button>,
           ]}
         />
-        <div>
-          <Footer />
-        </div>
+        <div></div>
       </div>
     );
   }

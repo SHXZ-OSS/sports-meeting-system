@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   Card,
-  Table,
+  Tag,
   Typography,
-  Empty,
   Button,
   Space,
   Statistic,
@@ -14,24 +13,26 @@ import {
   TrophyOutlined,
   ReloadOutlined,
   StarOutlined,
+  FireOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
 import { studentAPI } from "../../api/student";
 import { Score } from "../../types";
-import { handleResp } from "../../utils/handleResp";
+import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
 import {
-  getRankingDisplayForTable,
   getRankingColor,
   getWinningCount,
   getBestRanking,
 } from "../../utils/competition";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 const StudentScores: React.FC = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
+  const [pointsSummary, setPointsSummary] = useState<{
+    total_points: number;
+    rank: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchScores();
@@ -39,9 +40,12 @@ const StudentScores: React.FC = () => {
 
   const fetchScores = async () => {
     setLoading(true);
-    const data = await studentAPI.getScores();
+    const [scoresData, pointsData] = await Promise.all([
+      studentAPI.getScores(),
+      studentAPI.getPointsSummary(),
+    ]);
     handleResp(
-      data,
+      scoresData,
       (data) => {
         setScores(data || []);
         setLoading(false);
@@ -50,37 +54,10 @@ const StudentScores: React.FC = () => {
         setLoading(false);
       },
     );
+    handleRespWithoutNotify(pointsData, (data) => {
+      setPointsSummary(data || null);
+    });
   };
-
-  const columns = [
-    {
-      title: "项目名称",
-      dataIndex: "competition_name",
-      key: "competition_name",
-      render: (name: string) => <div style={{ fontWeight: 500 }}>{name}</div>,
-    },
-    {
-      title: "成绩",
-      key: "score",
-      render: (record: Score) => (
-        <div
-          style={{
-            fontSize: "16px",
-            fontWeight: "bold",
-            color: getRankingColor(record.ranking),
-          }}
-        >
-          {record.score} {record.competition_name?.split(" ").pop() || ""}
-        </div>
-      ),
-    },
-    {
-      title: "排名",
-      dataIndex: "ranking",
-      key: "ranking",
-      render: getRankingDisplayForTable,
-    },
-  ];
 
   return (
     <div>
@@ -105,7 +82,7 @@ const StudentScores: React.FC = () => {
       {/* 成绩统计 */}
       {scores?.length > 0 && (
         <Row gutter={24} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="参赛项目"
@@ -115,7 +92,7 @@ const StudentScores: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="获奖次数"
@@ -125,7 +102,7 @@ const StudentScores: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
                 title="最佳排名"
@@ -149,102 +126,83 @@ const StudentScores: React.FC = () => {
               />
             </Card>
           </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="总得分"
+                value={pointsSummary?.total_points?.toFixed(1) || "0"}
+                prefix={<FireOutlined />}
+                valueStyle={{ color: "#f5222d" }}
+                suffix="分"
+              />
+            </Card>
+          </Col>
         </Row>
       )}
 
-      <Card>
-        {scores?.length > 0 ? (
-          <Table
-            columns={columns}
-            dataSource={scores}
-            rowKey="id"
-            loading={loading}
-            tableLayout="auto"
-            scroll={{ x: "max-content" }}
-            pagination={false}
-            rowClassName={(record) => {
-              if (record.ranking === 1) return "score-ranking top-3";
-              if (record.ranking === 2) return "score-ranking top-3";
-              if (record.ranking === 3) return "score-ranking top-3";
-              return "";
-            }}
-          />
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <div>
-                <div>还没有比赛成绩</div>
-                <Text
-                  type="secondary"
-                  style={{ display: "block", marginTop: 8 }}
-                >
-                  参加比赛并完成后，成绩将在这里显示
-                </Text>
-                <Button
-                  type="primary"
-                  style={{ marginTop: 16 }}
-                  icon={<TrophyOutlined />}
-                  onClick={() => navigate("/student/competitions")}
-                >
-                  去报名比赛
-                </Button>
-              </div>
-            }
-          />
-        )}
-      </Card>
-
-      {getWinningCount(scores) > 0 && (
-        <Card
-          title={
-            <Space>
-              <StarOutlined style={{ color: "#FFD700" }} />
-              获奖记录
-            </Space>
-          }
-          style={{ marginTop: 24 }}
-        >
-          <Row gutter={[16, 16]}>
-            {scores
-              .filter((s) => s.ranking && s.ranking <= 3)
-              .map((score, index) => (
-                <Col xs={24} sm={12} md={8} key={index}>
-                  <Card
-                    size="small"
+      {scores?.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {scores.map((score) => (
+            <Card
+              key={score.id}
+              size="small"
+              styles={{ body: { padding: "12px 16px" } }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                    {score.competition_name}
+                  </div>
+                  <Space size={6} wrap>
+                    <Tag
+                      style={{
+                        color: getRankingColor(score.ranking),
+                        borderColor: getRankingColor(score.ranking),
+                        marginInlineEnd: 0,
+                      }}
+                    >
+                      第 {score.ranking} 名
+                    </Tag>
+                    <Tag style={{ marginInlineEnd: 0 }}>
+                      得分 {score.point ?? 0} 分
+                    </Tag>
+                  </Space>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div
                     style={{
-                      border: `2px solid ${getRankingColor(score.ranking)}`,
-                      borderRadius: 8,
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: getRankingColor(score.ranking),
+                      lineHeight: 1.2,
                     }}
                   >
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "24px", marginBottom: 8 }}>
-                        {score.ranking === 1
-                          ? "🥇"
-                          : score.ranking === 2
-                            ? "🥈"
-                            : "🥉"}
-                      </div>
-                      <div style={{ fontWeight: "bold", marginBottom: 4 }}>
-                        {score.competition_name}
-                      </div>
-                      <div
+                    {score.score}
+                    {score.unit && (
+                      <span
                         style={{
-                          color: getRankingColor(score.ranking),
-                          fontWeight: "bold",
+                          fontSize: 12,
+                          fontWeight: 500,
+                          marginLeft: 3,
                         }}
                       >
-                        第{score.ranking}名
-                      </div>
-                      <div style={{ color: "#666", fontSize: "12px" }}>
-                        成绩：{score.score}
-                      </div>
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-          </Row>
-        </Card>
+                        {score.unit}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#999" }}>成绩</div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

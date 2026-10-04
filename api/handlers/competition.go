@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
@@ -37,6 +39,8 @@ func isValidCompetitionStatus(status types.CompetitionStatus) bool {
 	switch status {
 	case types.StatusPendingApproval,
 		types.StatusApproved,
+		types.StatusCheckingIn,
+		types.StatusInProgress,
 		types.StatusRejected,
 		types.StatusPendingScoreReview,
 		types.StatusCompleted:
@@ -61,6 +65,7 @@ type CreateCompetitionRequest struct {
 	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
 	Unit                    string                `json:"unit"                       binding:"required"`
+	Venue                   string                `json:"venue"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
@@ -80,10 +85,12 @@ type UpdateCompetitionRequest struct {
 	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
 	Unit                    string                `json:"unit"                       binding:"required"`
+	Venue                   string                `json:"venue"`
 	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
+	NotifyChanges           bool                  `json:"notify_changes"` // 时间或地点实际发生变化时，钉钉通知已报名学生
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -163,10 +170,12 @@ func GetAllEligibleCompetitions(c *gin.Context) {
 			statuses = append(statuses, status)
 		}
 	} else {
-		// 默认显示非审核非拒绝比赛
+		// 默认显示非审核非拒绝比赛（含检录中与进行中，学生需要看到当天的比赛）
 		statuses = []types.CompetitionStatus{
 			types.StatusCompleted,
 			types.StatusApproved,
+			types.StatusCheckingIn,
+			types.StatusInProgress,
 			types.StatusPendingScoreReview,
 		}
 	}
@@ -382,6 +391,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.CreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -404,6 +414,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.CreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -425,6 +436,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.AdminCreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -480,11 +492,18 @@ func UpdateCompetition(c *gin.Context) {
 		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
 		return
 	}
+
+	// 记录旧值用于变更检测
+	oldStartTime := competition.StartTime
+	oldEndTime := competition.EndTime
+	oldVenue := competition.Venue
+
 	// 更新比赛项目
 	competition.Name = req.Name
 	competition.Description = req.Description
 	competition.RankingMode = req.RankingMode
 	competition.Unit = req.Unit
+	competition.Venue = req.Venue
 	competition.Gender = req.Gender
 	competition.CompetitionType = req.CompetitionType
 	competition.MinParticipantsPerClass = req.MinParticipantsPerClass
@@ -522,6 +541,22 @@ func UpdateCompetition(c *gin.Context) {
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "更新比赛项目失败: "+err.Error())
 		return
+	}
+
+	// 时间（开始/结束）或地点实际发生变化时，按操作者选择钉钉通知已报名学生
+	timeChanged := func(old, cur *time.Time) bool {
+		if (old == nil) != (cur == nil) {
+			return true
+		}
+		return old != nil && !old.Equal(*cur)
+	}
+	changed := timeChanged(oldStartTime, competition.StartTime) ||
+		timeChanged(oldEndTime, competition.EndTime) ||
+		oldVenue != competition.Venue
+	if changed && req.NotifyChanges {
+		if err := services.SendCompetitionChangeNotice(competition, oldStartTime, oldEndTime, oldVenue); err != nil {
+			logger.L.Warn(fmt.Sprintf("发送比赛变更通知失败 competition=%d: %v", competition.ID, err))
+		}
 	}
 
 	// 返回响应
@@ -639,4 +674,71 @@ func RejectCompetition(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseSuccessWithCustomMessage(c, "审核成功")
+}
+
+// progressTransitions 赛事进程允许的状态流转（当前状态 → 可达的目标状态）
+var progressTransitions = map[types.CompetitionStatus][]types.CompetitionStatus{
+	types.StatusApproved:           {types.StatusCheckingIn, types.StatusInProgress},
+	types.StatusCheckingIn:         {types.StatusApproved, types.StatusInProgress},
+	types.StatusInProgress:         {types.StatusApproved},
+	types.StatusPendingScoreReview: {types.StatusInProgress},
+	types.StatusCompleted:          {types.StatusInProgress},
+	types.StatusPendingApproval:    {},
+	types.StatusRejected:           {},
+}
+
+// UpdateCompetitionProgressStatus 赛事进程状态流转
+// body.status 为目标状态，仅允许合法流转；流转到检录中时钉钉通知全部已报名学生
+func UpdateCompetitionProgressStatus(c *gin.Context) {
+	// 解析路径参数
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的比赛ID")
+		return
+	}
+
+	// 解析请求
+	var req struct {
+		Status types.CompetitionStatus `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
+		return
+	}
+
+	competition, err := models.GetCompetitionByID(id)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+
+	// 校验流转合法性
+	allowed := slices.Contains(progressTransitions[competition.Status], req.Status)
+	if !allowed {
+		utils.ResponseError(c, http.StatusBadRequest,
+			fmt.Sprintf("不允许从 %s 流转到 %s", competition.Status, req.Status))
+		return
+	}
+
+	if err := models.UpdateCompetitionStatus(id, req.Status); err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "状态流转失败: "+err.Error())
+		return
+	}
+
+	// 流转后重算积分：离开已完成状态会清除其得分记录，避免看板残留旧分
+	if competition.Status == types.StatusCompleted || req.Status == types.StatusCompleted {
+		if err := models.RecalculatePointsByCompetitionID(id); err != nil {
+			logger.L.Warn(fmt.Sprintf("重算比赛积分失败 competition=%d: %v", id, err))
+		}
+	}
+
+	// 开始检录必发通知
+	if req.Status == types.StatusCheckingIn {
+		if err := services.SendCheckinNotice(competition); err != nil {
+			logger.L.Warn(fmt.Sprintf("发送检录通知失败 competition=%d: %v", competition.ID, err))
+		}
+	}
+
+	// 返回响应
+	utils.ResponseSuccessWithCustomMessage(c, "状态已更新")
 }

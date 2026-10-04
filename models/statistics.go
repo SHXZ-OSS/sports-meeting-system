@@ -41,7 +41,8 @@ func getCompetitionCount() (int, int, error) {
 	// 查询待完成的比赛数量
 	var remainingCount int64
 	if err := db.Model(&types.Competition{}).
-		Where("(status = ? OR status = ?) AND event_id = ?", types.StatusApproved, types.StatusPendingScoreReview, currentEventID).
+		Where("(status = ? OR status = ? OR status = ? OR status = ?) AND event_id = ?",
+			types.StatusApproved, types.StatusCheckingIn, types.StatusInProgress, types.StatusPendingScoreReview, currentEventID).
 		Count(&remainingCount).
 		Error; err != nil {
 		return 0, 0, err

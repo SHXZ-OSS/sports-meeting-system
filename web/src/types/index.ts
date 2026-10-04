@@ -27,10 +27,13 @@ export interface Competition {
   id: number;
   name: string;
   description: string;
+  venue: string; // 比赛地点
   image_path?: string;
   status:
     | "pending_approval"
     | "approved"
+    | "checking_in"
+    | "in_progress"
     | "rejected"
     | "pending_score_review"
     | "completed";
@@ -73,6 +76,7 @@ export interface Score {
   student_name: string;
   class_name: string;
   score: number;
+  unit?: string; // 成绩单位（如 秒、米）
   ranking?: number;
   point?: number; // 分数
 }
@@ -132,14 +136,19 @@ export interface Statistics {
 
 export interface WebsiteInfo {
   name: string;
-  icp_beian: string;
-  public_sec_beian: string;
   dingtalk_corp_id: string;
   domain: string;
   logo_url?: string;
   allow_student_registration?: boolean; // 是否允许学生本人报名；关闭后仅管理员与班级账号可报名
   allow_student_submission?: boolean; // 是否允许学生本人提交推荐项目；关闭后仅管理员与班级账号可提交
   oidc_enabled?: boolean; // 是否启用 OIDC 登录（如接入慧云）
+  // 各阶段时间窗口（空 = 不限制），前端据此隐藏报名/投票等操作入口
+  submission_start_time?: string;
+  submission_end_time?: string;
+  voting_start_time?: string;
+  voting_end_time?: string;
+  registration_start_time?: string;
+  registration_end_time?: string;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -172,7 +181,7 @@ export const PERMISSIONS = {
   USER_MANAGEMENT: 2,
   STUDENT_AND_CLASS_MANAGEMENT: 4,
   WEBSITE_MANAGEMENT: 8,
-  SCORE_INPUT: 16,
+  SCORE_AND_PROGRESS: 16,
   SCORE_REVIEW: 32,
   REGISTRATION_MANAGEMENT: 64,
 } as const;

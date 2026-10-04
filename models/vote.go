@@ -28,6 +28,11 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 		return fmt.Errorf("查询比赛项目失败: %w", err)
 	}
 
+	// 仅审核通过（未开始）的比赛可以投票，检录开始后投票关闭
+	if competition.Status != types.StatusApproved {
+		return errors.New("该比赛已开始检录或已结束，投票已关闭")
+	}
+
 	// 检查学生是否存在
 	var student types.Student
 	if err := db.First(&student, studentID).Error; err != nil {

@@ -462,18 +462,58 @@ func GetClassPointsSummaryByID(classID int) (*types.ClassPointsSummary, error) {
 	return nil, fmt.Errorf("班级 %d 未找到任何得分记录", classID)
 }
 
-// GetStudentPointsSummaryByID 获取指定学生的得分汇总
+// GetStudentPointsSummaryByID 获取指定学生的得分汇总（无得分的学生同样返回排名）
 func GetStudentPointsSummaryByID(studentID int) (*types.StudentPointsSummary, error) {
-	summaries, err := GetStudentPointsSummary()
+	db := database.GetDB()
+
+	// 获取当前运动会ID
+	cfg := config.Get()
+	currentEventID := cfg.CurrentEventID
+
+	// 查询该学生的得分（含 0 分学生）
+	var summary types.StudentPointsSummary
+	err := db.Raw(`
+		SELECT
+			s.id as student_id,
+			s.full_name as student_name,
+			s.class_id,
+			c.name as class_name,
+			COALESCE(SUM(p.points), 0) as total_points,
+			COALESCE(SUM(CASE WHEN p.point_type = ? THEN p.points ELSE 0 END), 0) as ranking_points
+		FROM students s
+		JOIN classes c ON s.class_id = c.id
+		LEFT JOIN points p ON s.id = p.student_id AND p.competition_id IN (
+			SELECT id FROM competitions WHERE event_id = ?
+		)
+		WHERE s.id = ?
+		GROUP BY s.id, s.full_name, s.class_id, c.name
+	`, types.PointTypeRanking, currentEventID, studentID).Scan(&summary).Error
 	if err != nil {
 		return nil, err
 	}
-
-	for _, summary := range summaries {
-		if summary.StudentID == studentID {
-			return &summary, nil
-		}
+	if summary.StudentID == 0 {
+		return nil, fmt.Errorf("学生 %d 不存在", studentID)
 	}
 
-	return nil, fmt.Errorf("学生 %d 未找到任何得分记录", studentID)
+	// 排名 = 总分严格高于该生的学生数 + 1；无得分的学生不参与排名（Rank 保持 0）
+	if summary.TotalPoints > 0 {
+		var better int64
+		err = db.Raw(`
+			SELECT COUNT(*) FROM (
+				SELECT s.id, COALESCE(SUM(p.points), 0) as total_points
+				FROM students s
+				LEFT JOIN points p ON s.id = p.student_id AND p.competition_id IN (
+					SELECT id FROM competitions WHERE event_id = ?
+				)
+				GROUP BY s.id
+				HAVING total_points > ?
+			)
+		`, currentEventID, summary.TotalPoints).Scan(&better).Error
+		if err != nil {
+			return nil, err
+		}
+		summary.Rank = int(better) + 1
+	}
+
+	return &summary, nil
 }

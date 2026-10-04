@@ -1,17 +1,19 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Card,
   Table,
   Button,
   Space,
   Modal,
-  Form,
   Select,
   Typography,
   Row,
   Col,
   InputNumber,
   Popconfirm,
+  Steps,
+  Checkbox,
+  Alert,
   message,
 } from "antd";
 import {
@@ -21,8 +23,14 @@ import {
   FormOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
+  NotificationOutlined,
+  PlayCircleOutlined,
+  RollbackOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
-import { adminScoreInputAPI } from "../../api/admin/score";
+import { adminProgressAPI, adminReviewAPI } from "../../api/admin/progress";
+import { useAuth } from "../../contexts/AuthContext";
+import { PERMISSIONS } from "../../types";
 import { Competition, Score, StudentScore, Registration } from "../../types";
 import {
   handleResp,
@@ -38,13 +46,30 @@ const { Title } = Typography;
 const { Option } = Select;
 const SCORE_PAGE_SIZE_OPTIONS = ["10", "30", "50", "100"];
 
+// 赛事进程状态机（审核通过后的生命周期）
+const STATUS_STEP_ITEMS: { status: Competition["status"]; title: string }[] = [
+  { status: "approved", title: "已审核" },
+  { status: "checking_in", title: "检录中" },
+  { status: "in_progress", title: "进行中" },
+  { status: "pending_score_review", title: "成绩待审核" },
+  { status: "completed", title: "已完成" },
+];
+
+// 各状态允许流转到的目标状态（与后端 progressTransitions 对应）
+const legalTargets: Record<string, string[]> = {
+  approved: ["checking_in", "in_progress"],
+  checking_in: ["approved", "in_progress"],
+  in_progress: ["approved"],
+  pending_score_review: ["in_progress"],
+  completed: ["in_progress"],
+};
+
 interface ScoreFormData {
   competition_id: number;
   student_scores: { student_id?: number; class_id?: number; score?: number }[];
 }
 
-const ScoreInput: React.FC = () => {
-  const [form] = Form.useForm();
+const Progress: React.FC = () => {
   const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(false);
@@ -54,6 +79,14 @@ const ScoreInput: React.FC = () => {
   const [scores, setScores] = useState<Score[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [remindingId, setRemindingId] = useState<number | null>(null);
+  const { hasPermission } = useAuth();
+  // 成绩公布钉钉通知开关（审核确认框勾选）
+  const notifyPublishedRef = useRef(true);
+
+  // 页面内按权限显隐：录入/流转需「成绩与赛事进程」，审核需「成绩审核」
+  const canManageProgress = hasPermission(PERMISSIONS.SCORE_AND_PROGRESS);
+  const canReview = hasPermission(PERMISSIONS.SCORE_REVIEW);
   const [scoreFormData, setScoreFormData] = useState<ScoreFormData>({
     competition_id: 0,
     student_scores: [],
@@ -66,11 +99,21 @@ const ScoreInput: React.FC = () => {
 
   const fetchCompetitions = async () => {
     setLoading(true);
-    const data = await adminScoreInputAPI.getCompetitions();
+    const data = await adminProgressAPI.getCompetitions();
     handleResp(
       data,
       (data) => {
-        setCompetitions(data || []);
+        // 赛事进程页覆盖审核通过后的全部状态
+        setCompetitions(
+          (data || []).filter(
+            (c) =>
+              c.status === "approved" ||
+              c.status === "checking_in" ||
+              c.status === "in_progress" ||
+              c.status === "pending_score_review" ||
+              c.status === "completed",
+          ),
+        );
         setLoading(false);
       },
       () => {
@@ -81,7 +124,7 @@ const ScoreInput: React.FC = () => {
 
   const fetchScores = async (competitionId: number) => {
     setLoading(true);
-    const data = await adminScoreInputAPI.getCompetitionScores(competitionId);
+    const data = await adminProgressAPI.getCompetitionScores(competitionId);
     handleResp(
       data,
       (data) => {
@@ -96,7 +139,7 @@ const ScoreInput: React.FC = () => {
 
   const fetchRegistrations = async (competitionId: number) => {
     setLoading(true);
-    const data = await adminScoreInputAPI.getRegisteredStudents(competitionId);
+    const data = await adminProgressAPI.getRegisteredStudents(competitionId);
     handleResp(
       data,
       (data) => {
@@ -132,7 +175,8 @@ const ScoreInput: React.FC = () => {
     }
   };
 
-  const openModal = async () => {
+  // 初始化成绩录入表单数据，已有成绩则预填写
+  const initScoreForm = async () => {
     if (!selectedCompetition) {
       return;
     }
@@ -141,8 +185,6 @@ const ScoreInput: React.FC = () => {
     if (registrations.length === 0) {
       await fetchRegistrations(selectedCompetition.id);
     }
-
-    setModalVisible(true);
 
     // 初始化成绩表单数据，如果已有成绩则预填写，否则为0
     const isTeamCompetition = selectedCompetition.competition_type === "team";
@@ -180,11 +222,6 @@ const ScoreInput: React.FC = () => {
       competition_id: selectedCompetition.id,
       student_scores: initialScores,
     });
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    form.resetFields();
   };
 
   const updateStudentScore = (
@@ -232,15 +269,17 @@ const ScoreInput: React.FC = () => {
           }
         });
 
-      adminScoreInputAPI
+      adminProgressAPI
         .createOrUpdateScores({
           competition_id: selectedCompetition.id,
           student_scores: studentScores,
         })
         .then((response) => {
           handleRespWithNotifySuccess(response, async () => {
-            closeModal();
+            // 提交成功：进入成绩待审核，刷新成绩并关闭模态框
+            applyStatus("pending_score_review");
             await fetchScores(selectedCompetition.id);
+            closeModal();
           });
         });
     };
@@ -261,7 +300,7 @@ const ScoreInput: React.FC = () => {
   const handleDeleteScores = async () => {
     if (!selectedCompetition) return;
 
-    const response = await adminScoreInputAPI.deleteScores(
+    const response = await adminProgressAPI.deleteScores(
       selectedCompetition.id,
     );
     handleRespWithNotifySuccess(response, async () => {
@@ -274,7 +313,7 @@ const ScoreInput: React.FC = () => {
       setLoading(true);
 
       // 获取所有已完成的比赛
-      const competitionsResponse = await adminScoreInputAPI.getCompetitions({
+      const competitionsResponse = await adminProgressAPI.getCompetitions({
         status: "completed",
       });
       let completedCompetitions: Competition[] = [];
@@ -290,7 +329,7 @@ const ScoreInput: React.FC = () => {
 
       let allScores: Score[] = [];
       for (const competition of completedCompetitions) {
-        const scoresResponse = await adminScoreInputAPI.getCompetitionScores(
+        const scoresResponse = await adminProgressAPI.getCompetitionScores(
           competition.id,
         );
         handleResp(scoresResponse, (data) => {
@@ -318,7 +357,7 @@ const ScoreInput: React.FC = () => {
     setExportLoading(true);
     try {
       // 获取所有已完成的比赛
-      const competitionsResponse = await adminScoreInputAPI.getCompetitions({
+      const competitionsResponse = await adminProgressAPI.getCompetitions({
         status: "completed",
       });
       let completedCompetitions: Competition[] = [];
@@ -351,7 +390,7 @@ const ScoreInput: React.FC = () => {
           });
 
           // 获取成绩数据
-          const scoresResponse = await adminScoreInputAPI.getCompetitionScores(
+          const scoresResponse = await adminProgressAPI.getCompetitionScores(
             comp.id,
           );
           let scores: Score[] = [];
@@ -539,10 +578,194 @@ const ScoreInput: React.FC = () => {
     return baseColumns;
   };
 
+  // 状态流转后同步本地列表与当前选中项
+  const applyStatus = (status: Competition["status"]) => {
+    setSelectedCompetition((prev) =>
+      prev ? ({ ...prev, status } as Competition) : prev,
+    );
+    setCompetitions((prev) =>
+      prev.map((c) =>
+        selectedCompetition && c.id === selectedCompetition.id
+          ? { ...c, status }
+          : c,
+      ),
+    );
+  };
+
+  const handleSetStatus = (
+    target: Competition["status"],
+    title: string,
+    content: string,
+  ) => {
+    if (!selectedCompetition) return;
+    Modal.confirm({
+      title,
+      content,
+      onOk: async () => {
+        const response = await adminProgressAPI.setStatus(
+          selectedCompetition.id,
+          target,
+        );
+        handleRespWithNotifySuccess(response, () => {
+          applyStatus(target);
+        });
+      },
+    });
+  };
+
+  const handleStartCheckin = () =>
+    handleSetStatus(
+      "checking_in",
+      `开始检录「${selectedCompetition?.name ?? ""}」？`,
+      "将比赛状态切换为“检录中”，并钉钉通知已报名学生。",
+    );
+
+  const handleStartCompetition = () =>
+    handleSetStatus(
+      "in_progress",
+      `开始比赛「${selectedCompetition?.name ?? ""}」？`,
+      "将比赛状态切换为“进行中”，之后可在本页录入成绩。",
+    );
+
+  const openModal = async () => {
+    if (!selectedCompetition) {
+      return;
+    }
+
+    // 如果还没有获取报名学生数据，先获取
+    if (registrations.length === 0) {
+      await fetchRegistrations(selectedCompetition.id);
+    }
+
+    setModalVisible(true);
+
+    // 初始化成绩表单数据，如果已有成绩则预填写，否则为0
+    const isTeamCompetition = selectedCompetition.competition_type === "team";
+
+    let initialScores;
+    if (isTeamCompetition) {
+      // 团体赛：按班级去重，每个班级只有一条成绩记录
+      const classMap = new Map<number, { class_id: number; score?: number }>();
+      registrations.forEach((registration) => {
+        if (registration.class_id && !classMap.has(registration.class_id)) {
+          const existingScore = scores.find(
+            (score) => score.class_id === registration.class_id,
+          );
+          classMap.set(registration.class_id, {
+            class_id: registration.class_id,
+            score: existingScore ? existingScore.score : undefined,
+          });
+        }
+      });
+      initialScores = Array.from(classMap.values());
+    } else {
+      // 个人赛：每个学生一条成绩记录
+      initialScores = registrations.map((registration) => {
+        const existingScore = scores.find(
+          (score) => score.student_id === registration.student_id,
+        );
+        return {
+          student_id: registration.student_id,
+          score: existingScore ? existingScore.score : undefined,
+        };
+      });
+    }
+
+    setScoreFormData({
+      competition_id: selectedCompetition.id,
+      student_scores: initialScores,
+    });
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  // 点击 Steps 节点流转状态（仅合法目标可点，确认后提交）
+  const handleStepChange = (idx: number) => {
+    if (!selectedCompetition || idx === statusStepIndex) return;
+    const target = STATUS_STEP_ITEMS[idx];
+    if (
+      !canManageProgress ||
+      !legalTargets[selectedCompetition.status]?.includes(target.status)
+    ) {
+      return;
+    }
+    Modal.confirm({
+      title: `切换「${selectedCompetition.name}」为「${target.title}」？`,
+      content:
+        target.status === "checking_in"
+          ? "将钉钉通知已报名学生。"
+          : "确定将比赛切换到该状态？",
+      okText: "确定切换",
+      cancelText: "取消",
+      onOk: async () => {
+        const response = await adminProgressAPI.setStatus(
+          selectedCompetition.id,
+          target.status,
+        );
+        handleRespWithNotifySuccess(response, () => {
+          applyStatus(target.status);
+        });
+      },
+    });
+  };
+
+  const handleReturnToCompletedInput = () =>
+    handleSetStatus(
+      "in_progress",
+      `退回「${selectedCompetition?.name ?? ""}」重新录入？`,
+      "比赛将回到“进行中”状态，已提交的成绩可重新录入覆盖。",
+    );
+
+  const handleApproveScores = async () => {
+    if (!selectedCompetition) return;
+    const response = await adminReviewAPI.reviewScores({
+      competition_id: selectedCompetition.id,
+      notify_published: notifyPublishedRef.current,
+    });
+    handleRespWithNotifySuccess(response, () => {
+      applyStatus("completed");
+      fetchScores(selectedCompetition.id);
+    });
+  };
+
+  const handleRemindStudent = async (studentId: number) => {
+    if (!selectedCompetition) return;
+    setRemindingId(studentId);
+    try {
+      const response = await adminProgressAPI.remindStudent(
+        selectedCompetition.id,
+        studentId,
+      );
+      handleRespWithNotifySuccess(response, () => {});
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
+  // 可录入状态下自动初始化录入表单
+  useEffect(() => {
+    if (
+      canManageProgress &&
+      selectedCompetition &&
+      (selectedCompetition.status === "in_progress" ||
+        selectedCompetition.status === "completed")
+    ) {
+      void initScoreForm();
+    }
+  }, [selectedCompetition?.id, registrations.length, scores.length]);
+
+  const statusStepIndex = selectedCompetition
+    ? STATUS_STEP_ITEMS.findIndex(
+        (s) => s.status === selectedCompetition.status,
+      )
+    : -1;
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <Title level={2}>成绩录入</Title>
+        <Title level={2}>成绩与赛事进程</Title>
         {isMobile ? (
           <div
             style={{
@@ -676,58 +899,231 @@ const ScoreInput: React.FC = () => {
         )}
       </div>
 
-      {selectedCompetition && (
+      {selectedCompetition && statusStepIndex >= 0 && (
         <Card
-          title={`${selectedCompetition.name} - 成绩管理`}
+          title={`${selectedCompetition.name} - 赛事进程`}
+          style={{ marginBottom: 24 }}
           extra={
-            <Space>
-              {scores?.length > 0 && (
-                <>
-                  <Popconfirm
-                    title="确定删除所有成绩吗？"
-                    onConfirm={handleDeleteScores}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Button danger icon={<DeleteOutlined />}>
-                      删除成绩
+            canManageProgress ? (
+              <Space wrap>
+                {selectedCompetition.status === "approved" && (
+                  <>
+                    <Button
+                      type="primary"
+                      icon={<NotificationOutlined />}
+                      onClick={handleStartCheckin}
+                    >
+                      开始检录
                     </Button>
-                  </Popconfirm>
-                </>
-              )}
-              <Button
-                type="primary"
-                icon={<FormOutlined />}
-                onClick={openModal}
-              >
-                录入成绩
-              </Button>
-            </Space>
+                    <Button
+                      icon={<PlayCircleOutlined />}
+                      onClick={handleStartCompetition}
+                    >
+                      直接开始比赛（跳过检录）
+                    </Button>
+                  </>
+                )}
+                {selectedCompetition.status === "checking_in" && (
+                  <Button
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={handleStartCompetition}
+                  >
+                    开始比赛
+                  </Button>
+                )}
+                {selectedCompetition.status === "completed" && (
+                  <Button
+                    icon={<RollbackOutlined />}
+                    onClick={handleReturnToCompletedInput}
+                  >
+                    退回重新录入
+                  </Button>
+                )}
+                {selectedCompetition.status === "pending_score_review" &&
+                  canReview && (
+                    <Popconfirm
+                      title="确定审核通过这些成绩吗？"
+                      description={
+                        <div>
+                          <div>审核通过后，成绩将正式发布，无法撤回</div>
+                          <Checkbox
+                            defaultChecked
+                            onChange={(e) =>
+                              (notifyPublishedRef.current = e.target.checked)
+                            }
+                          >
+                            钉钉通知成绩公布（将发送给已报名且有成绩的同学）
+                          </Checkbox>
+                        </div>
+                      }
+                      onOpenChange={(open) => {
+                        if (open) notifyPublishedRef.current = true;
+                      }}
+                      onConfirm={handleApproveScores}
+                      okText="确定审核通过"
+                      cancelText="取消"
+                    >
+                      <Button type="primary" icon={<CheckOutlined />}>
+                        审核通过本项目
+                      </Button>
+                    </Popconfirm>
+                  )}
+                {["in_progress", "pending_score_review", "completed"].includes(
+                  selectedCompetition.status,
+                ) &&
+                  scores?.length > 0 && (
+                    <Popconfirm
+                      title="确定删除所有成绩吗？"
+                      onConfirm={handleDeleteScores}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <Button danger icon={<DeleteOutlined />}>
+                        删除成绩
+                      </Button>
+                    </Popconfirm>
+                  )}
+                {selectedCompetition.status === "in_progress" && (
+                  <Button
+                    type="primary"
+                    icon={<FormOutlined />}
+                    onClick={openModal}
+                  >
+                    录入成绩
+                  </Button>
+                )}
+              </Space>
+            ) : undefined
           }
         >
-          <Table
-            columns={getColumns()}
-            dataSource={scores}
-            rowKey="id"
-            loading={loading}
-            tableLayout="auto"
-            pagination={{
-              current: scoreTablePage,
-              pageSize: scoreTablePageSize,
-              total: scores.length,
-              showSizeChanger: true,
-              pageSizeOptions: SCORE_PAGE_SIZE_OPTIONS,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条成绩`,
-              onChange: (page, size) => {
-                setScoreTablePage(page);
-                setScoreTablePageSize(size || 30);
-              },
-            }}
-            locale={{
-              emptyText: "暂无成绩数据",
-            }}
+          <Steps
+            items={STATUS_STEP_ITEMS.map((s) => ({
+              title: s.title,
+              disabled:
+                !canManageProgress ||
+                !legalTargets[selectedCompetition.status]?.includes(s.status),
+            }))}
+            current={statusStepIndex}
+            onChange={handleStepChange}
           />
+          <div style={{ marginTop: 16 }}>
+            {canReview &&
+              !canManageProgress &&
+              selectedCompetition.status !== "pending_score_review" && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="您不负责此流程，请等待成绩审核开始。"
+                />
+              )}
+            {selectedCompetition.status === "pending_score_review" &&
+              !canReview && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="您不负责此流程，请等待成绩审核。"
+                />
+              )}
+            {selectedCompetition.status === "pending_score_review" &&
+              canReview && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="成绩已提交，请核对下方成绩后审核通过。"
+                />
+              )}
+          </div>
+
+          {canManageProgress &&
+            (selectedCompetition.status === "approved" ||
+              selectedCompetition.status === "checking_in") && (
+              <Card type="inner" title="报名名单" style={{ marginTop: 16 }}>
+                {registrations.length === 0 ? (
+                  <div
+                    style={{ color: "#999", textAlign: "center", padding: 12 }}
+                  >
+                    暂无报名学生
+                  </div>
+                ) : (
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    {[...registrations]
+                      .sort((a, b) => {
+                        const classCompare = chineseSort(
+                          a.class_name,
+                          b.class_name,
+                        );
+                        if (classCompare !== 0) return classCompare;
+                        return a.student_name.localeCompare(
+                          b.student_name,
+                          "zh-CN",
+                        );
+                      })
+                      .map((reg) => (
+                        <div
+                          key={reg.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "4px 0",
+                          }}
+                        >
+                          <Space size={12}>
+                            <span style={{ fontWeight: 500 }}>
+                              {reg.student_name}
+                            </span>
+                            <span style={{ fontSize: 12, color: "#666" }}>
+                              {reg.class_name}
+                            </span>
+                          </Space>
+                          <Button
+                            size="small"
+                            icon={<NotificationOutlined />}
+                            loading={remindingId === reg.student_id}
+                            onClick={() => handleRemindStudent(reg.student_id)}
+                          >
+                            提醒
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
+          {["in_progress", "pending_score_review", "completed"].includes(
+            selectedCompetition.status,
+          ) && (
+            <div style={{ marginTop: 16 }}>
+              <Typography.Title level={5}>成绩</Typography.Title>
+              <Table
+                columns={getColumns()}
+                dataSource={scores}
+                rowKey="id"
+                loading={loading}
+                tableLayout="auto"
+                pagination={{
+                  current: scoreTablePage,
+                  pageSize: scoreTablePageSize,
+                  total: scores.length,
+                  showSizeChanger: true,
+                  pageSizeOptions: SCORE_PAGE_SIZE_OPTIONS,
+                  showQuickJumper: true,
+                  showTotal: (total) => `共 ${total} 条成绩`,
+                  onChange: (page, size) => {
+                    setScoreTablePage(page);
+                    setScoreTablePageSize(size || 30);
+                  },
+                }}
+                locale={{
+                  emptyText: "暂无成绩数据",
+                }}
+              />
+            </div>
+          )}
         </Card>
       )}
 
@@ -872,4 +1268,4 @@ const ScoreInput: React.FC = () => {
   );
 };
 
-export default ScoreInput;
+export default Progress;

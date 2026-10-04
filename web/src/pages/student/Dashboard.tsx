@@ -1,22 +1,23 @@
 import { useState, useEffect } from "react";
+import dayjs from "dayjs";
 import {
   Card,
   Row,
   Col,
+  Tag,
   Statistic,
   Button,
   Space,
   Typography,
-  Avatar,
   List,
 } from "antd";
 import {
+  NotificationOutlined,
   TrophyOutlined,
   FileTextOutlined,
   BarChartOutlined,
   PlusOutlined,
   EyeOutlined,
-  UserOutlined,
   CheckCircleOutlined,
   CrownOutlined,
   FireOutlined,
@@ -26,7 +27,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { studentAPI } from "../../api/student";
 import { Competition, Score } from "../../types";
 import { handleRespWithoutNotify } from "../../utils/handleResp";
-import { getStatusTag, getRankingDisplay } from "../../utils/competition";
+import { useIsMobile } from "../../utils/mobile";
+import { getRankingColor } from "../../utils/competition";
 
 const { Title, Text } = Typography;
 
@@ -48,6 +50,7 @@ const StudentDashboard: React.FC = () => {
   const [pointsSummary, setPointsSummary] = useState<PointsSummary | null>(
     null,
   );
+  const [checkingIn, setCheckingIn] = useState<Competition[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -64,7 +67,10 @@ const StudentDashboard: React.FC = () => {
 
     if (registrationData.status === "fulfilled") {
       handleRespWithoutNotify(registrationData.value, (data) => {
-        setRegistrations(data || []);
+        const regs = data || [];
+        setRegistrations(regs);
+        // 检录提醒只针对本人已报名的比赛
+        setCheckingIn(regs.filter((comp) => comp.status === "checking_in"));
       });
     }
     if (scoresData.status === "fulfilled") {
@@ -79,32 +85,78 @@ const StudentDashboard: React.FC = () => {
     }
   };
 
+  const isMobile = useIsMobile();
+
   return (
     <div>
       {/* 欢迎信息 */}
-      <Card style={{ marginBottom: 24, color: "#000" }}>
-        <Row align="middle">
-          <Col flex="none">
-            <Avatar
-              size={64}
-              icon={<UserOutlined />}
-              style={{ marginRight: 24 }}
-            />
-          </Col>
-          <Col flex="auto">
-            <Title level={3} style={{ color: "#000", margin: 0 }}>
-              你好，{user?.full_name}
-            </Title>
-            <Text style={{ color: "rgba(0, 0, 0, 0.85)", fontSize: "16px" }}>
-              在这里提交推荐项目、管理你的比赛报名、查看你的成绩
-            </Text>
-          </Col>
-        </Row>
+      <Card style={{ marginBottom: isMobile ? 12 : 24 }}>
+        <Title
+          level={3}
+          style={{ color: "#1f2937", marginBottom: 4, marginTop: 0 }}
+        >
+          你好，{user?.full_name}同学！
+        </Title>
+        <Text style={{ color: "#6b7280", fontSize: 16 }}>
+          在这里提交推荐项目、管理你的比赛报名、查看你的成绩
+        </Text>
       </Card>
 
+      {/* 检录中的比赛提示 */}
+      {checkingIn.length > 0 && (
+        <Card
+          size="small"
+          style={{
+            marginBottom: 16,
+            background: "#fffbe6",
+          }}
+          styles={{ body: { padding: "12px 16px" } }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Space size={8}>
+              <NotificationOutlined style={{ color: "#faad14" }} />
+              <Text strong>检录提醒</Text>
+            </Space>
+            <Button
+              size="small"
+              onClick={() => navigate("/student/competitions")}
+            >
+              去查看
+            </Button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {checkingIn.map((comp) => (
+              <div key={comp.id}>
+                <Text strong>{comp.name}</Text>
+                <div style={{ fontSize: 13, color: "#6b7280" }}>
+                  {comp.venue && <>地点：{comp.venue}</>}
+                  {comp.venue && comp.start_time && " · "}
+                  {comp.start_time && (
+                    <>
+                      计划开始：
+                      {dayjs(comp.start_time).format("MM-DD HH:mm")}
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* 统计卡片 */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+      <Row
+        gutter={isMobile ? [12, 12] : [24, 24]}
+        style={{ marginBottom: isMobile ? 12 : 24 }}
+      >
+        <Col xs={12} sm={12} md={6}>
           <Card
             className="hover-card"
             onClick={() => navigate("/student/registrations")}
@@ -112,12 +164,13 @@ const StudentDashboard: React.FC = () => {
             <Statistic
               title="我的报名"
               value={registrations?.length}
-              prefix={<FileTextOutlined />}
-              valueStyle={{ color: "#1677ff" }}
+              prefix={<FileTextOutlined style={{ color: "#4C80F8" }} />}
+              valueStyle={{ color: "#1f2937" }}
+              suffix="项"
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card
             className="hover-card"
             onClick={() => navigate("/student/scores")}
@@ -125,153 +178,118 @@ const StudentDashboard: React.FC = () => {
             <Statistic
               title="已完成比赛"
               value={scores?.length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: "#52c41a" }}
+              prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
+              valueStyle={{ color: "#1f2937" }}
+              suffix="场"
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card className="hover-card">
             <Statistic
               title="当前排名"
               value={pointsSummary?.rank || "-"}
-              prefix={<CrownOutlined />}
-              valueStyle={{ color: "#faad14" }}
+              prefix={<CrownOutlined style={{ color: "#faad14" }} />}
+              valueStyle={{ color: "#1f2937" }}
               suffix={pointsSummary?.rank ? "名" : ""}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card className="hover-card">
             <Statistic
               title="总得分"
               value={pointsSummary?.total_points?.toFixed(1) || "0"}
-              prefix={<FireOutlined />}
-              valueStyle={{ color: "#f5222d" }}
+              prefix={<FireOutlined style={{ color: "#f5222d" }} />}
+              valueStyle={{ color: "#1f2937" }}
               suffix="分"
             />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={24}>
-        {/* 最近报名 */}
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <Space>
-                <FileTextOutlined />
-                最近报名
-              </Space>
-            }
-            extra={
-              <Button
-                size="small"
-                onClick={() => navigate("/student/registrations")}
-              >
-                查看全部
-              </Button>
-            }
-            style={{ marginBottom: 24 }}
-          >
-            {registrations?.length > 0 ? (
-              <List
-                dataSource={registrations?.slice(0, 5)}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={item.name}
-                      description={
-                        <Space>
-                          {getStatusTag(item.status)}
-                          <Text type="secondary">{item.unit}</Text>
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "20px 0",
-                  color: "#999",
-                }}
-              >
-                <FileTextOutlined
-                  style={{ fontSize: "32px", marginBottom: "8px" }}
-                />
-                <div>还没有报名任何比赛</div>
-                <Button
-                  type="link"
-                  onClick={() => navigate("/student/competitions")}
+      {/* 最近成绩 */}
+      <Card
+        title={
+          <Space>
+            <TrophyOutlined />
+            最近成绩
+          </Space>
+        }
+        extra={
+          <Button size="small" onClick={() => navigate("/student/scores")}>
+            查看全部
+          </Button>
+        }
+        style={{ marginBottom: 24 }}
+      >
+        {scores?.length > 0 ? (
+          <List
+            dataSource={scores?.slice(0, 5)}
+            renderItem={(item) => (
+              <List.Item>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    width: "100%",
+                  }}
                 >
-                  去报名
-                </Button>
-              </div>
+                  <Space size={8} style={{ minWidth: 0 }}>
+                    <Tag
+                      style={{
+                        color: getRankingColor(item.ranking),
+                        borderColor: getRankingColor(item.ranking),
+                        marginInlineEnd: 0,
+                      }}
+                    >
+                      第 {item.ranking} 名
+                    </Tag>
+                    <span style={{ fontWeight: 500 }}>
+                      {item.competition_name}
+                    </span>
+                  </Space>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: getRankingColor(item.ranking),
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.score}
+                    {item.unit && (
+                      <span
+                        style={{ fontSize: 12, fontWeight: 500, marginLeft: 2 }}
+                      >
+                        {item.unit}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </List.Item>
             )}
-          </Card>
-        </Col>
-
-        {/* 最近成绩 */}
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <Space>
-                <TrophyOutlined />
-                最近成绩
-              </Space>
-            }
-            extra={
-              <Button size="small" onClick={() => navigate("/student/scores")}>
-                查看全部
-              </Button>
-            }
-            style={{ marginBottom: 24 }}
+          />
+        ) : (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "20px 0",
+              color: "#999",
+            }}
           >
-            {scores?.length > 0 ? (
-              <List
-                dataSource={scores?.slice(0, 5)}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={item.competition_name}
-                      description={
-                        <Space>
-                          <Text strong>
-                            {item.score} {item.competition_name}
-                          </Text>
-                          {getRankingDisplay(item.ranking)}
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "20px 0",
-                  color: "#999",
-                }}
-              >
-                <TrophyOutlined
-                  style={{ fontSize: "32px", marginBottom: "8px" }}
-                />
-                <div>还没有比赛成绩</div>
-                <Button
-                  type="link"
-                  onClick={() => navigate("/student/competitions")}
-                >
-                  去报名比赛
-                </Button>
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
+            <TrophyOutlined style={{ fontSize: "32px", marginBottom: "8px" }} />
+            <div>还没有比赛成绩</div>
+            <Button
+              type="link"
+              onClick={() => navigate("/student/competitions")}
+            >
+              去报名比赛
+            </Button>
+          </div>
+        )}
+      </Card>
 
       {/* 快捷操作 */}
       <Card title="快捷操作">

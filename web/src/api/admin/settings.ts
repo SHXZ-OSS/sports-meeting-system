@@ -10,8 +10,6 @@ export interface SystemSettings {
   };
   website: {
     name: string;
-    icp_beian: string;
-    public_sec_beian: string;
     domain: string;
     logo_url: string;
   };
@@ -53,8 +51,6 @@ export interface UpdateSettingsRequest {
   };
   website?: {
     name?: string;
-    icp_beian?: string;
-    public_sec_beian?: string;
     domain?: string;
   };
   competition?: {

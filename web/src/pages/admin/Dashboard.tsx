@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { Card, Row, Col, Statistic, Space, Button, Spin } from "antd";
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Space,
+  Button,
+  Spin,
+  Typography,
+} from "antd";
 import {
   TrophyOutlined,
   CheckCircleOutlined,
@@ -12,6 +21,8 @@ import { adminCompetitionAPI } from "../../api/admin/competition";
 import { PERMISSIONS } from "../../types";
 import { handleRespWithoutNotify } from "../../utils/handleResp";
 
+const { Title, Text } = Typography;
+
 interface DashboardStats {
   totalUsers: number;
   totalStudents: number;
@@ -23,7 +34,7 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -109,39 +120,58 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <Spin spinning={loading}>
+        {/* 欢迎信息 */}
+        <Card style={{ marginBottom: 12 }}>
+          <Title
+            level={3}
+            style={{ color: "#1f2937", marginBottom: 4, marginTop: 0 }}
+          >
+            你好，{user?.full_name}
+          </Title>
+          <Text style={{ color: "#6b7280", fontSize: 16 }}>
+            在这里管理比赛项目、审核成绩、掌握运动会整体进展
+          </Text>
+        </Card>
+
         {/* 统计卡片 */}
-        <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           {hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && (
             <>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card className="hover-card">
                   <Statistic
                     title="比赛项目"
                     value={stats.totalCompetitions}
-                    prefix={<TrophyOutlined />}
-                    valueStyle={{ color: "#1677ff" }}
+                    prefix={<TrophyOutlined style={{ color: "#4C80F8" }} />}
+                    valueStyle={{ color: "#1f2937" }}
+                    suffix="个"
                   />
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card className="hover-card">
                   <Statistic
                     title="已完成项目"
                     value={stats.completedCompetitions}
-                    prefix={<CheckCircleOutlined />}
-                    valueStyle={{ color: "#722ed1" }}
+                    prefix={
+                      <CheckCircleOutlined style={{ color: "#52c41a" }} />
+                    }
+                    valueStyle={{ color: "#1f2937" }}
+                    suffix="个"
                   />
                 </Card>
               </Col>
 
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card className="hover-card">
                   <Statistic
                     title="待审核成绩项目"
                     value={stats.pendingScoreReview}
-                    prefix={<ExclamationCircleOutlined />}
-                    valueStyle={{ color: "#ff4d4f" }}
+                    prefix={
+                      <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />
+                    }
+                    valueStyle={{ color: "#1f2937" }}
                   />
                 </Card>
               </Col>
@@ -151,7 +181,7 @@ const Dashboard: React.FC = () => {
 
         {/* 待处理事项 */}
         {hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && (
-          <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12}>
               <Card
                 title={
@@ -193,7 +223,7 @@ const Dashboard: React.FC = () => {
                   stats.pendingScoreReview > 0 && (
                     <Button
                       size="small"
-                      onClick={() => navigate("/admin/score-review")}
+                      onClick={() => navigate("/admin/progress")}
                     >
                       查看全部
                     </Button>
@@ -262,12 +292,12 @@ const Dashboard: React.FC = () => {
                     </Button>
                   </Col>
                 )}
-                {hasPermission(PERMISSIONS.SCORE_INPUT) && (
+                {hasPermission(PERMISSIONS.SCORE_AND_PROGRESS) && (
                   <Col xs={24} sm={12} md={8} lg={6}>
                     <Button
                       block
                       size="large"
-                      onClick={() => navigate("/admin/score-input")}
+                      onClick={() => navigate("/admin/progress")}
                     >
                       成绩录入
                     </Button>
@@ -278,7 +308,7 @@ const Dashboard: React.FC = () => {
                     <Button
                       block
                       size="large"
-                      onClick={() => navigate("/admin/score-review")}
+                      onClick={() => navigate("/admin/progress")}
                     >
                       成绩审核
                     </Button>

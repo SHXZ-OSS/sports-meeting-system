@@ -44,7 +44,7 @@ type DingTalkLoginRequest struct {
 	Code string `json:"code"`
 }
 
-// Login 用户登录
+// Login 用户登录（仅管理员；学生通过钉钉/OIDC 登录）
 func Login(c *gin.Context) {
 	// 解析请求
 	var req LoginRequest
@@ -56,23 +56,10 @@ func Login(c *gin.Context) {
 	// 验证用户凭据
 	session, err := services.Login(req.Username, req.Password)
 	if err != nil {
-		// 尝试学生登录
-		studentLogin(c, req)
+		utils.ResponseError(c, http.StatusUnauthorized, "账号或密码错误")
 		return
 	}
 
-	// 返回响应
-	utils.ResponseOK(c, session)
-}
-
-// studentLogin 学生登录
-func studentLogin(c *gin.Context, req LoginRequest) {
-	// 验证学生凭据
-	session, err := services.StudentLogin(req.Username, req.Password)
-	if err != nil {
-		utils.ResponseError(c, http.StatusUnauthorized, err.Error())
-		return
-	}
 	// 返回响应
 	utils.ResponseOK(c, session)
 }

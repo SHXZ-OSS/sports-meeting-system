@@ -12,8 +12,6 @@ import (
 // WebsiteInfoResponse 网站信息响应
 type WebsiteInfoResponse struct {
 	Name           string `json:"name"`
-	ICPBeian       string `json:"icp_beian"`
-	PublicSecBeian string `json:"public_sec_beian"`
 	DingTalkCorpID string `json:"dingtalk_corp_id"`
 	Domain         string `json:"domain"`
 	LogoURL        string `json:"logo_url"`
@@ -22,6 +20,13 @@ type WebsiteInfoResponse struct {
 	AllowStudentSubmission   bool `json:"allow_student_submission"`
 	// OIDC 登录开关，前端据此展示登录按钮
 	OIDCEnabled bool `json:"oidc_enabled"`
+	// 各阶段时间窗口（空 = 不限制），前端据此隐藏报名/投票等操作入口
+	SubmissionStartTime   string `json:"submission_start_time"`
+	SubmissionEndTime     string `json:"submission_end_time"`
+	VotingStartTime       string `json:"voting_start_time"`
+	VotingEndTime         string `json:"voting_end_time"`
+	RegistrationStartTime string `json:"registration_start_time"`
+	RegistrationEndTime   string `json:"registration_end_time"`
 }
 
 // oidcLoginReady 统一认证是否已具备可用配置（与 OIDCSSORedirect 的校验保持一致）
@@ -38,14 +43,18 @@ func GetWebsiteInfo(c *gin.Context) {
 	// 构建响应
 	resp := WebsiteInfoResponse{
 		Name:                     cfg.Website.Name,
-		ICPBeian:                 cfg.Website.ICPBeian,
-		PublicSecBeian:           cfg.Website.PublicSecBeian,
 		DingTalkCorpID:           cfg.DingTalk.CorpID,
 		Domain:                   cfg.Website.Domain,
 		LogoURL:                  logoURL(cfg),
 		AllowStudentRegistration: cfg.Competition.AllowStudentRegistration,
 		AllowStudentSubmission:   cfg.Competition.AllowStudentSubmission,
 		OIDCEnabled:              oidcLoginReady(cfg),
+		SubmissionStartTime:      cfg.Competition.SubmissionStartTime,
+		SubmissionEndTime:        cfg.Competition.SubmissionEndTime,
+		VotingStartTime:          cfg.Competition.VotingStartTime,
+		VotingEndTime:            cfg.Competition.VotingEndTime,
+		RegistrationStartTime:    cfg.Competition.RegistrationStartTime,
+		RegistrationEndTime:      cfg.Competition.RegistrationEndTime,
 	}
 
 	// 返回响应

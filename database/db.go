@@ -194,6 +194,24 @@ func autoMigrate() error {
 		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for registrations: %v", err))
 	}
 
+	// 学生登录已迁移至钉钉/OIDC，移除遗留的学生密码列
+	// DROP COLUMN 需整表重建，期间须关闭外键检查（同 foreignkey.go 的做法）；
+	// 删除失败必须中止启动，否则后续学生插入会因列 NOT NULL 约束在运行期失败
+	if db.Migrator().HasColumn(&types.Student{}, "password") {
+		if err := db.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
+			return fmt.Errorf("关闭外键检查失败: %w", err)
+		}
+		if err := db.Migrator().DropColumn(&types.Student{}, "password"); err != nil {
+			if fkErr := db.Exec("PRAGMA foreign_keys = ON").Error; fkErr != nil {
+				logger.L.Warn(fmt.Sprintf("Warning: failed to restore foreign_keys pragma: %v", fkErr))
+			}
+			return fmt.Errorf("删除遗留的学生密码列失败（该列为 NOT NULL，必须移除后才能启动）: %w", err)
+		}
+		if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
+			return fmt.Errorf("重新启用外键约束失败: %w", err)
+		}
+	}
+
 	// 清除遗留的班级权限多对多关联表（已由 users.class_id 取代）
 	if db.Migrator().HasTable("user_class_scopes") {
 		if err := db.Migrator().DropTable("user_class_scopes"); err != nil {

@@ -74,14 +74,18 @@ func buildInitialData(cfg *config.Config) gin.H {
 	return gin.H{
 		"website_info": gin.H{
 			"name":                       cfg.Website.Name,
-			"icp_beian":                  cfg.Website.ICPBeian,
-			"public_sec_beian":           cfg.Website.PublicSecBeian,
 			"dingtalk_corp_id":           cfg.DingTalk.CorpID,
 			"domain":                     cfg.Website.Domain,
 			"logo_url":                   logoURL(cfg),
 			"allow_student_registration": cfg.Competition.AllowStudentRegistration,
 			"allow_student_submission":   cfg.Competition.AllowStudentSubmission,
 			"oidc_enabled":               oidcLoginReady(cfg),
+			"submission_start_time":      cfg.Competition.SubmissionStartTime,
+			"submission_end_time":        cfg.Competition.SubmissionEndTime,
+			"voting_start_time":          cfg.Competition.VotingStartTime,
+			"voting_end_time":            cfg.Competition.VotingEndTime,
+			"registration_start_time":    cfg.Competition.RegistrationStartTime,
+			"registration_end_time":      cfg.Competition.RegistrationEndTime,
 		},
 	}
 }
