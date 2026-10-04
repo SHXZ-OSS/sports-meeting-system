@@ -13,6 +13,7 @@ import (
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
+	"github.com/SHXZ-OSS/sports-meeting-system/logger"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
@@ -37,6 +38,8 @@ func isValidCompetitionStatus(status types.CompetitionStatus) bool {
 	switch status {
 	case types.StatusPendingApproval,
 		types.StatusApproved,
+		types.StatusCheckingIn,
+		types.StatusInProgress,
 		types.StatusRejected,
 		types.StatusPendingScoreReview,
 		types.StatusCompleted:
@@ -61,6 +64,7 @@ type CreateCompetitionRequest struct {
 	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
 	Unit                    string                `json:"unit"                       binding:"required"`
+	Venue                   string                `json:"venue"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
@@ -80,10 +84,12 @@ type UpdateCompetitionRequest struct {
 	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
 	Image                   string                `json:"image"`
 	Unit                    string                `json:"unit"                       binding:"required"`
+	Venue                   string                `json:"venue"`
 	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
+	NotifyChanges           bool                  `json:"notify_changes"` // 时间或地点实际发生变化时，钉钉通知已报名学生
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -163,10 +169,12 @@ func GetAllEligibleCompetitions(c *gin.Context) {
 			statuses = append(statuses, status)
 		}
 	} else {
-		// 默认显示非审核非拒绝比赛
+		// 默认显示非审核非拒绝比赛（含检录中与进行中，学生需要看到当天的比赛）
 		statuses = []types.CompetitionStatus{
 			types.StatusCompleted,
 			types.StatusApproved,
+			types.StatusCheckingIn,
+			types.StatusInProgress,
 			types.StatusPendingScoreReview,
 		}
 	}
@@ -382,6 +390,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.CreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -404,6 +413,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.CreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -425,6 +435,7 @@ func CreateCompetition(c *gin.Context) {
 		err = models.AdminCreateCompetition(
 			req.Name,
 			req.Description,
+			req.Venue,
 			imagePath,
 			req.Unit,
 			req.Gender,
@@ -480,11 +491,17 @@ func UpdateCompetition(c *gin.Context) {
 		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
 		return
 	}
+
+	// 记录旧值用于变更检测
+	oldStartTime := competition.StartTime
+	oldVenue := competition.Venue
+
 	// 更新比赛项目
 	competition.Name = req.Name
 	competition.Description = req.Description
 	competition.RankingMode = req.RankingMode
 	competition.Unit = req.Unit
+	competition.Venue = req.Venue
 	competition.Gender = req.Gender
 	competition.CompetitionType = req.CompetitionType
 	competition.MinParticipantsPerClass = req.MinParticipantsPerClass
@@ -522,6 +539,18 @@ func UpdateCompetition(c *gin.Context) {
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "更新比赛项目失败: "+err.Error())
 		return
+	}
+
+	// 时间或地点实际发生变化时，按操作者选择钉钉通知已报名学生
+	startTimeChanged := (oldStartTime == nil) != (competition.StartTime == nil)
+	if !startTimeChanged && oldStartTime != nil {
+		startTimeChanged = !oldStartTime.Equal(*competition.StartTime)
+	}
+	changed := startTimeChanged || oldVenue != competition.Venue
+	if changed && req.NotifyChanges {
+		if err := services.SendCompetitionChangeNotice(competition, oldStartTime, oldVenue); err != nil {
+			logger.L.Warn(fmt.Sprintf("发送比赛变更通知失败 competition=%d: %v", competition.ID, err))
+		}
 	}
 
 	// 返回响应
@@ -639,4 +668,71 @@ func RejectCompetition(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseSuccessWithCustomMessage(c, "审核成功")
+}
+
+// StartCompetitionCheckin 开始检录（approved → checking_in），可选钉钉通知全部已报名学生
+func StartCompetitionCheckin(c *gin.Context) {
+	// 解析路径参数
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的比赛ID")
+		return
+	}
+
+	var req struct {
+		Notify bool `json:"notify"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	competition, err := models.GetCompetitionByID(id)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+	if competition.Status != types.StatusApproved {
+		utils.ResponseError(c, http.StatusBadRequest, "仅审核通过（未开始）的比赛可以开始检录")
+		return
+	}
+
+	if err := models.UpdateCompetitionStatus(id, types.StatusCheckingIn); err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "开始检录失败: "+err.Error())
+		return
+	}
+
+	if req.Notify {
+		if err := services.SendCheckinNotice(competition); err != nil {
+			logger.L.Warn(fmt.Sprintf("发送检录通知失败 competition=%d: %v", competition.ID, err))
+		}
+	}
+
+	// 返回响应
+	utils.ResponseSuccessWithCustomMessage(c, "检录已开始")
+}
+
+// StartCompetition 开始比赛（checking_in → in_progress）
+func StartCompetition(c *gin.Context) {
+	// 解析路径参数
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的比赛ID")
+		return
+	}
+
+	competition, err := models.GetCompetitionByID(id)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+	if competition.Status != types.StatusCheckingIn {
+		utils.ResponseError(c, http.StatusBadRequest, "仅检录中的比赛可以开始比赛")
+		return
+	}
+
+	if err := models.UpdateCompetitionStatus(id, types.StatusInProgress); err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "开始比赛失败: "+err.Error())
+		return
+	}
+
+	// 返回响应
+	utils.ResponseSuccessWithCustomMessage(c, "比赛已开始")
 }

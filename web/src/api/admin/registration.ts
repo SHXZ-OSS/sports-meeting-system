@@ -22,6 +22,21 @@ export interface AdminUnregisterRequest {
  */
 export const adminRegistrationAPI = {
   /**
+   * 对单个已报名学生发送检录提醒
+   */
+  remindStudent: async (
+    competitionId: number,
+    studentId: number,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.post("/admin/registrations/remind", {
+        competition_id: competitionId,
+        student_id: studentId,
+      }),
+    );
+  },
+
+  /**
    * 获取所有比赛项目（用于报名管理）
    */
   getCompetitions: async (params?: {

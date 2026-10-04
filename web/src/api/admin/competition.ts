@@ -4,6 +4,7 @@ import { Competition, ApiResponse, PaginatedResponse } from "../../types";
 export interface CreateCompetitionRequest {
   name: string;
   description: string;
+  venue?: string; // 比赛地点
   ranking_mode: "higher_first" | "lower_first";
   gender: number;
   competition_type: "individual" | "team";
@@ -23,6 +24,8 @@ export interface CreateCompetitionRequest {
 export interface UpdateCompetitionRequest {
   name?: string;
   description?: string;
+  venue?: string; // 比赛地点
+  notify_changes?: boolean; // 时间/地点有变更时钉钉通知已报名学生
   ranking_mode?: "higher_first" | "lower_first";
   competition_type?: "individual" | "team";
   min_participants_per_class?: number;
@@ -43,6 +46,25 @@ export interface UpdateCompetitionRequest {
  * 管理员-项目管理API
  */
 export const adminCompetitionAPI = {
+  /**
+   * 开始检录（可选钉钉通知已报名学生）
+   */
+  startCheckin: async (
+    id: number,
+    notify: boolean,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.post(`/admin/competitions/${id}/checkin`, { notify }),
+    );
+  },
+
+  /**
+   * 开始比赛
+   */
+  start: async (id: number): Promise<ApiResponse<void>> => {
+    return await callApi(() => api.post(`/admin/competitions/${id}/start`));
+  },
+
   /**
    * 班级账号提交推荐项目（进入待审核；全局管理员调用则直接生效）
    */

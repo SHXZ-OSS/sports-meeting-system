@@ -4,6 +4,8 @@ export const getStatusTag = (status: string) => {
   const statusMap = {
     pending_approval: { color: "orange", text: "待审核" },
     approved: { color: "blue", text: "已审核" },
+    checking_in: { color: "cyan", text: "检录中" },
+    in_progress: { color: "processing", text: "进行中" },
     rejected: { color: "red", text: "已拒绝" },
     pending_score_review: { color: "gold", text: "待审核成绩" },
     completed: { color: "green", text: "已完成" },

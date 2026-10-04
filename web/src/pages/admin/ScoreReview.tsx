@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Card,
+  Checkbox,
   Table,
   Button,
   Space,
@@ -130,6 +131,9 @@ const ScoreReview: React.FC = () => {
     }
   };
 
+  // 成绩公布钉钉通知开关（由审核确认框中的勾选决定，默认开启）
+  const notifyPublishedRef = useRef(true);
+
   const handleApproveScores = async (competitionId?: number) => {
     const competitionsToReview = competitionId
       ? competitions.filter((c) => c.id === competitionId)
@@ -141,6 +145,7 @@ const ScoreReview: React.FC = () => {
     for (const competition of competitionsToReview) {
       const response = await adminScoreReviewAPI.reviewScores({
         competition_id: competition.id,
+        notify_published: notifyPublishedRef.current,
       });
       handleRespWithNotifySuccess(
         response,
@@ -330,8 +335,23 @@ const ScoreReview: React.FC = () => {
                   extra={
                     <Popconfirm
                       title={`确定审核通过"${competition.name}"的成绩吗？`}
-                      description="审核通过后，成绩将正式发布"
+                      description={
+                        <div>
+                          <div>审核通过后，成绩将正式发布</div>
+                          <Checkbox
+                            defaultChecked
+                            onChange={(e) =>
+                              (notifyPublishedRef.current = e.target.checked)
+                            }
+                          >
+                            钉钉通知有成绩的学生
+                          </Checkbox>
+                        </div>
+                      }
                       onConfirm={handleApproveCompetitionScores(competition.id)}
+                      onOpenChange={(open) => {
+                        if (open) notifyPublishedRef.current = true;
+                      }}
                       okText="确定审核通过"
                       cancelText="取消"
                     >
@@ -425,8 +445,23 @@ const ScoreReview: React.FC = () => {
               {getStatusTag(selectedCompetition.status)}
               <Popconfirm
                 title="确定审核通过这些成绩吗？"
-                description="审核通过后，成绩将正式发布，无法撤回"
+                description={
+                  <div>
+                    <div>审核通过后，成绩将正式发布，无法撤回</div>
+                    <Checkbox
+                      defaultChecked
+                      onChange={(e) =>
+                        (notifyPublishedRef.current = e.target.checked)
+                      }
+                    >
+                      钉钉通知有成绩的学生
+                    </Checkbox>
+                  </div>
+                }
                 onConfirm={handleApproveAllScores}
+                onOpenChange={(open) => {
+                  if (open) notifyPublishedRef.current = true;
+                }}
                 okText="确定审核通过"
                 cancelText="取消"
               >

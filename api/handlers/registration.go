@@ -9,6 +9,7 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
+	"github.com/SHXZ-OSS/sports-meeting-system/services"
 	"github.com/SHXZ-OSS/sports-meeting-system/types"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
@@ -361,4 +362,49 @@ func GetCompetitionChecklist(c *gin.Context) {
 	}
 
 	utils.ResponseOK(c, results)
+}
+
+// RemindStudent 对单个已报名学生发送检录提醒
+func RemindStudent(c *gin.Context) {
+	// 解析请求
+	var req struct {
+		CompetitionID int `json:"competition_id" binding:"required"`
+		StudentID     int `json:"student_id"     binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
+		return
+	}
+
+	// 校验学生确实报名了该比赛，防止向任意学生发消息
+	registrations, err := models.GetCompetitionRegistrations(req.CompetitionID, 0)
+	if err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "获取报名列表失败")
+		return
+	}
+	var student *types.Student
+	for _, reg := range registrations {
+		if reg.Student != nil && reg.Student.ID == req.StudentID {
+			student = reg.Student
+			break
+		}
+	}
+	if student == nil {
+		utils.ResponseError(c, http.StatusNotFound, "该学生未报名此比赛")
+		return
+	}
+
+	competition, err := models.GetCompetitionByID(req.CompetitionID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+
+	if err := services.SendStudentCheckinReminder(competition, student); err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "发送提醒失败: "+err.Error())
+		return
+	}
+
+	// 返回响应
+	utils.ResponseSuccessWithCustomMessage(c, "提醒已发送")
 }

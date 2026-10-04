@@ -145,6 +145,9 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	projectMgmt.PUT("/:id", handlers.UpdateCompetition)
 	projectMgmt.POST("/:id/approve", handlers.ApproveCompetition)
 	projectMgmt.POST("/:id/reject", handlers.RejectCompetition)
+	// 手动流转：开始检录（可选钉钉通知报名学生）与开始比赛
+	projectMgmt.POST("/:id/checkin", handlers.StartCompetitionCheckin)
+	projectMgmt.POST("/:id/start", handlers.StartCompetition)
 	projectMgmt.GET("/:id/registrations", handlers.GetCompetitionRegistrations)
 
 	// 报名管理（需要报名管理权限）
@@ -156,6 +159,7 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	registrationMgmt.GET("/classes", handlers.GetAllClasses)                                      // 获取班级列表
 	registrationMgmt.POST("/register", handlers.RegisterForCompetitionForAdmin)                   // 为学生报名
 	registrationMgmt.DELETE("/unregister/:id", handlers.UnregisterFromCompetitionForAdmin)        // 取消学生报名
+	registrationMgmt.POST("/remind", handlers.RemindStudent)                                      // 对单个已报名学生发送检录提醒
 	registrationMgmt.GET("/checklist", handlers.GetCompetitionChecklist)                          // 检查清单
 
 	// 成绩管理

@@ -27,10 +27,13 @@ export interface Competition {
   id: number;
   name: string;
   description: string;
+  venue: string; // 比赛地点
   image_path?: string;
   status:
     | "pending_approval"
     | "approved"
+    | "checking_in"
+    | "in_progress"
     | "rejected"
     | "pending_score_review"
     | "completed";

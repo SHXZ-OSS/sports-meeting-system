@@ -14,7 +14,7 @@ import (
 
 // CreateCompetition 创建待审核比赛项目（学生提交或班级账号代提交，班级账号归属记录在 classSubmitterUserID）
 func CreateCompetition(
-	name, description, imagePath, unit string,
+	name, description, venue, imagePath, unit string,
 	gender int,
 	rankingMode types.RankingMode,
 	competitionType types.CompetitionType,
@@ -54,6 +54,7 @@ func CreateCompetition(
 		EventID:                 currentEventID,
 		Name:                    name,
 		Description:             description,
+		Venue:                   venue,
 		ImagePath:               imagePath,
 		Unit:                    unit,
 		Gender:                  gender,
@@ -102,10 +103,11 @@ func UpdateCompetition(competition *types.Competition) error {
 	// 使用事务更新比赛数据
 	err := db.Transaction(func(tx *gorm.DB) error {
 		return tx.Model(competition).
-			Select("name", "description", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time", "allow_concurrent").
+			Select("name", "description", "venue", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time", "allow_concurrent").
 			Updates(map[string]any{
 				"name":                       competition.Name,
 				"description":                competition.Description,
+				"venue":                      competition.Venue,
 				"image_path":                 competition.ImagePath,
 				"unit":                       competition.Unit,
 				"gender":                     competition.Gender,
@@ -178,7 +180,7 @@ func RejectCompetitionByID(id, reviewerID int) error {
 
 // AdminCreateCompetition 管理员创建比赛项目（不受时间限制）
 func AdminCreateCompetition(
-	name, description, imagePath, unit string,
+	name, description, venue, imagePath, unit string,
 	gender int,
 	rankingMode types.RankingMode,
 	competitionType types.CompetitionType,
@@ -219,6 +221,7 @@ func AdminCreateCompetition(
 		EventID:                 currentEventID,
 		Name:                    name,
 		Description:             description,
+		Venue:                   venue,
 		ImagePath:               imagePath,
 		Unit:                    unit,
 		Gender:                  gender,
@@ -461,4 +464,12 @@ func getLatestCompletedCompetition() (*types.Competition, error) {
 	}
 
 	return GetCompetitionByID(comp.ID)
+}
+
+// UpdateCompetitionStatus 更新比赛状态（检录/进行中等手动流转）
+func UpdateCompetitionStatus(id int, status types.CompetitionStatus) error {
+	// 获取数据库连接
+	db := database.GetDB()
+
+	return db.Model(&types.Competition{}).Where("id = ?", id).Update("status", status).Error
 }

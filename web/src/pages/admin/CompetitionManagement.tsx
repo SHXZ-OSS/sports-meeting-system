@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   Card,
+  Checkbox,
   Table,
   Button,
   Space,
@@ -26,6 +27,8 @@ import {
 import {
   PlusOutlined,
   EditOutlined,
+  NotificationOutlined,
+  PlayCircleOutlined,
   DeleteOutlined,
   ReloadOutlined,
   CheckOutlined,
@@ -325,6 +328,7 @@ const CompetitionManagement: React.FC = () => {
       form.setFieldsValue({
         name: competition.name,
         description: competition.description,
+        venue: competition.venue || "",
         competition_type: competition.competition_type || "individual",
         ranking_mode: competition.ranking_mode,
         gender: competition.gender,
@@ -375,6 +379,8 @@ const CompetitionManagement: React.FC = () => {
         {
           name: values.name,
           description: values.description,
+          venue: values.venue || "",
+          notify_changes: values.notify_changes ?? true,
           competition_type: values.competition_type,
           ranking_mode: values.ranking_mode,
           gender: values.gender,
@@ -403,6 +409,7 @@ const CompetitionManagement: React.FC = () => {
       const response = await adminCompetitionAPI.createCompetition({
         name: values.name,
         description: values.description,
+        venue: values.venue || "",
         competition_type: values.competition_type,
         ranking_mode: values.ranking_mode,
         gender: values.gender,
@@ -425,10 +432,56 @@ const CompetitionManagement: React.FC = () => {
     }
   };
 
+  const handleStartCheckin = (record: Competition) => {
+    let notify = true;
+    Modal.confirm({
+      title: `开始检录「${record.name}」？`,
+      content: (
+        <div>
+          <p>将比赛状态切换为“检录中”。</p>
+          <Checkbox
+            defaultChecked
+            onChange={(e) => (notify = e.target.checked)}
+          >
+            同时发送钉钉通知已报名学生（含比赛地点）
+          </Checkbox>
+        </div>
+      ),
+      onOk: async () => {
+        const response = await adminCompetitionAPI.startCheckin(
+          record.id,
+          notify,
+        );
+        handleRespWithNotifySuccess(response, () => {
+          refreshCompetitions();
+        });
+      },
+    });
+  };
+
+  const handleStartCompetition = (record: Competition) => {
+    Modal.confirm({
+      title: `开始比赛「${record.name}」？`,
+      content: "将比赛状态切换为“进行中”，之后可在成绩录入中提交成绩。",
+      onOk: async () => {
+        const response = await adminCompetitionAPI.start(record.id);
+        handleRespWithNotifySuccess(response, () => {
+          refreshCompetitions();
+        });
+      },
+    });
+  };
+
   const handleAction = (key: string, record: Competition) => {
     switch (key) {
       case "approve":
         handleApprove(record);
+        break;
+      case "checkin":
+        handleStartCheckin(record);
+        break;
+      case "start":
+        handleStartCompetition(record);
         break;
       case "reject":
         handleReject(record);
@@ -470,6 +523,20 @@ const CompetitionManagement: React.FC = () => {
         danger: true,
       });
     }
+    if (record.status === "approved") {
+      items.push({
+        key: "checkin",
+        icon: <NotificationOutlined />,
+        label: "开始检录",
+      });
+    }
+    if (record.status === "checking_in") {
+      items.push({
+        key: "start",
+        icon: <PlayCircleOutlined />,
+        label: "开始比赛",
+      });
+    }
 
     return items;
   };
@@ -497,6 +564,11 @@ const CompetitionManagement: React.FC = () => {
             {record.description && (
               <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
                 {record.description}
+              </div>
+            )}
+            {record.venue && (
+              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+                📍 {record.venue}
               </div>
             )}
             {record.start_time && record.end_time && (
@@ -876,6 +948,25 @@ const CompetitionManagement: React.FC = () => {
           <Form.Item label="项目描述" name="description">
             <TextArea rows={3} placeholder="项目描述（可选）" />
           </Form.Item>
+
+          <Form.Item
+            label="比赛地点"
+            name="venue"
+            tooltip="检录通知与时间/地点变更通知会带上此地点"
+          >
+            <Input placeholder="如：田径场东跑道（可选）" />
+          </Form.Item>
+
+          {editingCompetition && (
+            <Form.Item
+              name="notify_changes"
+              valuePropName="checked"
+              initialValue={true}
+              extra="仅当保存时检测到时间或地点实际发生变化才会发送"
+            >
+              <Checkbox>时间或地点有变更时，钉钉通知已报名学生</Checkbox>
+            </Form.Item>
+          )}
 
           <Form.Item
             label="比赛类型"

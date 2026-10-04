@@ -380,3 +380,16 @@ func DeleteCompetitionScoresByID(competitionID int) error {
 	// 删除成绩后，清空该比赛的排名得分
 	return RecalculatePointsByCompetitionID(competitionID)
 }
+
+// GetCompetitionScoreStudents 获取比赛中实际有成绩记录的学生列表（用于成绩公布通知，缺席者无成绩行）
+func GetCompetitionScoreStudents(competitionID int) ([]*types.Student, error) {
+	// 获取数据库连接
+	db := database.GetDB()
+
+	var students []*types.Student
+	err := db.Distinct().
+		Joins("JOIN scores ON scores.student_id = students.id").
+		Where("scores.competition_id = ?", competitionID).
+		Find(&students).Error
+	return students, err
+}

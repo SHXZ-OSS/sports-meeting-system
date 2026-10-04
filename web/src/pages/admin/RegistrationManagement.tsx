@@ -18,6 +18,7 @@ import {
 import {
   PlusOutlined,
   DeleteOutlined,
+  NotificationOutlined,
   ReloadOutlined,
   UserOutlined,
   CheckCircleOutlined,
@@ -372,6 +373,22 @@ const RegistrationManagement: React.FC = () => {
   };
 
   // 管理员删除报名
+  const [remindingId, setRemindingId] = useState<number | null>(null);
+
+  const handleRemindStudent = async (registration: Registration) => {
+    if (!currentCompetition) return;
+    setRemindingId(registration.id);
+    try {
+      const response = await adminRegistrationAPI.remindStudent(
+        currentCompetition.id,
+        registration.student_id,
+      );
+      handleRespWithNotifySuccess(response, () => {});
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
   const handleRemoveRegistration = async (registration: Registration) => {
     if (!currentCompetition || !registration.student_id) return;
 
@@ -1317,16 +1334,33 @@ const RegistrationManagement: React.FC = () => {
                               : new Date(reg.created_at).toLocaleString()}
                           </span>
                         </div>
-                        <Popconfirm
-                          title="确定取消此学生的报名吗？"
-                          onConfirm={() => handleRemoveRegistration(reg)}
-                          okText="确定"
-                          cancelText="取消"
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />}>
-                            取消报名
-                          </Button>
-                        </Popconfirm>
+                        <Space>
+                          {(currentCompetition?.status === "approved" ||
+                            currentCompetition?.status === "checking_in") && (
+                            <Button
+                              size="small"
+                              icon={<NotificationOutlined />}
+                              loading={remindingId === reg.id}
+                              onClick={() => handleRemindStudent(reg)}
+                            >
+                              提醒
+                            </Button>
+                          )}
+                          <Popconfirm
+                            title="确定取消此学生的报名吗？"
+                            onConfirm={() => handleRemoveRegistration(reg)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                            >
+                              取消报名
+                            </Button>
+                          </Popconfirm>
+                        </Space>
                       </div>
                     </Card>
                   ))}
