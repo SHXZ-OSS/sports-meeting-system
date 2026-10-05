@@ -147,16 +147,6 @@ func Login(username, password string) (*AuthSession, error) {
 	return newAdminSession(user)
 }
 
-// StudentLogin 学生登录
-func StudentLogin(username, password string) (*AuthSession, error) {
-	// 验证学生凭据
-	student, err := models.VerifyStudentPassword(username, password)
-	if err != nil {
-		return nil, err
-	}
-	return newStudentSession(student)
-}
-
 // loginByDingTalkID 通过钉钉用户 ID 登录：先匹配学生，再匹配管理员
 func loginByDingTalkID(dingTalkID string) (*AuthSession, error) {
 	// 先尝试查找学生

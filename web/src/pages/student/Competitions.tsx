@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   Card,
-  Table,
   Button,
   Space,
   Tag,
@@ -13,9 +12,10 @@ import {
   Image,
   Modal,
   Divider,
-  Dropdown,
   Input,
   message,
+  Pagination,
+  Empty,
 } from "antd";
 import {
   TrophyOutlined,
@@ -24,7 +24,6 @@ import {
   UserDeleteOutlined,
   EyeOutlined,
   InfoCircleOutlined,
-  MoreOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { studentAPI } from "../../api/student";
@@ -41,6 +40,7 @@ import {
   getCompetitionTypeTag,
 } from "../../utils/competition";
 import { useIsMobile } from "../../utils/mobile";
+import { isTimeInRange } from "../../utils/windows";
 import VoteButtons from "../../components/VoteButtons";
 
 const { Title, Text } = Typography;
@@ -49,7 +49,19 @@ const { Option } = Select;
 
 const StudentCompetitions: React.FC = () => {
   const isMobile = useIsMobile();
-  const { allow_student_registration } = useWebsite();
+  const {
+    allow_student_registration,
+    registration_start_time,
+    registration_end_time,
+    voting_start_time,
+    voting_end_time,
+  } = useWebsite();
+  // 时间窗口（空 = 不限制），与后端校验一致
+  const registrationOpen = isTimeInRange(
+    registration_start_time,
+    registration_end_time,
+  );
+  const votingOpen = isTimeInRange(voting_start_time, voting_end_time);
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [total, setTotal] = useState(0);
@@ -266,7 +278,12 @@ const StudentCompetitions: React.FC = () => {
     if (!allow_student_registration) {
       return false;
     }
-    return competition.status !== "rejected" && !isRegistered(competition.id);
+    // 报名时间窗口外不展示报名入口
+    if (!registrationOpen) {
+      return false;
+    }
+    // 仅已审核（未开始）的比赛开放报名，检录开始后关闭
+    return competition.status === "approved" && !isRegistered(competition.id);
   };
 
   const canUnregister = (competition: Competition) => {
@@ -274,165 +291,17 @@ const StudentCompetitions: React.FC = () => {
     if (competition.competition_type === "team") {
       return false;
     }
+    // 报名时间窗口外不展示取消入口
+    if (!registrationOpen) {
+      return false;
+    }
     return competition.status === "approved" && isRegistered(competition.id);
   };
-
-  const handleAction = (key: string, record: Competition) => {
-    switch (key) {
-      case "detail":
-        showDetail(record);
-        break;
-      case "register":
-        handleRegister(record);
-        break;
-      case "unregister":
-        handleUnregister(record);
-        break;
-    }
-  };
-
-  const getActionItems = (record: Competition) => {
-    const items = [{ key: "detail", icon: <EyeOutlined />, label: "详情" }];
-
-    if (canRegister(record)) {
-      items.push({ key: "register", icon: <UserAddOutlined />, label: "报名" });
-    }
-    if (canUnregister(record)) {
-      items.push({
-        key: "unregister",
-        icon: <UserDeleteOutlined />,
-        label: "取消",
-      });
-    }
-
-    return items;
-  };
-
-  const columns = [
-    {
-      title: "投票",
-      key: "vote",
-      width: 80,
-      render: (record: Competition) => (
-        <VoteButtons
-          voteCount={record.vote_count || 0}
-          userVote={userVotes[record.id]}
-          onVote={(voteType) => handleVote(record.id, voteType)}
-          size={isMobile ? "small" : "medium"}
-        />
-      ),
-    },
-    {
-      title: "项目名称",
-      key: "info",
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value: boolean | React.Key, record: Competition) =>
-        record.name.toLowerCase().includes(value.toString().toLowerCase()),
-      render: (record: Competition) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {record.image_path && (
-            <Image
-              src={record.image_path}
-              alt={record.name}
-              width={40}
-              height={40}
-              style={{ borderRadius: 4, objectFit: "cover" }}
-              preview={{
-                mask: <div style={{ fontSize: "12px" }}>预览</div>,
-              }}
-            />
-          )}
-          <div>
-            <div style={{ fontWeight: 500 }}>{record.name}</div>
-            {record.start_time && record.end_time && (
-              <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-                {dayjs(record.start_time).format("MM-DD HH:mm")} -{" "}
-                {dayjs(record.end_time).format("HH:mm")}
-              </div>
-            )}
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "状态",
-      dataIndex: "status",
-      key: "status",
-      render: getStatusTag,
-    },
-    {
-      title: "类型",
-      dataIndex: "competition_type",
-      key: "competition_type",
-      render: getCompetitionTypeTag,
-    },
-    {
-      title: "报名情况",
-      key: "registration",
-      render: (record: Competition) => {
-        return isRegistered(record.id) ? (
-          <Tag color="success">已报名</Tag>
-        ) : (
-          <Tag color="default">未报名</Tag>
-        );
-      },
-    },
-    {
-      title: "操作",
-      key: "action",
-      render: (record: Competition) => {
-        if (isMobile) {
-          return (
-            <Dropdown
-              menu={{
-                items: getActionItems(record),
-                onClick: ({ key }) => handleAction(key, record),
-              }}
-            >
-              <Button size="small" icon={<MoreOutlined />} />
-            </Dropdown>
-          );
-        }
-
-        return (
-          <Space>
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => showDetail(record)}
-            >
-              详情
-            </Button>
-            {canRegister(record) && (
-              <Button
-                size="small"
-                type="primary"
-                icon={<UserAddOutlined />}
-                onClick={() => handleRegister(record)}
-              >
-                报名
-              </Button>
-            )}
-            {canUnregister(record) && (
-              <Button
-                size="small"
-                danger
-                icon={<UserDeleteOutlined />}
-                onClick={() => handleUnregister(record)}
-              >
-                取消
-              </Button>
-            )}
-          </Space>
-        );
-      },
-    },
-  ];
 
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <Title level={2}>报名项目</Title>
+        <Title level={2}>项目总览</Title>
         {isMobile ? (
           <div
             style={{
@@ -451,6 +320,8 @@ const StudentCompetitions: React.FC = () => {
               onChange={setStatusFilter}
             >
               <Option value="approved">已通过</Option>
+              <Option value="checking_in">检录中</Option>
+              <Option value="in_progress">进行中</Option>
               <Option value="completed">已完成</Option>
               <Option value="pending_score_review">待成绩审核</Option>
             </Select>
@@ -528,45 +399,116 @@ const StudentCompetitions: React.FC = () => {
         )}
       </div>
 
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={competitions}
-          rowKey="id"
-          loading={loading}
-          tableLayout="auto"
-          scroll={{ x: "max-content" }}
-          pagination={
-            isMobile
-              ? {
-                  current: currentPage,
-                  pageSize,
-                  total,
-                  simple: true,
-                  size: "small",
-                  onChange: (page, size) => {
-                    setCurrentPage(page);
-                    setPageSize(size || 10);
-                  },
-                }
-              : {
-                  current: currentPage,
-                  pageSize,
-                  total,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total) => `共 ${total} 个项目`,
-                  onChange: (page, size) => {
-                    setCurrentPage(page);
-                    setPageSize(size || 10);
-                  },
-                }
-          }
-          locale={{
-            emptyText: "暂无符合条件的比赛项目",
+      {competitions.length === 0 ? (
+        <Empty description="暂无符合条件的比赛项目" />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {competitions.map((comp) => {
+            const registered = isRegistered(comp.id);
+            return (
+              <Card
+                key={comp.id}
+                size="small"
+                hoverable
+                onClick={() => showDetail(comp)}
+                styles={{ body: { padding: isMobile ? 12 : 16 } }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                      {comp.name}
+                    </div>
+                    <Space size={[4, 4]} wrap style={{ marginBottom: 4 }}>
+                      {getStatusTag(comp.status)}
+                      {getCompetitionTypeTag(comp.competition_type)}
+                      <Tag>{getGenderText(comp.gender)}</Tag>
+                      {registered && <Tag color="success">已报名</Tag>}
+                    </Space>
+                    <div style={{ fontSize: 12, color: "#999" }}>
+                      {comp.start_time && comp.end_time
+                        ? `${dayjs(comp.start_time).format("MM-DD HH:mm")} - ${dayjs(comp.end_time).format("HH:mm")}`
+                        : "时间待定"}
+                      {comp.venue ? ` · ${comp.venue}` : ""}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    justifyContent: "space-between",
+                    flexShrink: 0,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {comp.status === "approved" && votingOpen && (
+                    <VoteButtons
+                      voteCount={comp.vote_count || 0}
+                      userVote={userVotes[comp.id]}
+                      onVote={(voteType) => handleVote(comp.id, voteType)}
+                      size={isMobile ? "small" : "medium"}
+                    />
+                  )}
+                  <Space size={4} style={{ marginTop: 8 }} wrap>
+                    <Button
+                      size="small"
+                      icon={<EyeOutlined />}
+                      onClick={() => showDetail(comp)}
+                    >
+                      详情
+                    </Button>
+                    {canRegister(comp) && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<UserAddOutlined />}
+                        onClick={() => handleRegister(comp)}
+                      >
+                        报名
+                      </Button>
+                    )}
+                    {canUnregister(comp) && (
+                      <Button
+                        size="small"
+                        danger
+                        icon={<UserDeleteOutlined />}
+                        onClick={() => handleUnregister(comp)}
+                      >
+                        取消
+                      </Button>
+                    )}
+                  </Space>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      <div
+        style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}
+      >
+        <Pagination
+          current={currentPage}
+          pageSize={pageSize}
+          total={total}
+          simple={isMobile}
+          size={isMobile ? "small" : undefined}
+          showSizeChanger={!isMobile}
+          showQuickJumper={!isMobile}
+          showTotal={(t) => `共 ${t} 个项目`}
+          onChange={(page, size) => {
+            setCurrentPage(page);
+            setPageSize(size || 10);
           }}
         />
-      </Card>
+      </div>
 
       {/* 项目详情模态框 */}
       <Modal
@@ -676,18 +618,20 @@ const StudentCompetitions: React.FC = () => {
                 <br />
                 <Text>{selectedCompetition.vote_count || 0}</Text>
               </Col>
-              <Col span={12}>
-                <Text strong>我的投票：</Text>
-                <br />
-                <VoteButtons
-                  voteCount={selectedCompetition.vote_count || 0}
-                  userVote={userVotes[selectedCompetition.id]}
-                  onVote={(voteType) =>
-                    handleVote(selectedCompetition.id, voteType)
-                  }
-                  size="medium"
-                />
-              </Col>
+              {selectedCompetition.status === "approved" && votingOpen && (
+                <Col span={12}>
+                  <Text strong>我的投票：</Text>
+                  <br />
+                  <VoteButtons
+                    voteCount={selectedCompetition.vote_count || 0}
+                    userVote={userVotes[selectedCompetition.id]}
+                    onVote={(voteType) =>
+                      handleVote(selectedCompetition.id, voteType)
+                    }
+                    size="medium"
+                  />
+                </Col>
+              )}
             </Row>
 
             {selectedCompetition.submitter_name && (

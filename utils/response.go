@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -62,4 +63,15 @@ func ResponseError(c *gin.Context, httpStatus int, message string) {
 		Message: message,
 	}
 	c.JSON(http.StatusOK, response) // 始终返回200状态码
+}
+
+// ResponseErrorByHTMLAlert 以 HTML Alert 弹窗形式返回错误（用于浏览器直接访问的 API 404 等场景）
+func ResponseErrorByHTMLAlert(c *gin.Context, httpStatus int, message string) {
+	c.Header("X-App-Error", message)
+	msgJSON, _ := json.Marshal(message)
+	html := `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>` +
+		`alert(` + string(msgJSON) + `);window.history.back();` +
+		`</script></body></html>`
+	c.Data(httpStatus, "text/html; charset=utf-8", []byte(html))
+	c.Abort()
 }

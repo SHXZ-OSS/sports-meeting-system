@@ -25,8 +25,9 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 		return err
 	}
 
-	if competition.Status == types.StatusRejected || competition.Status == types.StatusPendingApproval {
-		return errors.New("该项目当前状态不允许录入成绩")
+	// 仅进行中的比赛可以录入成绩（已完成的比赛需先退回进行中）
+	if competition.Status != types.StatusInProgress {
+		return errors.New("仅进行中的比赛可以录入成绩，请先将比赛置为进行中")
 	}
 
 	// 使用事务处理成绩录入
@@ -221,6 +222,7 @@ func GetScoresByCompetitionID(competitionID int) ([]*types.Score, error) {
 	for _, score := range scores {
 		if score.Competition.ID > 0 {
 			score.CompetitionName = score.Competition.Name
+			score.Unit = score.Competition.Unit
 		}
 		// 个人比赛成绩
 		if score.StudentID != nil && score.Student != nil && score.Student.ID > 0 {
@@ -297,6 +299,7 @@ func GetScoresByStudentID(studentID int) ([]*types.Score, error) {
 	for _, score := range scores {
 		if score.Competition.ID > 0 {
 			score.CompetitionName = score.Competition.Name
+			score.Unit = score.Competition.Unit
 		}
 
 		if score.StudentID != nil && score.Student != nil && score.Student.ID > 0 {
@@ -364,9 +367,9 @@ func DeleteCompetitionScoresByID(competitionID int) error {
 			return err
 		}
 
-		// 更新比赛状态回到待上传
+		// 更新比赛状态回到进行中，允许重新录入成绩
 		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]any{
-			"status":             types.StatusApproved,
+			"status":             types.StatusInProgress,
 			"score_submitter_id": nil,
 			"score_reviewer_id":  nil,
 			"score_reviewed_at":  nil,
@@ -379,4 +382,30 @@ func DeleteCompetitionScoresByID(competitionID int) error {
 
 	// 删除成绩后，清空该比赛的排名得分
 	return RecalculatePointsByCompetitionID(competitionID)
+}
+
+// GetCompetitionScoreStudents 获取比赛中实际有成绩记录的学生列表（用于成绩公布通知，缺席者无成绩行）
+func GetCompetitionScoreStudents(competitionID int) ([]*types.Student, error) {
+	// 获取数据库连接
+	db := database.GetDB()
+
+	var students []*types.Student
+	err := db.Distinct().
+		Joins("JOIN scores ON scores.student_id = students.id").
+		Where("scores.competition_id = ?", competitionID).
+		Find(&students).Error
+	return students, err
+}
+
+// GetCompetitionScoreClassIDs 获取团体赛中有成绩记录的班级ID（用于成绩公布通知）
+func GetCompetitionScoreClassIDs(competitionID int) ([]int, error) {
+	// 获取数据库连接
+	db := database.GetDB()
+
+	var classIDs []int
+	err := db.Model(&types.Score{}).
+		Where("competition_id = ? AND class_id IS NOT NULL", competitionID).
+		Distinct().
+		Pluck("class_id", &classIDs).Error
+	return classIDs, err
 }

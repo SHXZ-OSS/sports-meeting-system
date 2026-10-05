@@ -20,7 +20,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   ReloadOutlined,
-  KeyOutlined,
   MoreOutlined,
   FileExcelOutlined,
 } from "@ant-design/icons";
@@ -142,37 +141,6 @@ const StudentManagement: React.FC = () => {
     fetchClasses();
   }, [currentPage, pageSize, classFilter, searchText]);
 
-  // 重置学生密码
-  const handleResetPassword = async (student: Student) => {
-    const response = await adminStudentAPI.resetStudentPassword(student.id);
-    handleRespWithNotifySuccess(response, (data) => {
-      Modal.success({
-        title: "密码重置成功",
-        content: (
-          <div>
-            <p>
-              <strong>{student.full_name}</strong> 的新密码：
-            </p>
-            <p
-              style={{
-                backgroundColor: "#f5f5f5",
-                padding: "8px",
-                fontFamily: "monospace",
-                fontSize: "16px",
-                textAlign: "center",
-              }}
-            >
-              {data?.new_password}
-            </p>
-            <p style={{ color: "#999", fontSize: "12px" }}>
-              请妥善保管并及时告知学生
-            </p>
-          </div>
-        ),
-      });
-    });
-  };
-
   // 打开创建/编辑模态框
   const openModal = (student?: Student) => {
     setEditingStudent(student || null);
@@ -219,34 +187,9 @@ const StudentManagement: React.FC = () => {
         username: values.username?.trim() || "",
       });
       handleRespWithNotifySuccess(response, (data) => {
-        Modal.success({
-          title: "学生创建成功",
-          content: (
-            <div>
-              <p>
-                <strong>用户名：</strong>
-                {data?.student.username}
-              </p>
-              <p>
-                <strong>初始密码：</strong>
-              </p>
-              <p
-                style={{
-                  backgroundColor: "#f5f5f5",
-                  padding: "8px",
-                  fontFamily: "monospace",
-                  fontSize: "16px",
-                  textAlign: "center",
-                }}
-              >
-                {data?.password}
-              </p>
-              <p style={{ color: "#999", fontSize: "12px" }}>
-                请妥善保管并及时告知学生
-              </p>
-            </div>
-          ),
-        });
+        message.success(
+          `学生创建成功，用户名：${data?.student.username}（通过钉钉 / 统一认证登录）`,
+        );
         closeModal();
         refreshStudents();
         fetchClasses(); // 可能创建了新班级
@@ -293,7 +236,6 @@ const StudentManagement: React.FC = () => {
           createdStudents.push({
             full_name: response.data.student.full_name,
             username: response.data.student.username,
-            password: response.data.password,
             class_name: response.data.student.class_name,
           });
         }
@@ -317,61 +259,7 @@ const StudentManagement: React.FC = () => {
       },
     });
 
-    // 按班级分组密码
-    const passwordsByClass = new Map<string, any[]>();
-    createdStudents.forEach((studentData) => {
-      const className = studentData.class_name;
-      if (!passwordsByClass.has(className)) {
-        passwordsByClass.set(className, []);
-      }
-      passwordsByClass.get(className)!.push(studentData);
-    });
-
-    // 导出密码文件
-    if (passwordsByClass.size > 0) {
-      Modal.confirm({
-        title: "导入成功",
-        content: `成功导入学生数据，是否下载密码文件？`,
-        okText: "下载",
-        cancelText: "稍后",
-        onOk: () => exportPasswordsByClass(passwordsByClass),
-      });
-    }
-
     return results;
-  };
-
-  // 导出带密码的Excel（按班级分割）
-  const exportPasswordsByClass = async (
-    passwordsByClass: Map<string, any[]>,
-  ) => {
-    // 动态导入 excel 工具
-    const { exportExcel } = await import("../../utils/excel");
-
-    passwordsByClass.forEach((passwords, className) => {
-      // 构建表格数据（二维数组）
-      const headers = ["班级", "姓名", "用户名", "密码"];
-      const rows = passwords.map((p) => [
-        p.class_name,
-        p.full_name,
-        p.username,
-        p.password,
-      ]);
-      const data = [headers, ...rows];
-
-      // 使用 exportExcel 导出
-      exportExcel(
-        [
-          {
-            name: "密码",
-            data: data,
-            colWidths: [15, 15, 20, 15],
-          },
-        ],
-        `${className}_密码.xlsx`,
-      );
-    });
-    message.success(`已成功导出 ${passwordsByClass.size} 个班级的密码文件`);
   };
 
   // 导出全部学生
@@ -435,92 +323,10 @@ const StudentManagement: React.FC = () => {
     });
   };
 
-  // 批量重置密码
-  const handleBatchResetPassword = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning("请先选择要重置密码的学生");
-      return;
-    }
-
-    Modal.confirm({
-      title: `确定重置选中的 ${selectedRowKeys.length} 个学生的密码吗？`,
-      content: "重置后将生成新密码，请及时导出并告知学生",
-      onOk: async () => {
-        const selectedStudents = students.filter((s) =>
-          selectedRowKeys.includes(s.id),
-        );
-        const resetPasswordsData: any[] = [];
-
-        const items = selectedStudents.map((student) => ({
-          id: student.id,
-          name: student.full_name,
-          request: async () => {
-            const response = await adminStudentAPI.resetStudentPassword(
-              student.id,
-            );
-            if (response.code !== 200) {
-              throw new Error(response.message);
-            }
-            // 保存重置后的密码信息
-            if (response.data) {
-              resetPasswordsData.push({
-                full_name: student.full_name,
-                username: student.username,
-                password: response.data.new_password,
-                class_name: student.class_name,
-              });
-            }
-            return response.data;
-          },
-        }));
-
-        setBatchProgressVisible(true);
-        setBatchProgress({ current: 0, total: items.length });
-
-        await handleBatchResp(items, {
-          onProgress: (current, total) => {
-            setBatchProgress({ current, total });
-          },
-          onComplete: (results) => {
-            setBatchProgressVisible(false);
-            setBatchResults(results);
-            setBatchResultsVisible(true);
-            setSelectedRowKeys([]);
-            refreshStudents();
-
-            // 按班级分组密码
-            const passwordsByClass = new Map<string, any[]>();
-            resetPasswordsData.forEach((studentData) => {
-              const className = studentData.class_name;
-              if (!passwordsByClass.has(className)) {
-                passwordsByClass.set(className, []);
-              }
-              passwordsByClass.get(className)!.push(studentData);
-            });
-
-            // 提示导出密码文件
-            if (passwordsByClass.size > 0) {
-              Modal.confirm({
-                title: "密码重置成功",
-                content: `已成功重置 ${resetPasswordsData.length} 个学生的密码，是否下载密码文件？`,
-                okText: "下载",
-                cancelText: "稍后",
-                onOk: () => exportPasswordsByClass(passwordsByClass),
-              });
-            }
-          },
-        });
-      },
-    });
-  };
-
   const handleAction = (key: string, record: Student) => {
     switch (key) {
       case "edit":
         openModal(record);
-        break;
-      case "reset":
-        handleResetPassword(record);
         break;
       case "delete":
         Modal.confirm({
@@ -580,7 +386,6 @@ const StudentManagement: React.FC = () => {
               menu={{
                 items: [
                   { key: "edit", icon: <EditOutlined />, label: "编辑" },
-                  { key: "reset", icon: <KeyOutlined />, label: "重置密码" },
                   {
                     key: "delete",
                     icon: <DeleteOutlined />,
@@ -604,13 +409,6 @@ const StudentManagement: React.FC = () => {
               onClick={() => openModal(record)}
             >
               编辑
-            </Button>
-            <Button
-              size="small"
-              icon={<KeyOutlined />}
-              onClick={() => handleResetPassword(record)}
-            >
-              重置密码
             </Button>
             <Popconfirm
               title="确定删除此学生吗？"
@@ -696,12 +494,6 @@ const StudentManagement: React.FC = () => {
                     type: "divider",
                   },
                   {
-                    key: "batchReset",
-                    icon: <KeyOutlined />,
-                    label: "批量重置密码",
-                    disabled: selectedRowKeys.length === 0,
-                  },
-                  {
                     key: "batchDelete",
                     icon: <DeleteOutlined />,
                     label: "批量删除",
@@ -712,8 +504,6 @@ const StudentManagement: React.FC = () => {
                 onClick: ({ key }) => {
                   if (key === "import") {
                     setBatchModalVisible(true);
-                  } else if (key === "batchReset") {
-                    handleBatchResetPassword();
                   } else if (key === "batchDelete") {
                     handleBatchDelete();
                   }
@@ -779,12 +569,6 @@ const StudentManagement: React.FC = () => {
                       type: "divider",
                     },
                     {
-                      key: "batchReset",
-                      icon: <KeyOutlined />,
-                      label: "批量重置密码",
-                      disabled: selectedRowKeys.length === 0,
-                    },
-                    {
                       key: "batchDelete",
                       icon: <DeleteOutlined />,
                       label: "批量删除",
@@ -795,8 +579,6 @@ const StudentManagement: React.FC = () => {
                   onClick: ({ key }) => {
                     if (key === "import") {
                       setBatchModalVisible(true);
-                    } else if (key === "batchReset") {
-                      handleBatchResetPassword();
                     } else if (key === "batchDelete") {
                       handleBatchDelete();
                     }

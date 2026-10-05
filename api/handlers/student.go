@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/logger"
@@ -164,7 +163,7 @@ func CreateStudent(c *gin.Context) {
 	}
 
 	// 创建学生
-	student, password, err := models.CreateStudent(req.Username, req.FullName, req.Gender, class, req.DingTalkID)
+	student, err := models.CreateStudent(req.Username, req.FullName, req.Gender, class, req.DingTalkID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建学生失败: "+err.Error())
 		return
@@ -172,8 +171,7 @@ func CreateStudent(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseOK(c, map[string]any{
-		"student":  student,
-		"password": password, // 返回初始密码
+		"student": student,
 	})
 }
 
@@ -294,60 +292,4 @@ func DeleteStudent(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseOK(c, map[string]bool{"success": true})
-}
-
-// ResetStudentPassword 重置学生密码
-func ResetStudentPassword(c *gin.Context) {
-	// 解析路径参数
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		utils.ResponseError(c, http.StatusBadRequest, "无效的学生ID")
-		return
-	}
-
-	// 获取当前用户信息
-	userID, ok := middlewares.GetUserIDFromContext(c)
-	if !ok {
-		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
-		return
-	}
-
-	user, err := models.GetUserByID(userID)
-	if err != nil {
-		utils.ResponseError(c, http.StatusUnauthorized, "用户信息获取失败")
-		return
-	}
-
-	// 获取学生
-	student, err := models.GetStudentByID(id)
-	if err != nil {
-		utils.ResponseError(c, http.StatusNotFound, "学生不存在")
-		return
-	}
-
-	// 权限验证：全局管理员可重置任意班级学生密码，班级账号仅限自己班级
-	if !models.CanAccessClass(user, student.ClassID) {
-		utils.ResponseError(c, http.StatusForbidden, "权限不足")
-		return
-	}
-
-	// 重置密码
-	randomPassword, err := utils.GenerateRandomPassword(8)
-	if err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "生成随机密码失败")
-		return
-	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
-	if err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "生成密码哈希失败")
-		return
-	}
-	// 更新学生密码
-	student.Password = string(hashedPassword)
-	if err := models.UpdateStudent(student); err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "重置密码失败")
-		return
-	}
-	// 返回新密码
-	utils.ResponseOK(c, map[string]string{"new_password": randomPassword})
 }

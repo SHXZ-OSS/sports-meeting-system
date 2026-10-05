@@ -41,6 +41,9 @@ import {
   getGenderTag,
 } from "../../utils/competition";
 import { useIsMobile } from "../../utils/mobile";
+import { useAuth } from "../../contexts/AuthContext";
+import { useWebsite } from "../../contexts/WebsiteContext";
+import { isTimeInRange } from "../../utils/windows";
 import BatchResults, { BatchResult } from "../../components/BatchResults";
 import BatchProgress from "../../components/BatchProgress";
 import RandomDrawModal from "../../components/RandomDrawModal";
@@ -52,6 +55,15 @@ const { Option } = Select;
 
 const RegistrationManagement: React.FC = () => {
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const { registration_start_time, registration_end_time } = useWebsite();
+  // 报名时间窗口（空 = 不限制）；班级账号受窗口限制，全局管理员不受限（与后端一致）
+  const registrationOpen = isTimeInRange(
+    registration_start_time,
+    registration_end_time,
+  );
+  // 班级账号在窗口外不展示新增/取消报名的入口
+  const canModifyRegistration = !user?.class_id || registrationOpen;
 
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -154,7 +166,9 @@ const RegistrationManagement: React.FC = () => {
     params.page = page;
     params.page_size = size;
     if (statusFilter) params.status = statusFilter;
-    else params.status = "approved,pending_score_review,completed";
+    else
+      params.status =
+        "approved,checking_in,in_progress,pending_score_review,completed";
 
     const response = await adminRegistrationAPI.getCompetitions(params);
     handleResp(
@@ -205,7 +219,7 @@ const RegistrationManagement: React.FC = () => {
 
   const fetchExportCompetitions = async () => {
     const resp = await adminRegistrationAPI.getCompetitions({
-      status: "approved,pending_score_review,completed",
+      status: "approved,checking_in,in_progress,pending_score_review,completed",
     });
     handleResp(resp, (data) => setExportAllCompetitions(data));
   };
@@ -804,7 +818,7 @@ const RegistrationManagement: React.FC = () => {
 
     // 获取所有已审核的比赛
     const response = await adminRegistrationAPI.getCompetitions({
-      status: "approved,pending_score_review,completed",
+      status: "approved,checking_in,in_progress,pending_score_review,completed",
     });
 
     let allCompetitions: Competition[] = [];
@@ -1041,6 +1055,8 @@ const RegistrationManagement: React.FC = () => {
               onChange={setStatusFilter}
             >
               <Option value="approved">已审核</Option>
+              <Option value="checking_in">检录中</Option>
+              <Option value="in_progress">进行中</Option>
               <Option value="pending_score_review">待审核成绩</Option>
               <Option value="completed">已完成</Option>
             </Select>
@@ -1102,6 +1118,8 @@ const RegistrationManagement: React.FC = () => {
                 onChange={setStatusFilter}
               >
                 <Option value="approved">已审核</Option>
+                <Option value="checking_in">检录中</Option>
+                <Option value="in_progress">进行中</Option>
                 <Option value="pending_score_review">待审核成绩</Option>
                 <Option value="completed">已完成</Option>
               </Select>
@@ -1206,13 +1224,15 @@ const RegistrationManagement: React.FC = () => {
           )}
           <div style={{ marginBottom: 16 }}>
             <Space>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setAddRegistrationVisible(true)}
-              >
-                新增报名
-              </Button>
+              {canModifyRegistration && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setAddRegistrationVisible(true)}
+                >
+                  新增报名
+                </Button>
+              )}
               <Button
                 icon={<ReloadOutlined />}
                 onClick={() =>
@@ -1317,16 +1337,22 @@ const RegistrationManagement: React.FC = () => {
                               : new Date(reg.created_at).toLocaleString()}
                           </span>
                         </div>
-                        <Popconfirm
-                          title="确定取消此学生的报名吗？"
-                          onConfirm={() => handleRemoveRegistration(reg)}
-                          okText="确定"
-                          cancelText="取消"
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />}>
-                            取消报名
-                          </Button>
-                        </Popconfirm>
+                        {canModifyRegistration && (
+                          <Popconfirm
+                            title="确定取消此学生的报名吗？"
+                            onConfirm={() => handleRemoveRegistration(reg)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                            >
+                              取消报名
+                            </Button>
+                          </Popconfirm>
+                        )}
                       </div>
                     </Card>
                   ))}

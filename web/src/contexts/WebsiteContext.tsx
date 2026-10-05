@@ -17,14 +17,19 @@ interface WebsiteContextType extends WebsiteInfo {
 
 const defaultWebsiteInfo: WebsiteInfo = {
   name: "正在加载...",
-  icp_beian: "",
-  public_sec_beian: "",
   dingtalk_corp_id: "",
   domain: "",
   // 默认放开，待接口返回后按配置收敛
   allow_student_registration: true,
   allow_student_submission: true,
   oidc_enabled: false,
+  // 时间窗口留空 = 不限制
+  submission_start_time: "",
+  submission_end_time: "",
+  voting_start_time: "",
+  voting_end_time: "",
+  registration_start_time: "",
+  registration_end_time: "",
 };
 
 const WebsiteContext = createContext<WebsiteContextType | undefined>(undefined);

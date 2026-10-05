@@ -40,6 +40,11 @@ const createApiInstance = (baseURL = "/api"): AxiosInstance => {
       // 只处理网络错误和HTTP错误
       if (error.response) {
         const { status, data } = error.response;
+        const contentType: string =
+          error.response.headers?.["content-type"] || "";
+        if (typeof data === "string" || contentType.includes("text/html")) {
+          return Promise.resolve({ ...error.response, data });
+        }
         // 返回标准的错误响应格式
         return Promise.resolve({
           ...error.response,

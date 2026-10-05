@@ -15,7 +15,9 @@ type CompetitionType string
 
 const (
 	StatusPendingApproval    CompetitionStatus = "pending_approval"     // 等待项目审核
-	StatusApproved           CompetitionStatus = "approved"             // 审核通过
+	StatusApproved           CompetitionStatus = "approved"             // 审核通过（未开始）
+	StatusCheckingIn         CompetitionStatus = "checking_in"          // 检录中
+	StatusInProgress         CompetitionStatus = "in_progress"          // 比赛进行中
 	StatusRejected           CompetitionStatus = "rejected"             // 审核失败
 	StatusPendingScoreReview CompetitionStatus = "pending_score_review" // 等待成绩审核
 	StatusCompleted          CompetitionStatus = "completed"            // 已完成
@@ -37,6 +39,7 @@ type Competition struct {
 	EventID                 int               `json:"event_id"                       gorm:"not null;index;default:1"` // 所属运动会届次
 	Name                    string            `json:"name"                           gorm:"not null"`
 	Description             string            `json:"description"                    gorm:"default:''"`
+	Venue                   string            `json:"venue"                          gorm:"default:''"` // 比赛地点（检录/变更通知会带上）
 	ImagePath               string            `json:"image_path"                     gorm:"default:''"`
 	Status                  CompetitionStatus `json:"status"                         gorm:"not null;default:'pending_approval'"`
 	RankingMode             RankingMode       `json:"ranking_mode"                   gorm:"default:'higher_first'"` // 排名方式

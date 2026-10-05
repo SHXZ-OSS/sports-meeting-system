@@ -366,6 +366,8 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
                 .filter(
                   (comp) =>
                     comp.status === "approved" ||
+                    comp.status === "checking_in" ||
+                    comp.status === "in_progress" ||
                     comp.status === "pending_score_review" ||
                     comp.status === "completed",
                 )

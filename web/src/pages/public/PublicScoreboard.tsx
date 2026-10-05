@@ -248,11 +248,7 @@ const PublicScoreboard: React.FC = () => {
   const [isManualReplay, setIsManualReplay] = useState(false); // 标记是否是手动重播
 
   // 网站名称
-  const {
-    name: websiteName,
-    icp_beian: icp_beian,
-    public_sec_beian: public_sec_beian,
-  } = useWebsite();
+  const { name: websiteName } = useWebsite();
 
   const stopAnnouncement = useCallback(() => {
     speechRequestIdRef.current += 1;
@@ -588,7 +584,7 @@ const PublicScoreboard: React.FC = () => {
   const fetchPendingCompetitions = async () => {
     setPendingLoading(true);
     const data = await publicAPI.getCompetitions({
-      status: "approved,pending_score_review",
+      status: "approved,checking_in,in_progress,pending_score_review",
     });
     handleRespWithoutNotify(
       data,
@@ -998,6 +994,11 @@ const PublicScoreboard: React.FC = () => {
                   <Tag color="blue">{getGenderText(comp.gender)}</Tag>
                   {getStatusTag(comp.status)}
                 </Space>
+                {comp.venue && (
+                  <div style={{ fontSize: 12, color: "#ccc", marginTop: 6 }}>
+                    地点：{comp.venue}
+                  </div>
+                )}
               </div>
               <Button type="primary" icon={<EyeOutlined />} size="small">
                 查看
@@ -1662,6 +1663,7 @@ const PublicScoreboard: React.FC = () => {
 
   return (
     <Layout
+      className="public-scoreboard"
       style={{ minHeight: "100vh", background: "#000", overflow: "hidden" }}
     >
       {/* 背景动画 */}
@@ -2104,83 +2106,6 @@ const PublicScoreboard: React.FC = () => {
           </Row>
         )}
       </Content>
-
-      {/* Footer容器 */}
-      {(icp_beian || public_sec_beian) && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            margin: 16,
-          }}
-        >
-          <div
-            style={{
-              backdropFilter: "blur(10px)",
-              background: "rgba(0,0,0,0.6)",
-              borderRadius: 12,
-              border: "none",
-              padding: 16,
-              display: "inline-block",
-              maxWidth: "fit-content",
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-                color: "#fff",
-                fontSize: "14px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: "24px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {icp_beian && (
-                  <a
-                    href="https://beian.miit.gov.cn/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "#fff",
-                      fontWeight: "normal",
-                      textDecoration: "none",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {icp_beian}
-                  </a>
-                )}
-                {public_sec_beian && (
-                  <a
-                    href={`https://beian.mps.gov.cn/#/query/webSearch?code=${public_sec_beian.match(/\d+/g)?.join("") || ""}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "#fff",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      textDecoration: "none",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <img
-                      src="https://www.beian.gov.cn/img/new/gongan.png"
-                      alt="公安备案图标"
-                      style={{ marginRight: "5px", height: "16px" }}
-                    />
-                    {public_sec_beian}
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 成绩动画 */}
       {showAnimation && animatingCompetition && (
@@ -2755,6 +2680,12 @@ const PublicScoreboard: React.FC = () => {
                   <Text strong>性别要求：</Text>
                   <Text>{getGenderText(modal.competition.gender)}</Text>
                 </Col>
+                {modal.competition.venue && (
+                  <Col span={isMobile ? 24 : 8}>
+                    <Text strong>比赛地点：</Text>
+                    <Text>{modal.competition.venue}</Text>
+                  </Col>
+                )}
                 {modal.competition.submitter_name && (
                   <Col span={isMobile ? 24 : 8}>
                     <Text strong>比赛推荐人：</Text>

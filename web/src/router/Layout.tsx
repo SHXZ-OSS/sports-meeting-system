@@ -25,7 +25,6 @@ import {
   TeamOutlined,
   TrophyOutlined,
   EditOutlined,
-  CheckCircleOutlined,
   SettingOutlined,
   BookOutlined,
   HomeOutlined,
@@ -39,7 +38,6 @@ import { useWebsite } from "../contexts/WebsiteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { PERMISSIONS } from "../types";
 import { useIsMobile } from "../utils";
-import Footer from "../components/Footer";
 import LoadingSpinner from "../components/Spinner";
 import NotFound from "../components/NotFound";
 
@@ -63,8 +61,7 @@ const CompetitionManagement = React.lazy(
 const RegistrationManagement = React.lazy(
   () => import("../pages/admin/RegistrationManagement"),
 );
-const ScoreInput = React.lazy(() => import("../pages/admin/ScoreInput"));
-const ScoreReview = React.lazy(() => import("../pages/admin/ScoreReview"));
+const Progress = React.lazy(() => import("../pages/admin/Progress"));
 const PointsManagement = React.lazy(
   () => import("../pages/admin/PointsManagement"),
 );
@@ -121,13 +118,9 @@ const PAGE_TITLES: Record<string, PageTitleConfig> = {
     title: "报名管理",
     permission: PERMISSIONS.REGISTRATION_MANAGEMENT,
   },
-  "/admin/score-input": {
-    title: "成绩录入",
-    permission: PERMISSIONS.SCORE_INPUT,
-  },
-  "/admin/score-review": {
-    title: "成绩审核",
-    permission: PERMISSIONS.SCORE_REVIEW,
+  "/admin/progress": {
+    title: "成绩与赛事进程",
+    permission: PERMISSIONS.SCORE_AND_PROGRESS | PERMISSIONS.SCORE_REVIEW,
   },
   "/admin/points": {
     title: "得分管理",
@@ -139,7 +132,7 @@ const PAGE_TITLES: Record<string, PageTitleConfig> = {
   },
   // 学生端
   "/student": { title: "个人中心" },
-  "/student/competitions": { title: "报名项目" },
+  "/student/competitions": { title: "项目总览" },
   "/student/submit": { title: "推荐项目" },
   "/student/registrations": { title: "我的报名" },
   "/student/scores": { title: "我的成绩" },
@@ -253,23 +246,11 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         icon: <FormOutlined />,
         label: navLink("/admin/registrations", "报名管理"),
       },
-      (hasPermission(PERMISSIONS.SCORE_INPUT) ||
+      (hasPermission(PERMISSIONS.SCORE_AND_PROGRESS) ||
         hasPermission(PERMISSIONS.SCORE_REVIEW)) && {
-        key: "score-management",
+        key: "/admin/progress",
         icon: <EditOutlined />,
-        label: "成绩管理",
-        children: [
-          hasPermission(PERMISSIONS.SCORE_INPUT) && {
-            key: "/admin/score-input",
-            icon: <EditOutlined />,
-            label: navLink("/admin/score-input", "成绩录入"),
-          },
-          hasPermission(PERMISSIONS.SCORE_REVIEW) && {
-            key: "/admin/score-review",
-            icon: <CheckCircleOutlined />,
-            label: navLink("/admin/score-review", "成绩审核"),
-          },
-        ],
+        label: navLink("/admin/progress", "成绩与赛事进程"),
       },
       hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && {
         key: "/admin/points",
@@ -295,7 +276,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       {
         key: "/student/competitions",
         icon: <TrophyOutlined />,
-        label: navLink("/student/competitions", "报名项目"),
+        label: navLink("/student/competitions", "项目总览"),
       },
       // 学生本人提交被配置关闭时隐藏入口（班级账号走管理端）
       allow_student_submission && {
@@ -365,13 +346,6 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       ) {
         defaultOpenKeys.push("student-class");
       }
-      // 成绩管理子菜单
-      if (
-        pathname.includes("/admin/score-input") ||
-        pathname.includes("/admin/score-review")
-      ) {
-        defaultOpenKeys.push("score-management");
-      }
     }
 
     return defaultOpenKeys;
@@ -424,11 +398,9 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           {hasPermission(PERMISSIONS.REGISTRATION_MANAGEMENT) && (
             <Route path="/registrations" element={<RegistrationManagement />} />
           )}
-          {hasPermission(PERMISSIONS.SCORE_INPUT) && (
-            <Route path="/score-input" element={<ScoreInput />} />
-          )}
-          {hasPermission(PERMISSIONS.SCORE_REVIEW) && (
-            <Route path="/score-review" element={<ScoreReview />} />
+          {(hasPermission(PERMISSIONS.SCORE_AND_PROGRESS) ||
+            hasPermission(PERMISSIONS.SCORE_REVIEW)) && (
+            <Route path="/progress" element={<Progress />} />
           )}
           {hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && (
             <Route path="/points" element={<PointsManagement />} />
@@ -638,8 +610,6 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           >
             <Suspense fallback={<LoadingSpinner />}>{renderRoutes()}</Suspense>
           </Content>
-
-          <Footer />
         </AntLayout>
       </AntLayout>
     </AntLayout>

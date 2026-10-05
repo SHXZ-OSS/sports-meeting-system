@@ -4,6 +4,27 @@
   transition: all 0.3s ease;
 }
 
+/* 公开看板深色卡片：App.tsx 全局浅色 token（Card.headerBg / colorBgContainer）
+   会渗入组件内部背景，内联样式压不住，须用 !important 覆盖 */
+.public-scoreboard .ant-card {
+  background: rgba(0, 0, 0, 0.6) !important;
+  border: none !important;
+}
+
+.public-scoreboard .ant-card-head {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.public-scoreboard .ant-card-head-title {
+  color: #fff !important;
+}
+
+.public-scoreboard .ant-card-body {
+  background: transparent !important;
+  color: #fff !important;
+}
+
 /* 悬停效果卡片 */
 .hover-card {
   cursor: pointer;

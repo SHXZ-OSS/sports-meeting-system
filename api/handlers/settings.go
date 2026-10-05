@@ -20,10 +20,8 @@ type UpdateSettingsRequest struct {
 		CorpID    string `json:"corp_id"`
 	} `json:"dingtalk"`
 	Website struct {
-		Name           string `json:"name"`
-		ICPBeian       string `json:"icp_beian"`
-		PublicSecBeian string `json:"public_sec_beian"`
-		Domain         string `json:"domain"`
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
 	} `json:"website"`
 	Competition struct {
 		SubmissionStartTime       string `json:"submission_start_time"`
@@ -68,11 +66,9 @@ func GetSettings(c *gin.Context) {
 			"corp_id":    cfg.DingTalk.CorpID,
 		},
 		"website": map[string]any{
-			"name":             cfg.Website.Name,
-			"icp_beian":        cfg.Website.ICPBeian,
-			"public_sec_beian": cfg.Website.PublicSecBeian,
-			"domain":           cfg.Website.Domain,
-			"logo_url":         logoURL(cfg),
+			"name":     cfg.Website.Name,
+			"domain":   cfg.Website.Domain,
+			"logo_url": logoURL(cfg),
 		},
 		"competition": map[string]any{
 			"submission_start_time":        cfg.Competition.SubmissionStartTime,
@@ -126,8 +122,6 @@ func UpdateSettings(c *gin.Context) {
 	cfg.DingTalk.CorpID = req.DingTalk.CorpID
 
 	cfg.Website.Name = req.Website.Name
-	cfg.Website.ICPBeian = req.Website.ICPBeian
-	cfg.Website.PublicSecBeian = req.Website.PublicSecBeian
 	cfg.Website.Domain = req.Website.Domain
 
 	cfg.Competition.SubmissionStartTime = req.Competition.SubmissionStartTime

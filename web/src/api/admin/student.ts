@@ -51,7 +51,7 @@ export const adminStudentAPI = {
    */
   createStudent: async (
     data: CreateStudentRequest,
-  ): Promise<ApiResponse<{ student: Student; password: string }>> => {
+  ): Promise<ApiResponse<{ student: Student }>> => {
     return await callApi(() => api.post("/admin/students", data));
   },
 
@@ -70,17 +70,6 @@ export const adminStudentAPI = {
    */
   deleteStudent: async (id: number): Promise<ApiResponse<void>> => {
     return await callApi(() => api.delete(`/admin/students/${id}`));
-  },
-
-  /**
-   * 重置学生密码
-   */
-  resetStudentPassword: async (
-    id: number,
-  ): Promise<ApiResponse<{ new_password: string }>> => {
-    return await callApi(() =>
-      api.post(`/admin/students/${id}/reset_password`),
-    );
   },
 };
 

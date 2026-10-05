@@ -22,7 +22,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
 import { handleRespWithoutAuthButNotifySuccess } from "../../utils";
 import { authAPI } from "../../api/auth";
-import Footer from "../../components/Footer";
 import * as dd from "dingtalk-jsapi";
 
 const { Content } = Layout;
@@ -313,8 +312,6 @@ const Login: React.FC = () => {
           </div>
         </Card>
       </Content>
-
-      <Footer />
     </Layout>
   );
 };

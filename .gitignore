@@ -27,3 +27,5 @@ sports-meeting-system.exe
 # OS
 .DS_Store
 nul
+*.exe~
+run-preview/

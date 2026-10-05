@@ -109,8 +109,6 @@ const Settings: React.FC = () => {
 
           // 网站设置
           "website.name": data?.website.name,
-          "website.icp_beian": data?.website.icp_beian,
-          "website.public_sec_beian": data?.website.public_sec_beian,
           "website.domain": data?.website.domain,
 
           // 比赛设置
@@ -200,8 +198,6 @@ const Settings: React.FC = () => {
       },
       website: {
         name: values["website.name"] || "",
-        icp_beian: values["website.icp_beian"] || "",
-        public_sec_beian: values["website.public_sec_beian"] || "",
         domain: values["website.domain"] || "",
       },
       competition: {
@@ -599,16 +595,7 @@ const Settings: React.FC = () => {
             </Row>
 
             <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item label="ICP备案号" name="website.icp_beian">
-                  <Input placeholder="如：京ICP备12345678号" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="公安备案号" name="website.public_sec_beian">
-                  <Input placeholder="如：京公网安备11010802012345号" />
-                </Form.Item>
-              </Col>
+              <Col span={12}></Col>
             </Row>
 
             {/* 自定义 logo */}

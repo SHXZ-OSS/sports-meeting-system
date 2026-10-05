@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
@@ -30,7 +29,7 @@ func CreateStudent(
 	gender int,
 	classID int,
 	dingTalkID string,
-) (*types.Student, string, error) {
+) (*types.Student, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -38,27 +37,27 @@ func CreateStudent(
 		// 预定义用户名：校验格式与唯一性，冲突直接报错，不静默改名
 		username = strings.TrimSpace(username)
 		if err := utils.ValidateUsernameFormat(username); err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		exists, err := isStudentUsernameExists(db, username)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		if exists {
-			return nil, "", fmt.Errorf("用户名 %s 已存在", username)
+			return nil, fmt.Errorf("用户名 %s 已存在", username)
 		}
 	} else {
 		// 自动生成用户名：stu+姓名拼音首字母+随机数
 		var err error
 		username, err = utils.GenerateStudentUsername(fullName)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 
 		// 检查用户名是否已存在，如果已存在则重新生成
 		exists, err := isStudentUsernameExists(db, username)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 
 		// 如果用户名已存在，尝试重新生成最多5次
@@ -66,11 +65,11 @@ func CreateStudent(
 		for exists && attempts < 5 {
 			username, err = utils.GenerateStudentUsername(fullName)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
 			exists, err = isStudentUsernameExists(db, username)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
 			attempts++
 		}
@@ -87,20 +86,9 @@ func CreateStudent(
 		dingTalkID = "0"
 	}
 
-	// 生成密码
-	randomPassword, err := utils.GenerateRandomPassword(8)
-	if err != nil {
-		return nil, "", err
-	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// 创建学生
+	// 创建学生（学生统一通过钉钉/OIDC 登录，无密码）
 	student := &types.Student{
 		Username:   username,
-		Password:   string(hashedPassword),
 		FullName:   fullName,
 		Gender:     gender,
 		ClassID:    classID,
@@ -108,16 +96,14 @@ func CreateStudent(
 	}
 
 	// 使用事务插入学生数据
-	err = db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		return tx.Create(student).Error
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
-	// 返回创建的学生，包含明文密码
-	student.Password = randomPassword
-	return student, randomPassword, nil
+	return student, nil
 }
 
 // GetStudentByID 通过ID获取学生
@@ -245,7 +231,7 @@ func UpdateStudent(student *types.Student) error {
 	db := database.GetDB()
 
 	// 更新学生数据
-	return db.Select("full_name", "password", "gender", "class_id", "ding_talk_id").
+	return db.Select("full_name", "gender", "class_id", "ding_talk_id").
 		Where("id = ?", student.ID).
 		Updates(student).
 		Error
@@ -271,21 +257,4 @@ func DeleteStudent(id int) error {
 		// 删除学生
 		return tx.Delete(&types.Student{}, id).Error
 	})
-}
-
-// VerifyStudentPassword 验证学生密码
-func VerifyStudentPassword(username, password string) (*types.Student, error) {
-	// 获取用户
-	student, err := GetStudentByUsername(username)
-	if err != nil {
-		return nil, errors.New("账号或密码错误")
-	}
-
-	// 验证密码
-	err = bcrypt.CompareHashAndPassword([]byte(student.Password), []byte(password))
-	if err != nil {
-		return nil, errors.New("账号或密码错误")
-	}
-
-	return student, nil
 }
