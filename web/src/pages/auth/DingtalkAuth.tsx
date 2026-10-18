@@ -124,9 +124,9 @@ const DingtalkAuth = () => {
     );
   };
 
-  // 返回登录页
+  // 返回看板并打开登录框
   const handleBackToLogin = () => {
-    navigate("/login");
+    navigate("/", { state: { openLogin: true }, replace: true });
   };
 
   if (loading) {

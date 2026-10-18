@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   Table,
@@ -12,7 +12,6 @@ import {
   InputNumber,
   Popconfirm,
   Steps,
-  Checkbox,
   Alert,
   message,
 } from "antd";
@@ -81,8 +80,6 @@ const Progress: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [remindingId, setRemindingId] = useState<number | null>(null);
   const { hasPermission } = useAuth();
-  // 成绩公布钉钉通知开关（审核确认框勾选）
-  const notifyPublishedRef = useRef(true);
 
   // 页面内按权限显隐：录入/流转需「成绩与赛事进程」，审核需「成绩审核」
   const canManageProgress = hasPermission(PERMISSIONS.SCORE_AND_PROGRESS);
@@ -722,7 +719,6 @@ const Progress: React.FC = () => {
     if (!selectedCompetition) return;
     const response = await adminReviewAPI.reviewScores({
       competition_id: selectedCompetition.id,
-      notify_published: notifyPublishedRef.current,
     });
     handleRespWithNotifySuccess(response, () => {
       applyStatus("completed");
@@ -944,22 +940,7 @@ const Progress: React.FC = () => {
                   canReview && (
                     <Popconfirm
                       title="确定审核通过这些成绩吗？"
-                      description={
-                        <div>
-                          <div>审核通过后，成绩将正式发布，无法撤回</div>
-                          <Checkbox
-                            defaultChecked
-                            onChange={(e) =>
-                              (notifyPublishedRef.current = e.target.checked)
-                            }
-                          >
-                            钉钉通知成绩公布（将发送给已报名且有成绩的同学）
-                          </Checkbox>
-                        </div>
-                      }
-                      onOpenChange={(open) => {
-                        if (open) notifyPublishedRef.current = true;
-                      }}
+                      description="审核通过后，成绩将正式发布，无法撤回"
                       onConfirm={handleApproveScores}
                       okText="确定审核通过"
                       cancelText="取消"

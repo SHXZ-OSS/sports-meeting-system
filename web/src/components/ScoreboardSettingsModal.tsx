@@ -130,7 +130,7 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
           </Space>
 
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            开启后，成绩公布动画结束会自动弹出该项目的成绩详情；关闭后，动画结束直接回到看板。
+            开启后，成绩总览结束会自动弹出该项目的成绩详情；关闭后，成绩总览结束直接回到看板。
           </Paragraph>
         </div>
 

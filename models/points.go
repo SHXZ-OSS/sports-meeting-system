@@ -278,10 +278,10 @@ func GetStudentPointsSummary() ([]types.StudentPointsSummary, error) {
 			s.class_id,
 			c.name as class_name,
 			COALESCE(SUM(p.points), 0) as total_points,
-			COALESCE(SUM(CASE WHEN p.point_type = ? THEN p.points ELSE 0 END), 0) as ranking_points
+			COALESCE(SUM(p.points), 0) as ranking_points
 		FROM students s
 		JOIN classes c ON s.class_id = c.id
-		LEFT JOIN points p ON s.id = p.student_id AND p.competition_id IN (
+		LEFT JOIN points p ON s.id = p.student_id AND p.point_type = ? AND p.competition_id IN (
 			SELECT id FROM competitions WHERE event_id = ?
 		)
 		GROUP BY s.id, s.full_name, s.class_id, c.name
@@ -365,8 +365,8 @@ func GetStudentPointDetails(studentID int) ([]types.PointDetail, error) {
 
 	var points []types.Points
 	err := db.Preload("Competition").
-		Where("student_id = ? AND competition_id IN (SELECT id FROM competitions WHERE event_id = ?)",
-			studentID, currentEventID).
+		Where("student_id = ? AND point_type = ? AND competition_id IN (SELECT id FROM competitions WHERE event_id = ?)",
+			studentID, types.PointTypeRanking, currentEventID).
 		Order("created_at DESC").
 		Find(&points).Error
 	if err != nil {
@@ -479,10 +479,10 @@ func GetStudentPointsSummaryByID(studentID int) (*types.StudentPointsSummary, er
 			s.class_id,
 			c.name as class_name,
 			COALESCE(SUM(p.points), 0) as total_points,
-			COALESCE(SUM(CASE WHEN p.point_type = ? THEN p.points ELSE 0 END), 0) as ranking_points
+			COALESCE(SUM(p.points), 0) as ranking_points
 		FROM students s
 		JOIN classes c ON s.class_id = c.id
-		LEFT JOIN points p ON s.id = p.student_id AND p.competition_id IN (
+		LEFT JOIN points p ON s.id = p.student_id AND p.point_type = ? AND p.competition_id IN (
 			SELECT id FROM competitions WHERE event_id = ?
 		)
 		WHERE s.id = ?
@@ -500,15 +500,15 @@ func GetStudentPointsSummaryByID(studentID int) (*types.StudentPointsSummary, er
 		var better int64
 		err = db.Raw(`
 			SELECT COUNT(*) FROM (
-				SELECT s.id, COALESCE(SUM(p.points), 0) as total_points
-				FROM students s
-				LEFT JOIN points p ON s.id = p.student_id AND p.competition_id IN (
-					SELECT id FROM competitions WHERE event_id = ?
-				)
-				GROUP BY s.id
-				HAVING total_points > ?
+			SELECT s.id, COALESCE(SUM(p.points), 0) as total_points
+			FROM students s
+			LEFT JOIN points p ON s.id = p.student_id AND p.point_type = ? AND p.competition_id IN (
+				SELECT id FROM competitions WHERE event_id = ?
 			)
-		`, currentEventID, summary.TotalPoints).Scan(&better).Error
+			GROUP BY s.id
+			HAVING total_points > ?
+		)
+		`, types.PointTypeRanking, currentEventID, summary.TotalPoints).Scan(&better).Error
 		if err != nil {
 			return nil, err
 		}

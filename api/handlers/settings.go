@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,10 +13,12 @@ import (
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	DingTalk struct {
-		AppKey    string `json:"app_key"`
-		AppSecret string `json:"app_secret"`
-		AgentID   string `json:"agent_id"`
-		CorpID    string `json:"corp_id"`
+		AppKey          string `json:"app_key"`
+		AppSecret       string `json:"app_secret"`
+		AgentID         string `json:"agent_id"`
+		CorpID          string `json:"corp_id"`
+		NotifyChanges   *bool  `json:"notify_changes"`
+		NotifyPublished *bool  `json:"notify_published"`
 	} `json:"dingtalk"`
 	Website struct {
 		Name   string `json:"name"`
@@ -60,10 +61,12 @@ func GetSettings(c *gin.Context) {
 	// 构建响应
 	settings := map[string]any{
 		"dingtalk": map[string]any{
-			"app_key":    cfg.DingTalk.AppKey,
-			"app_secret": cfg.DingTalk.AppSecret,
-			"agent_id":   cfg.DingTalk.AgentID,
-			"corp_id":    cfg.DingTalk.CorpID,
+			"app_key":          cfg.DingTalk.AppKey,
+			"app_secret":       cfg.DingTalk.AppSecret,
+			"agent_id":         cfg.DingTalk.AgentID,
+			"corp_id":          cfg.DingTalk.CorpID,
+			"notify_changes":   cfg.DingTalk.NotifyChanges,
+			"notify_published": cfg.DingTalk.NotifyPublished,
 		},
 		"website": map[string]any{
 			"name":     cfg.Website.Name,
@@ -120,6 +123,12 @@ func UpdateSettings(c *gin.Context) {
 	cfg.DingTalk.AppSecret = req.DingTalk.AppSecret
 	cfg.DingTalk.AgentID = req.DingTalk.AgentID
 	cfg.DingTalk.CorpID = req.DingTalk.CorpID
+	if req.DingTalk.NotifyChanges != nil {
+		cfg.DingTalk.NotifyChanges = *req.DingTalk.NotifyChanges
+	}
+	if req.DingTalk.NotifyPublished != nil {
+		cfg.DingTalk.NotifyPublished = *req.DingTalk.NotifyPublished
+	}
 
 	cfg.Website.Name = req.Website.Name
 	cfg.Website.Domain = req.Website.Domain
@@ -180,42 +189,6 @@ func UpdateSettings(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseSuccessWithCustomMessage(c, "更新成功")
-}
-
-// UploadLogo 上传自定义 logo（Base64 图片），保存后写入配置并持久化
-func UploadLogo(c *gin.Context) {
-	// 解析请求
-	var req struct {
-		Image string `json:"image" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
-		return
-	}
-
-	// 保存图片到 uploads 目录
-	fileName, err := utils.SaveBase64Image(req.Image, "./data/uploads", "logo", time.Now().Unix())
-	if err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "保存 logo 失败: "+err.Error())
-		return
-	}
-	if fileName == "" {
-		utils.ResponseError(c, http.StatusBadRequest, "图片数据为空")
-		return
-	}
-
-	// 更新并持久化配置
-	cfg := config.Get()
-	cfg.Website.LogoFilepath = fileName
-	if err := config.Save(); err != nil {
-		utils.ResponseError(c, http.StatusInternalServerError, "保存配置失败")
-		return
-	}
-
-	// 返回访问地址
-	utils.ResponseOK(c, map[string]any{
-		"logo_url": "/uploads/" + fileName,
-	})
 }
 
 // GetEvents 获取运动会届次列表

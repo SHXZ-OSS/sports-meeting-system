@@ -10,7 +10,6 @@ import {
   DatePicker,
   Space,
   Modal,
-  Upload,
   Spin,
   Alert,
   InputNumber,
@@ -22,7 +21,6 @@ import {
 import {
   SaveOutlined,
   ReloadOutlined,
-  UploadOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -81,7 +79,6 @@ const Settings: React.FC = () => {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string>("");
   const { refresh: refreshWebsiteInfo } = useWebsite();
 
   // Event management states
@@ -96,9 +93,6 @@ const Settings: React.FC = () => {
     handleResp(
       data,
       (data) => {
-        // 当前 logo 预览
-        setLogoUrl(data?.website.logo_url || "");
-
         // 设置表单值
         form.setFieldsValue({
           // 钉钉设置
@@ -106,6 +100,8 @@ const Settings: React.FC = () => {
           "dingtalk.app_secret": data?.dingtalk.app_secret,
           "dingtalk.agent_id": data?.dingtalk.agent_id,
           "dingtalk.corp_id": data?.dingtalk.corp_id,
+          "dingtalk.notify_changes": data?.dingtalk.notify_changes,
+          "dingtalk.notify_published": data?.dingtalk.notify_published,
 
           // 网站设置
           "website.name": data?.website.name,
@@ -195,6 +191,8 @@ const Settings: React.FC = () => {
         app_secret: values["dingtalk.app_secret"] || "",
         agent_id: values["dingtalk.agent_id"] || "",
         corp_id: values["dingtalk.corp_id"] || "",
+        notify_changes: values["dingtalk.notify_changes"],
+        notify_published: values["dingtalk.notify_published"],
       },
       website: {
         name: values["website.name"] || "",
@@ -593,58 +591,6 @@ const Settings: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
-
-            <Row gutter={16}>
-              <Col span={12}></Col>
-            </Row>
-
-            {/* 自定义 logo */}
-            <Form.Item
-              label="自定义 Logo"
-              help="上传后用作浏览器标签页图标与 PWA 应用图标，保存设置后生效"
-            >
-              <Space direction="vertical" size={8}>
-                {logoUrl && (
-                  <img
-                    src={logoUrl}
-                    alt="自定义 Logo"
-                    style={{
-                      width: 64,
-                      height: 64,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      border: "1px solid #f0f0f0",
-                    }}
-                  />
-                )}
-                <Upload
-                  accept="image/*"
-                  showUploadList={false}
-                  beforeUpload={(file) => {
-                    if (file.size > 10 * 1024 * 1024) {
-                      message.error("图片大小不能超过 10MB");
-                      return false;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                      const response = await adminSettingsAPI.uploadLogo(
-                        reader.result as string,
-                      );
-                      handleRespWithNotifySuccess(response, (data) => {
-                        setLogoUrl(data.logo_url);
-                        refreshWebsiteInfo();
-                      });
-                    };
-                    reader.readAsDataURL(file);
-                    return false; // 阻止 antd 自动上传，走自定义 Base64 逻辑
-                  }}
-                >
-                  <Button icon={<UploadOutlined />}>
-                    {logoUrl ? "更换 Logo" : "上传 Logo"}
-                  </Button>
-                </Upload>
-              </Space>
-            </Form.Item>
           </Card>
 
           {/* 钉钉设置 */}
@@ -694,6 +640,22 @@ const Settings: React.FC = () => {
                 </Form.Item>
               </Col>
             </Row>
+            <Form.Item
+              label="比赛变更提醒"
+              name="dingtalk.notify_changes"
+              valuePropName="checked"
+              extra="对所有比赛生效：时间或地点实际变更时，钉钉通知已报名学生"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label="成绩公布提醒"
+              name="dingtalk.notify_published"
+              valuePropName="checked"
+              extra="对所有比赛生效：成绩审核通过后，钉钉通知有成绩的学生；团体赛通知有成绩班级的报名学生"
+            >
+              <Switch />
+            </Form.Item>
           </Card>
 
           {/* 统一认证设置 */}

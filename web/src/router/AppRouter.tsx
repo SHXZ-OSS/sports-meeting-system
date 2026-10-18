@@ -7,7 +7,6 @@ import LoadingSpinner from "../components/Spinner";
 const PublicScoreboard = React.lazy(
   () => import("../pages/public/PublicScoreboard"),
 );
-const Login = React.lazy(() => import("../pages/auth/Login"));
 const DingtalkAuth = React.lazy(() => import("../pages/auth/DingtalkAuth"));
 const Layout = React.lazy(() => import("./Layout"));
 
@@ -29,7 +28,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 需要认证但未登录
   if (requireAuth && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" state={{ openLogin: true }} replace />;
   }
 
   // 需要管理员权限但不是管理员
@@ -46,7 +45,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 };
 
 const AppRouter: React.FC = () => {
-  const { isAuthenticated, isAdmin, isStudent, isLoading } = useAuth();
+  const { isStudent, isLoading } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -57,22 +56,6 @@ const AppRouter: React.FC = () => {
       <Routes>
         {/* 公共路由 - 游客访问的成绩看板，已认证用户重定向到对应首页 */}
         <Route path="/" element={<PublicScoreboard />} />
-
-        {/* 登录页面 */}
-        <Route
-          path="/login"
-          element={
-            isAuthenticated ? (
-              isAdmin ? (
-                <Navigate to="/admin" replace />
-              ) : (
-                <Navigate to="/student" replace />
-              )
-            ) : (
-              <Login />
-            )
-          }
-        />
 
         {/* 钉钉登录页面 */}
         <Route path="/auth/dingtalk" element={<DingtalkAuth />} />

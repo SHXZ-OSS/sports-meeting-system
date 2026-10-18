@@ -17,6 +17,7 @@ interface WebsiteContextType extends WebsiteInfo {
 
 const defaultWebsiteInfo: WebsiteInfo = {
   name: "正在加载...",
+  event_name: "",
   dingtalk_corp_id: "",
   domain: "",
   // 默认放开，待接口返回后按配置收敛

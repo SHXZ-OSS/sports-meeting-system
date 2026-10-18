@@ -20,7 +20,7 @@ const STORAGE_KEY = "public_scoreboard_settings";
 
 export const defaultScoreboardSettings: ScoreboardSettings = {
   backgroundEffectsPreference: "auto",
-  autoOpenResultModal: true,
+  autoOpenResultModal: false,
   scoreAnnouncement: {
     enabled: false,
     scope: "top8",

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   Card,
-  Checkbox,
   Table,
   Button,
   Space,
@@ -378,7 +377,6 @@ const CompetitionManagement: React.FC = () => {
           name: values.name,
           description: values.description,
           venue: values.venue || "",
-          notify_changes: values.notify_changes ?? true,
           competition_type: values.competition_type,
           ranking_mode: values.ranking_mode,
           gender: values.gender,
@@ -893,17 +891,6 @@ const CompetitionManagement: React.FC = () => {
           <Form.Item label="比赛地点" name="venue">
             <Input placeholder="如：田径场东跑道（可选）" />
           </Form.Item>
-
-          {editingCompetition && (
-            <Form.Item
-              name="notify_changes"
-              valuePropName="checked"
-              initialValue={true}
-              extra="仅当保存时检测到时间或地点实际发生变化才会发送"
-            >
-              <Checkbox>时间或地点有变更时，钉钉通知已报名学生</Checkbox>
-            </Form.Item>
-          )}
 
           <Form.Item
             label="比赛类型"

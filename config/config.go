@@ -22,10 +22,12 @@ type Config struct {
 		Path string `json:"path"`
 	} `json:"database"`
 	DingTalk struct {
-		AppKey    string `json:"app_key"`
-		AppSecret string `json:"app_secret"`
-		AgentID   string `json:"agent_id"`
-		CorpID    string `json:"corp_id"`
+		AppKey          string `json:"app_key"`
+		AppSecret       string `json:"app_secret"`
+		AgentID         string `json:"agent_id"`
+		CorpID          string `json:"corp_id"`
+		NotifyChanges   bool   `json:"notify_changes"`   // 比赛时间或地点变更时通知
+		NotifyPublished bool   `json:"notify_published"` // 成绩审核公布时通知
 	} `json:"dingtalk"`
 	Oidc struct {
 		Enabled      bool   `json:"enabled"`       // 是否启用 OIDC 登录（如接入慧云 xzzx-sis）
@@ -40,9 +42,8 @@ type Config struct {
 		JWTSecret string `json:"jwt_secret"`
 	} `json:"security"`
 	Website struct {
-		Name         string `json:"name"`
-		Domain       string `json:"domain"`
-		LogoFilepath string `json:"logo_filepath"` // 自定义 logo（uploads 目录下的文件名），留空使用默认图标
+		Name   string `json:"name"`
+		Domain string `json:"domain"`
 	} `json:"website"`
 	Competition struct {
 		SubmissionStartTime       string `json:"submission_start_time"`        // 项目征集开始时间
@@ -87,6 +88,8 @@ func Load() error {
 		config.Competition.MaxRegistrationsPerPerson = 0 // 默认无限制
 		config.Competition.AllowStudentRegistration = true
 		config.Competition.AllowStudentSubmission = true
+		config.DingTalk.NotifyChanges = true
+		config.DingTalk.NotifyPublished = true
 		config.Oidc.Enabled = false
 		config.Oidc.Scopes = "openid profile"
 		config.Dashboard.Enabled = true // 默认启用看板功能

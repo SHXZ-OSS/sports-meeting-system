@@ -90,7 +90,6 @@ type UpdateCompetitionRequest struct {
 	StartTime               *time.Time            `json:"start_time"`
 	EndTime                 *time.Time            `json:"end_time"`
 	AllowConcurrent         bool                  `json:"allow_concurrent"`
-	NotifyChanges           bool                  `json:"notify_changes"` // 时间或地点实际发生变化时，钉钉通知已报名学生
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -543,7 +542,7 @@ func UpdateCompetition(c *gin.Context) {
 		return
 	}
 
-	// 时间（开始/结束）或地点实际发生变化时，按操作者选择钉钉通知已报名学生
+	// 时间（开始/结束）或地点实际发生变化时，按全局配置钉钉通知已报名学生
 	timeChanged := func(old, cur *time.Time) bool {
 		if (old == nil) != (cur == nil) {
 			return true
@@ -553,7 +552,7 @@ func UpdateCompetition(c *gin.Context) {
 	changed := timeChanged(oldStartTime, competition.StartTime) ||
 		timeChanged(oldEndTime, competition.EndTime) ||
 		oldVenue != competition.Venue
-	if changed && req.NotifyChanges {
+	if changed && config.Get().DingTalk.NotifyChanges {
 		if err := services.SendCompetitionChangeNotice(competition, oldStartTime, oldEndTime, oldVenue); err != nil {
 			logger.L.Warn(fmt.Sprintf("发送比赛变更通知失败 competition=%d: %v", competition.ID, err))
 		}

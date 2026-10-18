@@ -1,0 +1,332 @@
+.ld-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(9, 23, 39, 0.4);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  animation: ld-backdrop-in 0.18s ease both;
+}
+.ld-dialog {
+  --ld-text: #0b2440;
+  --ld-muted: #5d748c;
+  --ld-faint: #8fa2b6;
+  --ld-blue: #1f7fe8;
+  --ld-line: rgba(33, 80, 130, 0.14);
+  --ld-line-strong: rgba(33, 80, 130, 0.22);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100svh - 48px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 24px 70px -20px rgba(8, 28, 50, 0.45),
+    0 2px 8px rgba(8, 28, 50, 0.06);
+  color: var(--ld-text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  animation: ld-dialog-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* 头部 */
+.ld-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ld-line);
+}
+.ld-title {
+  margin: 0;
+  color: var(--ld-text);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.ld-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin: -2px -2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #7c8ea1;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.ld-close:hover {
+  background: #f1f5f9;
+  color: var(--ld-text);
+}
+.ld-close svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+/* 内容 */
+.ld-body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ld-error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(193, 85, 85, 0.24);
+  border-radius: 8px;
+  background: rgba(193, 85, 85, 0.07);
+  color: #a33f3f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* 表单 */
+.ld-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ld-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ld-label {
+  color: var(--ld-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.ld-input.ant-input,
+.ld-input.ant-input-affix-wrapper {
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--ld-line);
+  border-radius: 8px;
+  background: #fbfdff;
+  color: var(--ld-text);
+  font-size: 15px;
+  box-shadow: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.ld-input.ant-input::placeholder,
+.ld-input.ant-input-affix-wrapper input::placeholder {
+  color: var(--ld-faint);
+}
+.ld-input.ant-input:hover,
+.ld-input.ant-input-affix-wrapper:hover {
+  border-color: var(--ld-line-strong);
+  background: #fff;
+}
+.ld-input.ant-input:focus,
+.ld-input.ant-input-affix-wrapper-focused {
+  border-color: var(--ld-blue);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(31, 127, 232, 0.1);
+}
+.ld-input.ant-input-affix-wrapper .ant-input {
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--ld-text);
+  font-size: 15px;
+}
+.ld-input .ant-input-prefix {
+  margin-right: 8px;
+  color: var(--ld-faint);
+}
+.ld-input .ant-input-suffix {
+  color: var(--ld-faint);
+}
+.ld-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: #123a5e;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+.ld-submit:hover:not(:disabled) {
+  background: #1b4c78;
+}
+.ld-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.ld-submit:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.ld-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ld-spin 0.8s linear infinite;
+}
+
+/* 其他登录方式 */
+.ld-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--ld-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+.ld-divider::before,
+.ld-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ld-line);
+}
+.ld-alts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ld-alt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--ld-line-strong);
+  border-radius: 8px;
+  background: #fbfdff;
+  color: #26496d;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+.ld-alt:hover:not(:disabled) {
+  background: #123a5e;
+  border-color: #123a5e;
+  color: #fff;
+}
+.ld-alt:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.ld-dingtalk-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0089ff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+.ld-alt-icon {
+  font-size: 16px;
+}
+
+@keyframes ld-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ld-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ld-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .ld-overlay {
+    padding: 12px;
+  }
+  .ld-dialog {
+    max-width: 100%;
+    max-height: calc(100svh - 24px);
+    border-radius: 14px;
+  }
+  .ld-head {
+    padding: 18px 18px 14px;
+  }
+  .ld-title {
+    font-size: 22px;
+  }
+  .ld-body {
+    padding: 16px 18px 20px;
+  }
+  .ld-input.ant-input,
+  .ld-input.ant-input-affix-wrapper,
+  .ld-submit {
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-overlay,
+  .ld-dialog {
+    animation: none;
+  }
+  .ld-spinner {
+    animation-duration: 1.6s;
+  }
+}
