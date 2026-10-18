@@ -6,12 +6,14 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
+	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
 // WebsiteInfoResponse 网站信息响应
 type WebsiteInfoResponse struct {
 	Name           string `json:"name"`
+	EventName      string `json:"event_name"`
 	DingTalkCorpID string `json:"dingtalk_corp_id"`
 	Domain         string `json:"domain"`
 	LogoURL        string `json:"logo_url"`
@@ -35,6 +37,18 @@ func oidcLoginReady(cfg *config.Config) bool {
 		cfg.Oidc.AuthorizeURL != "" && cfg.Oidc.TokenURL != "" && cfg.Oidc.UserinfoURL != ""
 }
 
+// currentEventName 返回当前选中运动会届次的名称；未配置或查询失败时返回空串。
+func currentEventName(cfg *config.Config) string {
+	if cfg.CurrentEventID == 0 {
+		return ""
+	}
+	event, err := models.GetEventByID(cfg.CurrentEventID)
+	if err != nil || event == nil {
+		return ""
+	}
+	return event.Name
+}
+
 // GetWebsiteInfo 获取网站信息（公共API）
 func GetWebsiteInfo(c *gin.Context) {
 	// 获取配置
@@ -43,6 +57,7 @@ func GetWebsiteInfo(c *gin.Context) {
 	// 构建响应
 	resp := WebsiteInfoResponse{
 		Name:                     cfg.Website.Name,
+		EventName:                currentEventName(cfg),
 		DingTalkCorpID:           cfg.DingTalk.CorpID,
 		Domain:                   cfg.Website.Domain,
 		LogoURL:                  logoURL(cfg),
@@ -61,51 +76,18 @@ func GetWebsiteInfo(c *gin.Context) {
 	utils.ResponseOK(c, resp)
 }
 
-// GetManifest 获取 manifest.webmanifest 内容。
-// 配置了自定义 logo 时图标使用 logo，否则回退到默认图标
+// GetManifest 获取 manifest.webmanifest 内容，图标固定使用校徽。
 func GetManifest(c *gin.Context) {
 	// 获取配置
 	cfg := config.Get()
 
-	// 图标列表：优先自定义 logo，回退到内置图标
 	icons := `[
 			{
-				"src": "logo192.png",
-				"type": "image/png",
-				"sizes": "192x192"
-			},
-			{
-				"src": "logo512.png",
-				"type": "image/png",
-				"sizes": "512x512"
-			},
-			{
-				"src": "favicon.svg",
-				"sizes": "any",
-				"type": "image/svg+xml"
+				"src": "/school-emblem.svg",
+				"type": "image/svg+xml",
+				"sizes": "any"
 			}
 		]`
-	if cfg.Website.LogoFilepath != "" {
-		logoURL := "/uploads/" + cfg.Website.LogoFilepath
-		contentType := utils.ImageContentType(cfg.Website.LogoFilepath)
-		// SVG 为矢量图标，无需区分尺寸
-		sizes := "192x192"
-		if contentType == "image/svg+xml" {
-			sizes = "any"
-		}
-		icons = fmt.Sprintf(`[
-			{
-				"src": "%s",
-				"type": "%s",
-				"sizes": "%s"
-			},
-			{
-				"src": "%s",
-				"type": "%s",
-				"sizes": "%s"
-			}
-		]`, logoURL, contentType, sizes, logoURL, contentType, sizes)
-	}
 
 	// 构建manifest
 	resp := fmt.Sprintf(`{

@@ -14,7 +14,6 @@ export interface CreateScoreRequest {
 
 export interface ReviewScoreRequest {
   competition_id: number;
-  notify_published?: boolean; // 审核通过后钉钉通知有成绩的学生
 }
 
 /**

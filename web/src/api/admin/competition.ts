@@ -25,7 +25,6 @@ export interface UpdateCompetitionRequest {
   name?: string;
   description?: string;
   venue?: string; // 比赛地点
-  notify_changes?: boolean; // 时间/地点有变更时钉钉通知已报名学生
   ranking_mode?: "higher_first" | "lower_first";
   competition_type?: "individual" | "team";
   min_participants_per_class?: number;

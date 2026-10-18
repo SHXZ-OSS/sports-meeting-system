@@ -1,15 +1,16 @@
 import { message, Modal } from "antd";
 import React from "react";
+import type { NavigateFunction } from "react-router-dom";
 import { ApiResponse, PaginatedResponse } from "../types";
 import { BatchResult } from "../components/BatchResults";
 
 // 全局的导航和登出函数，需要在应用启动时设置
 let globalLogout: () => void = () => {};
-let globalNavigate: (path: string) => void = () => {};
+let globalNavigate: NavigateFunction = () => {};
 
 export const setGlobalHandlers = (
   logout: () => void,
-  navigate: (path: string) => void,
+  navigate: NavigateFunction,
 ) => {
   globalLogout = logout;
   globalNavigate = navigate;
@@ -104,7 +105,10 @@ const handleRespCore = <T>(
 
     if (auth && resp.code === 401) {
       globalLogout();
-      globalNavigate("/login");
+      globalNavigate("/", {
+        replace: true,
+        state: { openLogin: true },
+      });
       return;
     }
 

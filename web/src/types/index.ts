@@ -136,6 +136,7 @@ export interface Statistics {
 
 export interface WebsiteInfo {
   name: string;
+  event_name?: string;
   dingtalk_corp_id: string;
   domain: string;
   logo_url?: string;

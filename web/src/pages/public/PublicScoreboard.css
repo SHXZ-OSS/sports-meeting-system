@@ -1,0 +1,551 @@
+/* 成绩动画期间：看板与所有弹层淡出；弹层只隐藏，不关闭、不卸载。 */
+.ph-shell {
+  transition: opacity 0.9s ease;
+}
+.sd-overlay,
+.ld-overlay,
+.ant-modal-root,
+.ant-modal-mask,
+.ant-modal-wrap {
+  /* 过渡必须留在常态规则上，class 移除时看板/弹层才能淡回来。 */
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0s;
+}
+body.score-animation-active .ph-shell {
+  opacity: 0;
+}
+body.score-animation-active .stadium-scene::after {
+  opacity: 0;
+}
+body.score-animation-active .sd-overlay,
+body.score-animation-active .ld-overlay,
+body.score-animation-active .ant-modal-root,
+body.score-animation-active .ant-modal-mask,
+body.score-animation-active .ant-modal-wrap {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+
+.score-animation {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 56px);
+  overflow: hidden;
+  color: #fff;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+.score-animation__rays {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.1s ease;
+  animation: score-rays-in 2s ease 2.4s forwards;
+}
+.score-animation__blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+  animation: score-blackout-in 2s ease 2.4s forwards;
+}
+.score-animation__fade {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.score-reveal {
+  width: min(100%, 1000px);
+  margin: 0 auto;
+  text-align: center;
+}
+.score-reveal__title {
+  font-size: clamp(28px, 3.4vw, 50px);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  text-shadow:
+    0 2px 28px rgba(0, 0, 0, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.score-reveal__title p {
+  margin: 0;
+  justify-content: center;
+}
+.score-card {
+  width: min(100%, 820px);
+  margin: clamp(22px, 3vw, 38px) auto 0;
+  padding: clamp(20px, 2.6vw, 34px) clamp(24px, 3.6vw, 48px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: clamp(14px, 1.6vw, 20px);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  text-align: left;
+}
+.score-card__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: clamp(16px, 3vw, 48px);
+}
+.score-card__row--secondary {
+  margin-top: clamp(14px, 2vw, 20px);
+  padding-top: clamp(12px, 1.6vw, 18px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.score-card__row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.score-card__field {
+  min-width: 0;
+}
+.score-card__field--right {
+  text-align: right;
+}
+.score-card__label {
+  display: block;
+  margin-bottom: clamp(4px, 0.7vw, 8px);
+  color: rgba(255, 255, 255, 0.46);
+  font-size: clamp(10px, 0.8vw, 12px);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+.score-card__value {
+  display: flex;
+  align-items: flex-end;
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
+}
+.score-card__value p {
+  margin: 0;
+  justify-content: flex-start;
+}
+.score-card__field--right .score-card__value {
+  justify-content: flex-end;
+}
+.score-card__field--right .score-card__value p {
+  justify-content: flex-end;
+}
+.score-card__value--rank {
+  min-height: clamp(48px, 5.6vw, 82px);
+  font-size: clamp(44px, 5.2vw, 78px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.score-card__value--result {
+  min-height: clamp(36px, 4.4vw, 60px);
+  font-size: clamp(32px, 3.8vw, 56px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+.score-card__value--meta {
+  min-height: clamp(28px, 2.8vw, 40px);
+  font-size: clamp(20px, 2.2vw, 32px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.score-animation__hint {
+  position: absolute;
+  bottom: clamp(20px, 4vh, 44px);
+  left: 50%;
+  z-index: 4;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  animation: score-hint-in 0.5s ease 4.4s forwards;
+}
+
+@keyframes score-blackout-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes score-rays-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes score-hint-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* 逐条揭晓收束：黑场、光线和卡片淡出，画面交给下面的成绩总览。 */
+.score-animation.is-overview .score-animation__blackout {
+  animation: score-blackout-out 1.4s ease forwards;
+}
+.score-animation.is-overview .score-animation__rays {
+  animation: score-rays-out 0.9s ease forwards;
+}
+.score-animation.is-overview .score-animation__fade {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+.score-animation.is-overview .score-animation__hint {
+  animation: score-hint-out 0.3s ease forwards;
+}
+
+/* 成绩总览层：demo 的结果公布卡片，背景是拉远后的体育场总览。 */
+.score-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  overflow: hidden;
+  color: #10284a;
+  text-shadow: none;
+}
+.score-overview,
+.score-overview *,
+.score-overview *::before,
+.score-overview *::after {
+  box-sizing: border-box;
+}
+.score-overview__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    rgba(251, 253, 255, 0.94) 40%,
+    rgba(245, 251, 255, 0.72) 72%,
+    rgba(245, 251, 255, 0.3) 100%
+  );
+  opacity: 0;
+  animation: score-overview-veil-in 0.9s ease 0.3s forwards;
+}
+.score-overview__content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 980px);
+  max-width: 100%;
+  margin: auto;
+  padding: clamp(20px, 3vh, 36px) clamp(24px, 3vw, 44px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  animation: score-overview-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+}
+.score-overview__kicker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  color: #258fe7;
+  font-size: clamp(12px, 0.9vw, 15px);
+  letter-spacing: 0.24em;
+}
+.score-overview__kicker span {
+  width: 42px;
+  height: 1px;
+  background: #9dcaf2;
+}
+.score-overview__content h2 {
+  margin: 0;
+  color: #10284a;
+  font-size: clamp(30px, 3.5vw, 52px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-align: center;
+}
+.score-overview__table {
+  min-height: 0;
+  margin-top: clamp(18px, 3vh, 32px);
+}
+.score-overview__row {
+  display: grid;
+  grid-template-columns: clamp(36px, 3.4vw, 52px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(12px, 1.6vw, 20px);
+  padding: clamp(9px, 1.3vh, 15px) clamp(6px, 1.4vw, 14px);
+  border-bottom: 1px dashed rgba(97, 131, 171, 0.22);
+  opacity: 0;
+  animation: score-overview-row-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(0.6s + var(--row-index, 0) * 0.06s);
+}
+.score-overview__row:last-child {
+  border-bottom: 0;
+}
+.score-overview__rank {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(22px, 2vw, 30px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-align: center;
+}
+.score-overview__who {
+  min-width: 0;
+}
+.score-overview__name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.score-overview__name strong {
+  overflow: hidden;
+  color: #10284a;
+  font-size: clamp(19px, 1.8vw, 28px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.score-overview__name small {
+  color: #5d748c;
+  font-size: clamp(12px, 1vw, 15px);
+  white-space: nowrap;
+}
+.score-overview__result {
+  color: #10284a;
+  font-size: clamp(20px, 1.85vw, 30px);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.score-overview__unit {
+  margin-left: 3px;
+  color: #5d748c;
+  font-size: 0.62em;
+  font-weight: 500;
+}
+.score-overview__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: clamp(14px, 2.2vh, 24px);
+  color: #5d748c;
+  font-size: clamp(11px, 0.9vw, 13px);
+}
+.score-overview__footer > div {
+  display: flex;
+  align-items: center;
+}
+.score-overview__footer button {
+  margin-left: 8px;
+  padding: 8px;
+  border: 0;
+  background: none;
+  color: #356282;
+  font: inherit;
+  cursor: pointer;
+}
+.score-overview__footer button:hover {
+  color: #1f7fe8;
+}
+.score-overview__timer {
+  height: 2px;
+  margin-top: 10px;
+  background: #66b3ef;
+  transform-origin: left;
+  transition:
+    transform 1s linear,
+    opacity 0.3s ease;
+}
+.score-overview__timer.is-stopped {
+  opacity: 0.3;
+}
+.score-animation.is-closing .score-overview__veil,
+.score-animation.is-closing .score-overview__content {
+  animation: score-overview-out 0.7s ease forwards;
+}
+@media (max-width: 760px) {
+  /* 移动端按「比赛详情」弹窗的组织方式：头部固定、列表滚动、底部固定。 */
+  .score-overview__content {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 16px 18px calc(10px + env(safe-area-inset-bottom));
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+  .score-overview__kicker {
+    gap: 10px;
+    margin: 2px 0 10px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+  }
+  .score-overview__kicker span {
+    width: 24px;
+  }
+  .score-overview__content h2 {
+    overflow: hidden;
+    font-size: clamp(21px, 6vw, 27px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .score-overview__table {
+    flex: 1;
+    margin-top: 10px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .score-overview__row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 14px 2px;
+  }
+  .score-overview__rank {
+    font-size: 20px;
+  }
+  .score-overview__name {
+    gap: 6px;
+  }
+  .score-overview__name strong {
+    font-size: 18px;
+  }
+  .score-overview__name small {
+    font-size: 12px;
+  }
+  .score-overview__result {
+    font-size: 18px;
+  }
+  .score-overview__table::-webkit-scrollbar {
+    width: 0;
+  }
+  .score-overview__unit {
+    font-size: 0.7em;
+  }
+  .score-overview__footer {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(97, 131, 171, 0.16);
+    gap: 8px;
+    font-size: 12px;
+  }
+  .score-overview__footer button {
+    margin-left: 4px;
+    padding: 6px;
+  }
+  .score-overview__timer {
+    margin-top: 8px;
+  }
+}
+
+@keyframes score-blackout-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes score-rays-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes score-hint-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes score-overview-veil-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes score-overview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes score-overview-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes score-overview-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .score-animation {
+    padding: 16px;
+  }
+  .score-reveal__title {
+    font-size: clamp(26px, 7.5vw, 34px);
+  }
+  .score-card {
+    margin-top: 20px;
+    padding: 18px 18px 20px;
+  }
+  .score-card__row {
+    gap: 16px;
+  }
+  .score-card__row--secondary {
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+  .score-card__value--rank {
+    min-height: 44px;
+    font-size: clamp(36px, 10vw, 48px);
+  }
+  .score-card__value--result {
+    min-height: 32px;
+    font-size: clamp(26px, 7.5vw, 36px);
+  }
+  .score-card__value--meta {
+    min-height: 26px;
+    font-size: clamp(17px, 5vw, 22px);
+  }
+  .score-animation__hint {
+    bottom: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-animation__rays {
+    opacity: 1;
+    animation: none;
+  }
+}

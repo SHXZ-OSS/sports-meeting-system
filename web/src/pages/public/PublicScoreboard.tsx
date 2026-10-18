@@ -4,61 +4,30 @@ import {
   useRef,
   useMemo,
   useCallback,
-  lazy,
-  Suspense,
+  type CSSProperties,
 } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Layout,
-  Card,
-  Table,
-  Spin,
-  Typography,
-  Button,
-  Row,
-  Col,
-  Image,
-  Modal,
-  Divider,
-  Statistic,
-  Space,
-  Tag,
-  Avatar,
-  message,
-} from "antd";
-import {
-  TrophyOutlined,
-  EyeOutlined,
-  UserOutlined,
-  LoginOutlined,
-  BarChartOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-} from "@ant-design/icons";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Layout, message } from "antd";
 import confetti from "canvas-confetti";
-import dayjs from "dayjs";
 import FadeContent from "../../components/FadeContent";
 import BlurText from "../../components/BlurText";
 import LightRays from "../../components/LightRays";
+import StadiumScene, { type StadiumShot } from "../../components/StadiumScene";
+import PublicHomeBoard from "../../components/PublicHomeBoard";
+import ScoreboardDialogs from "../../components/ScoreboardDialogs";
+import LoginDialog from "../../components/LoginDialog";
 import ScoreboardSettingsModal from "../../components/ScoreboardSettingsModal";
 import type { ScoreboardVoiceOption } from "../../components/ScoreboardSettingsModal";
 import { publicAPI } from "../../api/public";
-import { Competition, Score, Registration } from "../../types";
+import { Competition, PointDetail, Score, Registration } from "../../types";
 import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
 import {
-  getRankingDisplayForTable,
-  getGenderText,
   getRankingColor,
-  getStatusTag,
-  getCompetitionTypeTag,
+  getScoreboardRankingColor,
 } from "../../utils/competition";
 import { useWebsite } from "../../contexts/WebsiteContext";
-import { useIsMobile } from "../../utils";
 import { shouldEnableBackgroundEffects } from "../../utils/performance";
 import {
-  buildAnimationOpeningAnnouncement,
   buildAnimationStepAnnouncement,
   buildCompetitionAnnouncementIntro,
   getScoreboardSettings,
@@ -66,18 +35,35 @@ import {
   shouldAnnounceScore,
 } from "../../utils/scoreboardSettings";
 import type { ScoreboardSettings } from "../../utils/scoreboardSettings";
-
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+import "./PublicScoreboard.css";
 
 interface SpeakTextOptions {
   onEnd?: () => void;
   onError?: () => void;
 }
 
-const PublicScoreboard: React.FC = () => {
-  const isMobile = useIsMobile();
+const AUTH_CALLBACK_PARAMS = [
+  "dingtalk_token",
+  "dingtalk_user",
+  "dingtalk_error",
+  "oidc_token",
+  "oidc_user",
+  "oidc_error",
+] as const;
 
+const hasAuthCallback = (search: string) => {
+  const params = new URLSearchParams(search);
+  return AUTH_CALLBACK_PARAMS.some((key) => params.has(key));
+};
+
+// 成绩总览停留时长（秒），与 demo 的成绩公布层一致。
+const OVERVIEW_SECONDS = 10;
+// 总览最多展示前 8 名，保证一屏可读。
+const OVERVIEW_MAX_ROWS = 8;
+
+type AnimationPhase = "reveal" | "overview" | "closing";
+
+const PublicScoreboard: React.FC = () => {
   // 背景特效控制
   const [enableBackgroundEffects, setEnableBackgroundEffects] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -182,63 +168,44 @@ const PublicScoreboard: React.FC = () => {
     [availableVoices],
   );
 
-  // 动态导入 Hyperspeed
-  const HyperspeedComponent = useMemo(() => {
-    if (!enableBackgroundEffects) return null;
-    return lazy(() => import("../../components/Hyperspeed"));
-  }, [enableBackgroundEffects]);
-
-  const hyperSpeedElement = useMemo(() => {
-    if (!HyperspeedComponent) return null;
-
-    return (
-      <HyperspeedComponent
-        effectOptions={{
-          onSpeedUp: () => {},
-          onSlowDown: () => {},
-          distortion: "LongRaceDistortion",
-          length: 400,
-          roadWidth: 10,
-          islandWidth: 5,
-          lanesPerRoad: 2,
-          fov: 90,
-          fovSpeedUp: 150,
-          speedUp: 2,
-          carLightsFade: 0.4,
-          totalSideLightSticks: 50,
-          lightPairsPerRoadWay: 70,
-          shoulderLinesWidthPercentage: 0.05,
-          brokenLinesWidthPercentage: 0.1,
-          brokenLinesLengthPercentage: 0.5,
-          lightStickWidth: [0.12, 0.5],
-          lightStickHeight: [1.3, 1.7],
-          movingAwaySpeed: [60, 80],
-          movingCloserSpeed: [-120, -160],
-          carLightsLength: [400 * 0.05, 400 * 0.15],
-          carLightsRadius: [0.05, 0.14],
-          carWidthPercentage: [0.3, 0.5],
-          carShiftX: [-0.2, 0.2],
-          carFloorSeparation: [0.05, 1],
-          colors: {
-            roadColor: 0x080808,
-            islandColor: 0x0a0a0a,
-            background: 0x000000,
-            shoulderLines: 0x131318,
-            brokenLines: 0x131318,
-            leftCars: [0xff5f73, 0xe74d60, 0xff102a],
-            rightCars: [0xa4e3e6, 0x80d1d4, 0x53c2c6],
-            sticks: 0xa4e3e6,
-          },
-        }}
-      />
-    );
-  }, [HyperspeedComponent]);
-
   const navigate = useNavigate();
+  const location = useLocation();
+  const [loginModalOpen, setLoginModalOpen] = useState(
+    () =>
+      Boolean((location.state as { openLogin?: boolean } | null)?.openLogin) ||
+      hasAuthCallback(location.search),
+  );
+
+  useEffect(() => {
+    const state = location.state as { openLogin?: boolean } | null;
+    if (state?.openLogin || hasAuthCallback(location.search)) {
+      setLoginModalOpen(true);
+      if (state?.openLogin) {
+        navigate(
+          { pathname: location.pathname, search: location.search },
+          { replace: true, state: null },
+        );
+      }
+    }
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  const closeLoginModal = useCallback(() => {
+    setLoginModalOpen(false);
+    if (location.search || location.state) {
+      navigate("/", { replace: true });
+    }
+  }, [location.search, location.state, navigate]);
+
   const [lastNotifiedCompetitionId, setLastNotifiedCompetitionId] = useState<
     number | null
   >(null);
   const [showAnimation, setShowAnimation] = useState(false);
+  const [animationPhase, setAnimationPhase] =
+    useState<AnimationPhase>("reveal");
+  const [overviewScores, setOverviewScores] = useState<Score[]>([]);
+  const [overviewRemaining, setOverviewRemaining] = useState(OVERVIEW_SECONDS);
+  const [overviewStopped, setOverviewStopped] = useState(false);
+  const endAnimationRef = useRef<() => void>(() => {});
   const [animationQueue, setAnimationQueue] = useState<Score[]>([]);
   const [animatingCompetition, setAnimatingCompetition] =
     useState<Competition | null>(null);
@@ -247,8 +214,8 @@ const PublicScoreboard: React.FC = () => {
   > | null>(null);
   const [isManualReplay, setIsManualReplay] = useState(false); // 标记是否是手动重播
 
-  // 网站名称
-  const { name: websiteName } = useWebsite();
+  // 当前运动会届次名称
+  const { event_name: eventName } = useWebsite();
 
   const stopAnnouncement = useCallback(() => {
     speechRequestIdRef.current += 1;
@@ -363,6 +330,7 @@ const PublicScoreboard: React.FC = () => {
       competitionUnits: Record<number, string>;
       open: boolean; // 控制打开/关闭状态，用于动画
       pointsDetails: Record<number, number>; // 每个比赛对应的得分
+      pointDetails: PointDetail[]; // 完整得分明细（含类型、说明、时间）
     }>
   >([]);
 
@@ -556,13 +524,13 @@ const PublicScoreboard: React.FC = () => {
         }
       },
       (_, code) => {
-        // 如果返回403错误，说明看板功能已关闭，跳转到登录页面
+        // 如果返回403错误，说明看板功能已关闭，打开登录框
         if (code === 403) {
-          navigate("/login");
+          setLoginModalOpen(true);
         }
       },
     );
-  }, [cleanExpiredPlayedCompetitions, processLatestResult, navigate]);
+  }, [cleanExpiredPlayedCompetitions, processLatestResult]);
 
   // 获取已完成比赛
   const fetchCompletedCompetitions = async () => {
@@ -581,8 +549,8 @@ const PublicScoreboard: React.FC = () => {
   };
 
   // 获取待完成比赛
-  const fetchPendingCompetitions = async () => {
-    setPendingLoading(true);
+  const fetchPendingCompetitions = useCallback(async (silent = false) => {
+    if (!silent) setPendingLoading(true);
     const data = await publicAPI.getCompetitions({
       status: "approved,checking_in,in_progress,pending_score_review",
     });
@@ -596,7 +564,16 @@ const PublicScoreboard: React.FC = () => {
         setPendingLoading(false);
       },
     );
-  };
+  }, []);
+
+  // 首页赛场动态启动时就需要待完成比赛列表，并定时刷新
+  useEffect(() => {
+    void fetchPendingCompetitions();
+    const timer = window.setInterval(() => {
+      void fetchPendingCompetitions(true);
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [fetchPendingCompetitions]);
 
   // 获取学生成绩
   const fetchStudentScores = async (studentId: number) => {
@@ -609,10 +586,12 @@ const PublicScoreboard: React.FC = () => {
       scores: Score[];
       units: Record<number, string>;
       points: Record<number, number>;
+      pointDetails: PointDetail[];
     } = {
       scores: [],
       units: {},
       points: {},
+      pointDetails: [],
     };
 
     await handleRespWithoutNotify(
@@ -644,10 +623,11 @@ const PublicScoreboard: React.FC = () => {
     // 处理得分明细
     await handleRespWithoutNotify(
       pointsResp,
-      (pointsData: any[]) => {
+      (pointsData: PointDetail[]) => {
         if (pointsData) {
+          result.pointDetails = pointsData;
           const pointsMap: Record<number, number> = {};
-          pointsData.forEach((detail: any) => {
+          pointsData.forEach((detail) => {
             if (detail.competition_id && detail.points) {
               pointsMap[detail.competition_id] = detail.points;
             }
@@ -693,11 +673,14 @@ const PublicScoreboard: React.FC = () => {
       setIsProcessingAnimation(true);
       setAnimatingCompetition(nextTask.competition);
       announcementMarkerRef.current = null;
-      // 只显示前8名
-      setAnimationQueue(nextTask.scores.slice(0, 8));
+      // 真正动画只展示前三名
+      setAnimationQueue(nextTask.scores.slice(0, 3));
+      setOverviewScores(nextTask.scores);
+      setAnimationPhase("reveal");
+      setOverviewRemaining(OVERVIEW_SECONDS);
+      setOverviewStopped(false);
       setShowAnimation(true);
       setCurrentIndex(0);
-      setLightRaysColor("#FFD700"); // 重置光线颜色为默认值
       setIsManualReplay(false); // 自动播放，不是手动重播
 
       // 在开始处理动画时就设置lastNotifiedCompetitionId，防止重复添加
@@ -736,6 +719,9 @@ const PublicScoreboard: React.FC = () => {
 
     setShowAnimation(false);
     setIsProcessingAnimation(false);
+    setAnimationPhase("reveal");
+    setOverviewStopped(false);
+    setOverviewRemaining(OVERVIEW_SECONDS);
     // 只有在非手动重播且设置允许时才打开模态框
     if (!isManualReplay && scoreboardSettings.autoOpenResultModal) {
       handleViewScores(animatingCompetition);
@@ -743,6 +729,37 @@ const PublicScoreboard: React.FC = () => {
     setCurrentIndex(0);
     setAnimatingCompetition(null);
   };
+
+  useEffect(() => {
+    endAnimationRef.current = endAnimation;
+  });
+
+  const closeOverview = useCallback(() => {
+    if (animationPhase !== "overview") return;
+    stopAnnouncement();
+    setAnimationPhase("closing");
+  }, [animationPhase, stopAnnouncement]);
+
+  // 总览自动倒计时；暂停时保持当前画面。
+  useEffect(() => {
+    if (animationPhase !== "overview" || overviewStopped) return;
+    if (overviewRemaining <= 0) {
+      closeOverview();
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setOverviewRemaining((remaining) => remaining - 1),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [animationPhase, overviewStopped, overviewRemaining, closeOverview]);
+
+  // 收尾：总览淡出、镜头回环绕，随后把画面交回看板。
+  useEffect(() => {
+    if (animationPhase !== "closing") return;
+    const timer = window.setTimeout(() => endAnimationRef.current(), 900);
+    return () => window.clearTimeout(timer);
+  }, [animationPhase]);
 
   // 重播动画
   const replayAnimation = (competition: Competition, modalId?: number) => {
@@ -757,21 +774,25 @@ const PublicScoreboard: React.FC = () => {
         announcementMarkerRef.current = null;
         stopAnnouncement();
         setAnimatingCompetition(competition);
-        setAnimationQueue(scores.slice(0, 8)); // 只显示前8名
+        setAnimationQueue(scores.slice(0, 3)); // 真正动画只展示前三名
+        setOverviewScores(scores);
+        setAnimationPhase("reveal");
+        setOverviewRemaining(OVERVIEW_SECONDS);
+        setOverviewStopped(false);
         setShowAnimation(true);
         setCurrentIndex(0);
-        setLightRaysColor("#FFD700");
         setIsProcessingAnimation(true); // 标记为正在处理动画
         setIsManualReplay(true); // 标记为手动重播
       });
     });
   };
 
-  // 长按开始
+  // 长按开始：跳过逐条揭晓，直接进入成绩总览。
   const handleLongPressStart = () => {
+    if (animationPhase !== "reveal") return;
     const timer = setTimeout(() => {
-      endAnimation();
-    }, 800); // 长按800ms后结束动画
+      setAnimationPhase("overview");
+    }, 800);
     setLongPressTimer(timer);
   };
 
@@ -844,6 +865,14 @@ const PublicScoreboard: React.FC = () => {
     }
   };
 
+  // 从学生成绩里的项目名继续下钻到比赛详情
+  const handleViewCompetitionById = async (competitionId: number) => {
+    const response = await publicAPI.getCompetition(competitionId);
+    handleRespWithoutNotify(response, (data) => {
+      if (data) void handleViewCompetitionDetail(data);
+    });
+  };
+
   // 处理查看比赛成绩（从动画或其他地方调用）
   const handleViewScores = async (competition: Competition) => {
     // 直接调用查看比赛详情
@@ -867,6 +896,7 @@ const PublicScoreboard: React.FC = () => {
       competitionUnits: {},
       open: true,
       pointsDetails: {},
+      pointDetails: [],
     };
 
     setStudentModals((prev) => [...prev, newModal]);
@@ -881,6 +911,7 @@ const PublicScoreboard: React.FC = () => {
               scores: result.scores,
               competitionUnits: result.units,
               pointsDetails: result.points,
+              pointDetails: result.pointDetails,
               loading: false,
             }
           : m,
@@ -958,293 +989,27 @@ const PublicScoreboard: React.FC = () => {
     }, 300);
   };
 
-  // 获取排名图标
-  const getRankingIcon = (ranking: number | null) => {
-    if (!ranking) return null;
-    if (ranking <= 3) return <TrophyOutlined />;
-    return null;
-  };
-
-  // 移动端 - 比赛卡片列表
-  const renderCompetitionCards = (
-    competitions: Competition[],
-    onView: (comp: Competition) => void,
-  ) => {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {competitions.map((comp) => (
-          <Card
-            key={comp.id}
-            hoverable
-            onClick={() => onView(comp)}
-            bodyStyle={{ padding: 16 }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
-                  {comp.name}
-                </div>
-                <Space size="small" wrap>
-                  <Tag color="blue">{getGenderText(comp.gender)}</Tag>
-                  {getStatusTag(comp.status)}
-                </Space>
-                {comp.venue && (
-                  <div style={{ fontSize: 12, color: "#ccc", marginTop: 6 }}>
-                    地点：{comp.venue}
-                  </div>
-                )}
-              </div>
-              <Button type="primary" icon={<EyeOutlined />} size="small">
-                查看
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  };
-
-  // 移动端 - 成绩卡片列表
-  const renderScoreCards = (scores: Score[], unit: string) => {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {scores.map((score) => (
-          <Card
-            key={score.id}
-            bodyStyle={{ padding: 16 }}
-            style={{
-              borderLeft:
-                score.ranking && score.ranking <= 3
-                  ? `4px solid ${getRankingColor(score.ranking)}`
-                  : undefined,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <div>
-                      <Button
-                        type="link"
-                        onClick={() => {
-                          if (score.student_id) {
-                            handleViewStudentScores(
-                              score.student_id,
-                              score.student_name,
-                            );
-                          }
-                        }}
-                        style={{
-                          padding: 0,
-                          height: "auto",
-                          fontWeight: 600,
-                          fontSize: 16,
-                        }}
-                      >
-                        {score.student_name}
-                      </Button>
-                      <div style={{ color: "#666", fontSize: 13 }}>
-                        <TeamOutlined /> {score.class_name}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "bold",
-                          color: "#1677ff",
-                        }}
-                      >
-                        {score.score} {unit}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "bold",
-                          color: "#ff4d4f",
-                        }}
-                      >
-                        (
-                        {score.point !== undefined && score.point !== null
-                          ? score.point
-                          : 0}
-                        分)
-                      </span>
-                    </div>
-                    {score.ranking && (
-                      <Tag
-                        color={getRankingColor(score.ranking)}
-                        icon={getRankingIcon(score.ranking)}
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "bold",
-                          padding: "4px 12px",
-                        }}
-                      >
-                        第 {score.ranking} 名
-                      </Tag>
-                    )}
-                  </div>
-                </Space>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  };
-
-  // 移动端 - 学生成绩卡片列表
-  const renderStudentScoreCards = (
-    scores: Score[],
-    competitionUnits: Record<number, string>,
-  ) => {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {scores.map((score) => {
-          const unit = competitionUnits[score.competition_id] || "";
-          return (
-            <Card
-              key={score.id}
-              bodyStyle={{ padding: 16 }}
-              style={{
-                borderLeft:
-                  score.ranking && score.ranking <= 3
-                    ? `4px solid ${getRankingColor(score.ranking)}`
-                    : undefined,
-              }}
-            >
-              <div style={{ marginBottom: 12 }}>
-                <Button
-                  type="link"
-                  onClick={async () => {
-                    const competition = await publicAPI.getCompetition(
-                      score.competition_id,
-                    );
-                    handleRespWithoutNotify(competition, (data) => {
-                      if (data) {
-                        handleViewScores(data);
-                      }
-                    });
-                  }}
-                  style={{
-                    padding: 0,
-                    height: "auto",
-                    fontWeight: 600,
-                    fontSize: 16,
-                  }}
-                >
-                  {score.competition_name}
-                </Button>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color: "#1677ff",
-                    }}
-                  >
-                    {score.score} {unit}
-                  </span>
-                </div>
-                {score.ranking && (
-                  <Tag
-                    color={getRankingColor(score.ranking)}
-                    icon={getRankingIcon(score.ranking)}
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "bold",
-                      padding: "4px 12px",
-                    }}
-                  >
-                    第 {score.ranking} 名
-                  </Tag>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // 移动端 - 报名信息卡片列表
-  const renderRegistrationCards = (registrations: Registration[]) => {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {registrations.map((reg) => (
-          <Card
-            key={reg.id}
-            bodyStyle={{ padding: 16 }}
-            hoverable
-            onClick={() => {
-              if (reg.student_id && reg.student_name) {
-                handleViewStudentScores(reg.student_id, reg.student_name);
-              }
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar
-                size={48}
-                icon={<UserOutlined />}
-                style={{ backgroundColor: "#1677ff" }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>
-                  {reg.student_name}
-                </div>
-                <div style={{ color: "#666", fontSize: 14 }}>
-                  <TeamOutlined /> {reg.class_name}
-                </div>
-              </div>
-              <Button type="link" icon={<EyeOutlined />} size="small">
-                查看
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  };
-
-  // 动画逻辑 - 逐步显示成绩
+  // 成绩动画：镜头推向主席台，结果表快速展开；开启播报时按名次依次播报。
   const [currentIndex, setCurrentIndex] = useState(0);
-  const animationRef = useRef<HTMLDivElement>(null);
-
-  // 光线颜色状态
+  const [animationRevealed, setAnimationRevealed] = useState(false);
   const [lightRaysColor, setLightRaysColor] = useState("#FFD700");
+  const stepsPerScore =
+    animatingCompetition?.competition_type === "team" ? 3 : 4;
+  const isTeamCompetition = animatingCompetition?.competition_type === "team";
+  const overviewRows = [...overviewScores]
+    .sort(
+      (left, right) =>
+        (left.ranking ?? Number.MAX_SAFE_INTEGER) -
+        (right.ranking ?? Number.MAX_SAFE_INTEGER),
+    )
+    .slice(0, OVERVIEW_MAX_ROWS);
+  // 逐条揭晓停在主席台；成绩总览时拉到全场，收尾再回到环绕。
+  const stadiumShot: StadiumShot =
+    showAnimation && animationPhase === "reveal"
+      ? "podium"
+      : showAnimation && animationPhase === "overview"
+        ? "overview"
+        : "ambient";
 
   // 音效预加载
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1270,125 +1035,131 @@ const PublicScoreboard: React.FC = () => {
     }
   };
 
+  // 逐条揭晓时看板与弹层淡出；进入总览收尾后再淡回，弹层只隐藏、不关闭。
   useEffect(() => {
-    if (!showAnimation || !animatingCompetition) return;
-
-    if (currentIndex === 0) {
-      if (scoreboardSettings.scoreAnnouncement.enabled) {
-        const announcementKey = "animation-opening";
-        if (announcementMarkerRef.current !== announcementKey) {
-          announcementMarkerRef.current = announcementKey;
-          speakText(buildAnimationOpeningAnnouncement());
-        }
-      }
-
-      const timer = setTimeout(() => setCurrentIndex(1), 2000);
-      return () => clearTimeout(timer);
+    if (showAnimation && animationPhase !== "closing") {
+      document.body.classList.add("score-animation-active");
+    } else {
+      document.body.classList.remove("score-animation-active");
     }
-    if (currentIndex === 1) {
-      if (scoreboardSettings.scoreAnnouncement.enabled) {
-        const announcementKey = `${animatingCompetition.id}-intro`;
-        if (announcementMarkerRef.current !== announcementKey) {
-          announcementMarkerRef.current = announcementKey;
-          speakText(buildCompetitionAnnouncementIntro(animatingCompetition));
-        }
-      }
+    return () => document.body.classList.remove("score-animation-active");
+  }, [showAnimation, animationPhase]);
 
-      const timer = setTimeout(() => setCurrentIndex(2), 2000);
-      return () => clearTimeout(timer);
+  // 镜头到位并淡到纯黑后，再开始逐条动画。
+  useEffect(() => {
+    if (!showAnimation) {
+      setAnimationRevealed(false);
+      return;
     }
+    const timer = setTimeout(() => setAnimationRevealed(true), 4400);
+    return () => clearTimeout(timer);
+  }, [showAnimation]);
 
-    // 从第2步开始是选手成绩展示
-    const scoreIndex = Math.floor((currentIndex - 2) / 4); // 每个选手占4步
-    const stepInScore = (currentIndex - 2) % 4; // 当前是该选手的第几步
-
-    // 更新光线颜色
-    if (scoreIndex < animationQueue.length && animationQueue[scoreIndex]) {
-      const score = animationQueue[scoreIndex];
-      const ranking = score.ranking || 0;
-      setLightRaysColor(getRankingColor(ranking));
-    }
-
-    if (scoreIndex >= animationQueue.length) {
-      // 动画播放完成，复用 endAnimation 处理结束逻辑
-      endAnimation();
+  // 逐条展示：比赛名 → 每位选手的 名次 / 成绩 / 班级 / 姓名。
+  useEffect(() => {
+    if (
+      !showAnimation ||
+      !animatingCompetition ||
+      !animationRevealed ||
+      animationPhase !== "reveal"
+    ) {
       return;
     }
 
-    // 在展示成绩的最后一步触发 confetti 并播放音效
-    const currentScore = animationQueue[scoreIndex];
-    let playedEffectAfterAnnouncement = false;
-    if (shouldAnnounceScore(scoreboardSettings, currentScore)) {
-      const announcementKey = `${animatingCompetition.id}-${currentScore.id}-${currentIndex}`;
-      if (announcementMarkerRef.current !== announcementKey) {
-        announcementMarkerRef.current = announcementKey;
-        const announcementText = buildAnimationStepAnnouncement(
-          animatingCompetition,
-          currentScore,
-          stepInScore,
-        );
-
-        if (stepInScore === 3) {
-          playedEffectAfterAnnouncement = speakText(announcementText, {
-            onEnd: playEffect,
-            onError: playEffect,
-          });
-        } else {
-          speakText(announcementText);
+    if (currentIndex === 0) {
+      if (scoreboardSettings.scoreAnnouncement.enabled) {
+        const key = `${animatingCompetition.id}-intro`;
+        if (announcementMarkerRef.current !== key) {
+          announcementMarkerRef.current = key;
+          speakText(buildCompetitionAnnouncementIntro(animatingCompetition));
         }
+      }
+      setLightRaysColor(getRankingColor(animationQueue[0]?.ranking || 0));
+      const timer = setTimeout(() => setCurrentIndex(1), 1400);
+      return () => clearTimeout(timer);
+    }
+
+    const scoreIndex = Math.floor((currentIndex - 1) / stepsPerScore);
+    const stepInScore = (currentIndex - 1) % stepsPerScore;
+
+    if (scoreIndex >= animationQueue.length) {
+      setAnimationPhase("overview");
+      setOverviewRemaining(OVERVIEW_SECONDS);
+      setOverviewStopped(false);
+      return;
+    }
+
+    const score = animationQueue[scoreIndex];
+    setLightRaysColor(getRankingColor(score.ranking || 0));
+
+    if (shouldAnnounceScore(scoreboardSettings, score)) {
+      const key = `${animatingCompetition.id}-${score.id}-${stepInScore}`;
+      if (announcementMarkerRef.current !== key) {
+        announcementMarkerRef.current = key;
+        speakText(
+          buildAnimationStepAnnouncement(
+            animatingCompetition,
+            score,
+            stepInScore,
+          ),
+        );
       }
     }
 
-    if (stepInScore === 3) {
-      const ranking = currentScore.ranking;
-
-      if (!playedEffectAfterAnnouncement) {
-        playEffect();
-      }
-
+    if (stepInScore === stepsPerScore - 1) {
+      playEffect();
+      const ranking = score.ranking;
       if (ranking === 1) {
         confetti({
-          particleCount: 500,
+          particleCount: 240,
           ticks: 100,
-          spread: 100,
-          origin: { y: 0.6, x: 0.5 },
-          colors: ["#FFD700", "#FFFACD", "#FFA500"], // 金色系
+          spread: 80,
+          origin: { y: 0.74, x: 0.5 },
+          colors: ["#FFD700", "#FFFACD", "#FFA500"],
           zIndex: 1999,
         });
       } else if (ranking === 2) {
         confetti({
-          particleCount: 300,
+          particleCount: 170,
           ticks: 100,
-          spread: 80,
-          origin: { y: 0.6, x: 0.5 },
-          colors: ["#C0C0C0", "#DCDCDC", "#A9A9A9"], // 银色系
+          spread: 70,
+          origin: { y: 0.74, x: 0.5 },
+          colors: ["#C0C0C0", "#DCDCDC", "#A9A9A9"],
           zIndex: 1999,
         });
       } else if (ranking === 3) {
         confetti({
-          particleCount: 200,
+          particleCount: 120,
           ticks: 100,
-          spread: 70,
-          origin: { y: 0.6, x: 0.5 },
-          colors: ["#CD7F32", "#8B4513", "#A0522D"], // 铜色系
+          spread: 60,
+          origin: { y: 0.74, x: 0.5 },
+          colors: ["#CD7F32", "#8B4513", "#A0522D"],
           zIndex: 1999,
         });
       } else {
         confetti({
-          particleCount: 80,
+          particleCount: 70,
           ticks: 100,
-          spread: 50,
-          origin: { y: 0.6, x: 0.5 },
+          spread: 45,
+          origin: { y: 0.74, x: 0.5 },
           colors: ["#1677ff", "#52c41a", "#faad14"],
           zIndex: 1999,
         });
       }
     }
 
-    // 下一步定时
-    const timer = setTimeout(() => setCurrentIndex(currentIndex + 1), 3000);
+    const hold = stepInScore === stepsPerScore - 1 ? 2600 : 1100;
+    const timer = setTimeout(() => setCurrentIndex(currentIndex + 1), hold);
     return () => clearTimeout(timer);
-  }, [currentIndex, showAnimation, animationQueue, animatingCompetition]);
+  }, [
+    currentIndex,
+    showAnimation,
+    animationQueue,
+    animatingCompetition,
+    animationRevealed,
+    animationPhase,
+    stepsPerScore,
+  ]);
 
   useEffect(() => {
     if (!showAnimation) {
@@ -1397,324 +1168,46 @@ const PublicScoreboard: React.FC = () => {
     }
   }, [showAnimation, stopAnnouncement]);
 
-  // 比赛表格列（用于已完成比赛模态框）
-  const completedCompetitionColumns = [
-    {
-      title: "项目",
-      key: "name",
-      render: (record: Competition) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 16 }}>{record.name}</div>
-        </div>
-      ),
-    },
-    {
-      title: "操作",
-      key: "action",
-      render: (record: Competition) => (
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewCompetitionDetail(record)}
-        >
-          查看详情
-        </Button>
-      ),
-    },
-  ];
-
-  // 待完成比赛表格列（用于待完成比赛模态框）
-  const pendingCompetitionColumns = [
-    {
-      title: "项目",
-      key: "name",
-      render: (record: Competition) => (
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 16 }}>{record.name}</div>
-          {record.start_time && record.end_time && (
-            <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-              {dayjs(record.start_time).format("MM-DD HH:mm")} -{" "}
-              {dayjs(record.end_time).format("HH:mm")}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: "操作",
-      key: "action",
-      render: (record: Competition) => (
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewCompetitionDetail(record)}
-        >
-          查看详情
-        </Button>
-      ),
-    },
-  ];
-
-  // 成绩列
-  const getScoresColumns = (unit: string, competition?: Competition) => {
-    const isTeamCompetition = competition?.competition_type === "team";
-    const cols: Array<{
-      title: string;
-      dataIndex: string;
-      key: string;
-      render?: (value: unknown, record: Score) => React.ReactNode;
-    }> = [
-      {
-        title: "排名",
-        dataIndex: "ranking",
-        key: "ranking",
-        render: (ranking: unknown) =>
-          getRankingDisplayForTable(ranking as number | undefined),
-      },
-    ];
-
-    // 团体比赛不显示学生姓名列
-    if (!isTeamCompetition) {
-      cols.push({
-        title: "姓名",
-        dataIndex: "student_name",
-        key: "student_name",
-        render: (name: unknown, record: Score) => (
-          <Button
-            type="link"
-            icon={<UserOutlined />}
-            onClick={() => {
-              if (record.student_id) {
-                handleViewStudentScores(record.student_id, name as string);
-              }
-            }}
-            style={{
-              padding: 0,
-              height: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {name as string}
-          </Button>
-        ),
-      });
-    }
-
-    cols.push(
-      {
-        title: "班级",
-        dataIndex: "class_name",
-        key: "class_name",
-        render: (className: unknown) => className as string,
-      },
-      {
-        title: "成绩",
-        dataIndex: "score",
-        key: "score",
-        render: (score: unknown) => (
-          <span
-            style={{
-              padding: 0,
-              height: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {score as number} {unit}
-          </span>
-        ),
-      },
-      {
-        title: "分数",
-        dataIndex: "point",
-        key: "point",
-        render: (point: unknown) => (
-          <span
-            style={{
-              padding: 0,
-              height: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {point as number}
-          </span>
-        ),
-      },
-    );
-
-    return cols;
-  };
-
-  // 学生成绩列
-  const getStudentScoresColumns = (
-    competitionUnits: Record<number, string>,
-    pointsDetails: Record<number, number> = {},
-  ): Array<{
-    title: string;
-    dataIndex: string;
-    key: string;
-    render?: (value: unknown, record: Score) => React.ReactNode;
-  }> => [
-    {
-      title: "比赛项目",
-      dataIndex: "competition_name",
-      key: "competition_name",
-      render: (name: unknown, record: Score) => (
-        <Button
-          type="link"
-          onClick={async () => {
-            const competition = await publicAPI.getCompetition(
-              record.competition_id,
-            );
-            handleRespWithoutNotify(competition, (data) => {
-              if (data) {
-                handleViewScores(data);
-              }
-            });
-          }}
-          style={{ padding: 0, height: "auto", textAlign: "left" }}
-        >
-          {name as string}
-        </Button>
-      ),
-    },
-    {
-      title: "成绩",
-      dataIndex: "score",
-      key: "score",
-      render: (score: unknown, record: Score) => {
-        const unit = competitionUnits[record.competition_id] || "";
-        return (
-          <span style={{ fontWeight: "bold", fontSize: 16 }}>
-            {score as number} {unit}
-          </span>
-        );
-      },
-    },
-    {
-      title: "排名",
-      dataIndex: "ranking",
-      key: "ranking",
-      render: (ranking: unknown) =>
-        getRankingDisplayForTable(ranking as number | undefined),
-    },
-    {
-      title: "得分",
-      dataIndex: "competition_id",
-      key: "points",
-      render: (competitionId: unknown) => {
-        const points = pointsDetails[competitionId as number];
-        if (points === undefined || points === 0) {
-          return <span style={{ color: "#999" }}>-</span>;
-        }
-        return (
-          <span style={{ fontWeight: "bold", fontSize: 16, color: "#ff4d4f" }}>
-            {points.toFixed(1)}
-          </span>
-        );
-      },
-    },
-  ];
-
-  // 报名信息表格列
-  const registrationsColumns: Array<{
-    title: string;
-    dataIndex: string;
-    key: string;
-    render?: (value: unknown, record: Registration) => React.ReactNode;
-  }> = [
-    {
-      title: "姓名",
-      dataIndex: "student_name",
-      key: "student_name",
-      render: (name: unknown, record: Registration) => (
-        <Button
-          type="link"
-          icon={<UserOutlined />}
-          onClick={() => {
-            if (record.student_id) {
-              handleViewStudentScores(record.student_id, name as string);
-            }
-          }}
-          style={{
-            padding: 0,
-            height: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {name as string}
-        </Button>
-      ),
-    },
-    {
-      title: "班级",
-      dataIndex: "class_name",
-      key: "class_name",
-      render: (className: unknown) => className as string,
-    },
-  ];
-
   return (
     <Layout
       className="public-scoreboard"
-      style={{ minHeight: "100vh", background: "#000", overflow: "hidden" }}
+      style={{
+        minHeight: "100vh",
+        background: "#f7fbff",
+        overflow: "hidden",
+      }}
     >
-      {/* 背景动画 */}
+      {/* 背景动画：沿跑道环绕的体育场场景 */}
       {enableBackgroundEffects && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-          <Suspense
-            fallback={
-              <div
-                style={{ background: "#000", width: "100%", height: "100%" }}
-              />
-            }
-          >
-            {hyperSpeedElement}
-          </Suspense>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <StadiumScene eventName={eventName} shot={stadiumShot} />
         </div>
       )}
 
-      {/* 页面内容 */}
-      <Header
-        style={{
-          background: "rgba(0,0,0,0.5)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0 16px",
-          zIndex: 10,
-        }}
-      >
-        <Title
-          onClick={handleTitleClick}
-          style={{
-            color: "#fff",
-            margin: 0,
-            whiteSpace: "nowrap",
-            fontSize: "clamp(8px, 5vw, 24px)", // 最小8px，最大24px，随屏幕宽度缩放
-            cursor: "default",
-            userSelect: "none",
-          }}
-        >
-          {websiteName}
-        </Title>
-        <div style={{ display: "flex", gap: 12 }}>
-          <Button
-            type="default"
-            icon={<LoginOutlined />}
-            onClick={() => navigate("/login")}
-          >
-            登录
-          </Button>
-        </div>
-      </Header>
+      {/* 首页三栏看板 */}
+      <PublicHomeBoard
+        eventName={eventName}
+        topClasses={stats.topClasses}
+        topStudents={stats.topStudents}
+        completedCount={stats.completedCount}
+        pendingCount={stats.pendingCount}
+        pendingCompetitions={pendingCompetitions}
+        pendingLoading={pendingLoading}
+        onViewClass={handleViewClassPoints}
+        onViewStudent={handleViewStudentScores}
+        onViewCompetition={handleViewCompetitionDetail}
+        onOpenCompleted={handleViewCompletedCompetitions}
+        onOpenPending={handleViewPendingCompetitions}
+        onTitleClick={handleTitleClick}
+        onLogin={() => setLoginModalOpen(true)}
+      />
 
       <ScoreboardSettingsModal
         open={settingsModalOpen}
@@ -1726,1091 +1219,268 @@ const PublicScoreboard: React.FC = () => {
         onPreviewAnnouncement={previewAnnouncement}
       />
 
-      <Content style={{ padding: "16px" }}>
-        {/* 统计卡片 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12}>
-            <Card
-              style={{
-                backdropFilter: "blur(10px)",
-                background: "rgba(0,0,0,0.6)",
-                borderRadius: 12,
-                border: "none",
-              }}
-            >
-              <Statistic
-                title={<span style={{ color: "#ffffffff" }}>已完成比赛</span>}
-                value={stats.completedCount}
-                prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
-                valueStyle={{ color: "#52c41a" }}
-                // 自定义渲染
-                formatter={(value) => (
-                  <span style={{ color: "#ffffffff" }}>{value}</span>
-                )}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Card
-              style={{
-                backdropFilter: "blur(10px)",
-                background: "rgba(0,0,0,0.6)",
-                borderRadius: 12,
-                border: "none",
-              }}
-            >
-              <Statistic
-                title={<span style={{ color: "#ffffffff" }}>待完成比赛</span>}
-                value={stats.pendingCount}
-                prefix={<ClockCircleOutlined style={{ color: "#fa8c16" }} />}
-                valueStyle={{ color: "#fa8c16" }}
-                // 自定义渲染
-                formatter={(value) => (
-                  <span style={{ color: "#ffffffff" }}>{value}</span>
-                )}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* 操作按钮 */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12}>
-            <Card
-              style={{
-                backdropFilter: "blur(10px)",
-                background: "rgba(0,0,0,0.6)",
-                borderRadius: 12,
-                border: "none",
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <TrophyOutlined
-                  style={{
-                    fontSize: "2.5rem",
-                    color: "#faad14",
-                    marginBottom: 16,
-                  }}
-                />
-                <Title level={4} style={{ color: "#fff", marginBottom: 16 }}>
-                  历史成绩
-                </Title>
-                <Text
-                  style={{
-                    color: "#d9d9d9",
-                    display: "block",
-                    marginBottom: 16,
-                  }}
-                >
-                  查看已完成比赛的详细成绩和排名
-                </Text>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<BarChartOutlined />}
-                  onClick={handleViewCompletedCompetitions}
-                  style={{ width: "100%" }}
-                >
-                  查看历史成绩
-                </Button>
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Card
-              style={{
-                backdropFilter: "blur(10px)",
-                background: "rgba(0,0,0,0.6)",
-                borderRadius: 12,
-                border: "none",
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <ClockCircleOutlined
-                  style={{
-                    fontSize: "2.5rem",
-                    color: "#fa8c16",
-                    marginBottom: 16,
-                  }}
-                />
-                <Title level={4} style={{ color: "#fff", marginBottom: 16 }}>
-                  待完成比赛
-                </Title>
-                <Text
-                  style={{
-                    color: "#d9d9d9",
-                    display: "block",
-                    marginBottom: 16,
-                  }}
-                >
-                  查看即将开始和正在进行的比赛项目
-                </Text>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<EyeOutlined />}
-                  onClick={handleViewPendingCompetitions}
-                  style={{ width: "100%" }}
-                >
-                  查看待完成比赛
-                </Button>
-              </div>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Top8 班级和学生排行榜 */}
-        {(stats.topClasses.length > 0 || stats.topStudents.length > 0) && (
-          <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-            {stats.topClasses.length > 0 && (
-              <Col xs={24} lg={12}>
-                <Card
-                  title={
-                    <span style={{ color: "#fff", fontSize: 18 }}>
-                      <TeamOutlined style={{ marginRight: 8 }} />
-                      班级分数榜 TOP10
-                    </span>
-                  }
-                  style={{
-                    backdropFilter: "blur(10px)",
-                    background: "rgba(0,0,0,0.6)",
-                    borderRadius: 12,
-                    border: "none",
-                  }}
-                  headStyle={{
-                    borderBottom: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <div style={{ overflowX: "auto" }}>
-                    {stats.topClasses.map((cls: any) => {
-                      const barColor = getRankingColor(cls.rank);
-                      const maxPoints = stats.topClasses[0]?.total_points || 1;
-                      const percentage = (cls.total_points / maxPoints) * 100;
-
-                      return (
-                        <div
-                          key={cls.class_id}
-                          style={{
-                            marginBottom: 12,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              background: barColor,
-                              color: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontWeight: "bold",
-                              fontSize: 14,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {cls.rank}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                marginBottom: 4,
-                              }}
-                            >
-                              <Button
-                                type="link"
-                                onClick={() =>
-                                  handleViewClassPoints(
-                                    cls.class_id,
-                                    cls.class_name,
-                                  )
-                                }
-                                style={{
-                                  padding: 0,
-                                  height: "auto",
-                                  color: "#fff",
-                                  fontWeight: "bold",
-                                  fontSize: 14,
-                                  textAlign: "left",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {cls.class_name}
-                              </Button>
-                              <Text
-                                strong
-                                style={{ color: barColor, fontSize: 14 }}
-                              >
-                                {cls.total_points.toFixed(1)}分
-                              </Text>
-                            </div>
-                            <div
-                              style={{
-                                height: 8,
-                                background: "rgba(255,255,255,0.1)",
-                                borderRadius: 4,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width: `${percentage}%`,
-                                  background: `linear-gradient(90deg, ${barColor}, ${barColor}dd)`,
-                                  transition: "width 0.5s ease",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              </Col>
-            )}
-
-            {stats.topStudents.length > 0 && (
-              <Col xs={24} lg={12}>
-                <Card
-                  title={
-                    <span style={{ color: "#fff", fontSize: 18 }}>
-                      <UserOutlined style={{ marginRight: 8 }} />
-                      个人分数榜 TOP10
-                    </span>
-                  }
-                  style={{
-                    backdropFilter: "blur(10px)",
-                    background: "rgba(0,0,0,0.6)",
-                    borderRadius: 12,
-                    border: "none",
-                  }}
-                  headStyle={{
-                    borderBottom: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <div style={{ overflowX: "auto" }}>
-                    {stats.topStudents.map((student: any, index: number) => {
-                      const barColor = getRankingColor(index + 1);
-                      const maxPoints = stats.topStudents[0]?.total_points || 1;
-                      const percentage =
-                        (student.total_points / maxPoints) * 100;
-
-                      return (
-                        <div
-                          key={student.student_id}
-                          style={{
-                            marginBottom: 12,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              background: barColor,
-                              color: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontWeight: "bold",
-                              fontSize: 14,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {index + 1}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                marginBottom: 4,
-                              }}
-                            >
-                              <div style={{ minWidth: 0, flex: 1 }}>
-                                <Button
-                                  type="link"
-                                  onClick={() =>
-                                    handleViewStudentScores(
-                                      student.student_id,
-                                      student.student_name,
-                                    )
-                                  }
-                                  style={{
-                                    padding: 0,
-                                    height: "auto",
-                                    color: "#fff",
-                                    fontWeight: "bold",
-                                    fontSize: 14,
-                                  }}
-                                >
-                                  {student.student_name}
-                                </Button>
-                                <Text
-                                  style={{
-                                    color: "rgba(255,255,255,0.6)",
-                                    fontSize: 12,
-                                    marginLeft: 8,
-                                  }}
-                                >
-                                  {student.class_name}
-                                </Text>
-                              </div>
-                              <Text
-                                strong
-                                style={{
-                                  color: barColor,
-                                  fontSize: 14,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {student.total_points.toFixed(1)}分
-                              </Text>
-                            </div>
-                            <div
-                              style={{
-                                height: 8,
-                                background: "rgba(255,255,255,0.1)",
-                                borderRadius: 4,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width: `${percentage}%`,
-                                  background: `linear-gradient(90deg, ${barColor}, ${barColor}dd)`,
-                                  transition: "width 0.5s ease",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              </Col>
-            )}
-          </Row>
-        )}
-      </Content>
-
       {/* 成绩动画 */}
       {showAnimation && animatingCompetition && (
         <div
-          ref={animationRef}
+          className={`score-animation${
+            animationPhase !== "reveal" ? " is-overview" : ""
+          }${animationPhase === "closing" ? " is-closing" : ""}`}
           onMouseDown={handleLongPressStart}
           onMouseUp={handleLongPressEnd}
           onMouseLeave={handleLongPressEnd}
           onTouchStart={handleLongPressStart}
           onTouchEnd={handleLongPressEnd}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "#000",
-            zIndex: 1000,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            flexDirection: "column",
-            color: "#fff",
-            textAlign: "center",
-            padding: 16,
-            cursor: "default",
-          }}
         >
-          {/* 光线特效背景层 */}
-          {currentIndex >= 2 && animationQueue.length > 0 && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 0,
-                pointerEvents: "none",
-              }}
-            >
-              <LightRays
-                raysOrigin="top-center"
-                raysColor={lightRaysColor}
-                lightSpread={3}
-                rayLength={4}
-                saturation={2}
-                followMouse={false}
-                mouseInfluence={0.1}
-                fadeDistance={1.5}
-                noiseAmount={0.1}
-              />
-            </div>
-          )}
-          {currentIndex === 0 && (
-            <FadeContent
-              blur={true}
-              duration={800}
-              easing="ease-out"
-              initialOpacity={0}
-            >
-              <div
-                style={{
-                  fontSize: "4rem",
-                  fontWeight: "bold",
-                  marginBottom: "2rem",
-                  color: "#fff",
-                }}
-              >
-                成绩公布
-              </div>
-            </FadeContent>
-          )}
-          {currentIndex === 1 && (
-            <div
-              style={{
-                fontSize: "4rem",
-                fontWeight: "bold",
-                marginBottom: "2rem",
-                color: "#fff",
-              }}
-            >
-              <BlurText
-                text={animatingCompetition.name}
-                delay={200}
-                animateBy="words"
-                direction="top"
-                className=""
-              />
-            </div>
-          )}
-          {currentIndex >= 2 &&
-            animationQueue.length > 0 &&
-            (() => {
-              const scoreIndex = Math.floor((currentIndex - 2) / 4);
-              const stepInScore = (currentIndex - 2) % 4;
-              const score = animationQueue[scoreIndex];
-
-              // 检查 scoreIndex 是否有效，防止访问数组越界
-              if (!score || scoreIndex >= animationQueue.length) {
-                return null;
-              }
-
-              return (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "100%",
-                    color: "#fff",
-                    height: "20rem", // 四行总高度
-                  }}
-                >
-                  {/* 第1行：排名 */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      height: "5rem", // 固定高度
-                      fontSize: "4rem",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "100%",
-                      whiteSpace: "nowrap", // 强制单行显示
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {stepInScore >= 0 && (
-                      <BlurText
-                        key={`ranking-${scoreIndex}`}
-                        text={`第 ${score.ranking} 名`}
-                        delay={200}
-                        animateBy="letters"
-                        direction="top"
-                      />
-                    )}
-                  </div>
-
-                  {/* 第2行：成绩 */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "5rem", // 紧接第一行
-                      height: "5rem",
-                      fontSize: "4rem",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "100%",
-                      whiteSpace: "nowrap", // 强制单行显示
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {stepInScore >= 1 && (
-                      <BlurText
-                        key={`score-${scoreIndex}`}
-                        text={`${score.score} ${animatingCompetition.unit}`}
-                        delay={200}
-                        animateBy="letters"
-                        direction="top"
-                      />
-                    )}
-                  </div>
-
-                  {/* 第3行：班级 */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "10rem", // 紧接第二行
-                      height: "5rem",
-                      fontSize: "4rem",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "100%",
-                      whiteSpace: "nowrap", // 强制单行显示
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {stepInScore >= 2 && (
-                      <BlurText
-                        key={`class-${scoreIndex}`}
-                        text={`${score.class_name}`}
-                        delay={200}
-                        animateBy="letters"
-                        direction="top"
-                      />
-                    )}
-                  </div>
-
-                  {/* 第4行：姓名 */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "15rem", // 紧接第三行
-                      height: "5rem",
-                      fontSize: "4rem",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "100%",
-                      whiteSpace: "nowrap", // 强制单行显示
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {stepInScore >= 3 && (
-                      <BlurText
-                        key={`name-${scoreIndex}`}
-                        text={`${score.student_name}`}
-                        delay={200}
-                        animateBy="letters"
-                        direction="top"
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-          {/* 长按提示 */}
-          <div
-            style={{
-              position: "fixed",
-              bottom: 40,
-              left: "50%",
-              transform: "translateX(-50%)",
-              color: "rgba(255, 255, 255, 0.6)",
-              fontSize: 10,
-              zIndex: 10,
-              pointerEvents: "none",
-            }}
-          >
-            长按屏幕跳过动画
+          <div className="score-animation__blackout" aria-hidden="true" />
+          <div className="score-animation__rays" aria-hidden="true">
+            <LightRays
+              raysOrigin="top-center"
+              raysColor={lightRaysColor}
+              lightSpread={2.6}
+              rayLength={3.6}
+              saturation={1.5}
+              followMouse={false}
+              mouseInfluence={0.1}
+              fadeDistance={1.5}
+              noiseAmount={0.1}
+            />
           </div>
+          <FadeContent
+            blur
+            duration={900}
+            easing="ease-out"
+            delay={4400}
+            initialOpacity={0}
+            className="score-animation__fade"
+          >
+            <div className="score-reveal">
+              <div className="score-reveal__title">
+                <BlurText
+                  text={animatingCompetition.name}
+                  delay={70}
+                  animateBy="words"
+                  direction="top"
+                />
+              </div>
+              <div className="score-card">
+                {(() => {
+                  const rawIndex =
+                    currentIndex === 0
+                      ? 0
+                      : Math.floor((currentIndex - 1) / stepsPerScore);
+                  const isOverflow = rawIndex >= animationQueue.length;
+                  const scoreIndex = Math.min(
+                    rawIndex,
+                    Math.max(0, animationQueue.length - 1),
+                  );
+                  const stepInScore = isOverflow
+                    ? stepsPerScore - 1
+                    : currentIndex === 0
+                      ? -1
+                      : (currentIndex - 1) % stepsPerScore;
+                  const score = animationQueue[scoreIndex];
+                  const rankColor = getRankingColor(score?.ranking || 0);
+                  const isTeam =
+                    animatingCompetition.competition_type === "team";
+                  return (
+                    <>
+                      <div className="score-card__row score-card__row--primary">
+                        <div className="score-card__field">
+                          <span className="score-card__label">名次</span>
+                          <div
+                            className="score-card__value score-card__value--rank"
+                            style={{ color: rankColor }}
+                          >
+                            {score && stepInScore >= 0 && (
+                              <BlurText
+                                key={`${score.id}-rank`}
+                                text={`第 ${score.ranking ?? "—"} 名`}
+                                delay={45}
+                                animateBy="words"
+                                direction="top"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <div className="score-card__field score-card__field--right">
+                          <span className="score-card__label">成绩</span>
+                          <div className="score-card__value score-card__value--result">
+                            {score && stepInScore >= 1 && (
+                              <BlurText
+                                key={`${score.id}-result`}
+                                text={`${score.score} ${animatingCompetition.unit}`}
+                                delay={45}
+                                animateBy="letters"
+                                direction="top"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className={`score-card__row score-card__row--secondary${
+                          isTeam ? " score-card__row--single" : ""
+                        }`}
+                      >
+                        <div className="score-card__field">
+                          <span className="score-card__label">
+                            {isTeam ? "队伍" : "班级"}
+                          </span>
+                          <div className="score-card__value score-card__value--meta">
+                            {score && stepInScore >= 2 && (
+                              <BlurText
+                                key={`${score.id}-class`}
+                                text={score.class_name}
+                                delay={45}
+                                animateBy="words"
+                                direction="top"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        {!isTeam && (
+                          <div className="score-card__field score-card__field--right">
+                            <span className="score-card__label">姓名</span>
+                            <div className="score-card__value score-card__value--meta">
+                              {score && stepInScore >= 3 && (
+                                <BlurText
+                                  key={`${score.id}-name`}
+                                  text={score.student_name}
+                                  delay={45}
+                                  animateBy="words"
+                                  direction="top"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </FadeContent>
+          <div className="score-animation__hint">长按屏幕跳过动画</div>
+
+          {animationPhase !== "reveal" && (
+            <div className="score-overview" role="dialog" aria-label="成绩公布">
+              <div className="score-overview__veil" aria-hidden="true" />
+              <div className="score-overview__content">
+                <div className="score-overview__kicker">
+                  <span />
+                  成绩公布
+                  <span />
+                </div>
+                <h2>{animatingCompetition.name}</h2>
+
+                <div
+                  className="score-overview__table"
+                  role="list"
+                  aria-label={`${animatingCompetition.name}比赛成绩`}
+                >
+                  {overviewRows.map((score, index) => {
+                    const color =
+                      getScoreboardRankingColor(score.ranking) ?? "#7186a0";
+                    return (
+                      <div
+                        className="score-overview__row"
+                        role="listitem"
+                        key={score.id}
+                        style={{ "--row-index": index } as CSSProperties}
+                      >
+                        <span
+                          className="score-overview__rank"
+                          style={{ color }}
+                        >
+                          {score.ranking ?? "—"}
+                        </span>
+                        <div className="score-overview__who">
+                          <div className="score-overview__name">
+                            <strong>
+                              {isTeamCompetition
+                                ? score.class_name || "—"
+                                : score.student_name || "—"}
+                            </strong>
+                            {!isTeamCompetition && score.class_name && (
+                              <small>{score.class_name}</small>
+                            )}
+                          </div>
+                        </div>
+                        <span className="score-overview__result">
+                          {score.score}
+                          <span className="score-overview__unit">
+                            {animatingCompetition.unit}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <footer className="score-overview__footer">
+                  <span>
+                    {overviewStopped
+                      ? "已停止自动返回"
+                      : `${overviewRemaining} 秒后自动返回主页`}
+                  </span>
+                  <div>
+                    {!overviewStopped && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          stopAnnouncement();
+                          setOverviewStopped(true);
+                        }}
+                      >
+                        停止
+                      </button>
+                    )}
+                    <button type="button" onClick={closeOverview}>
+                      返回主页 <span aria-hidden="true">↗</span>
+                    </button>
+                  </div>
+                </footer>
+                <div
+                  className={`score-overview__timer${
+                    overviewStopped ? " is-stopped" : ""
+                  }`}
+                  aria-hidden="true"
+                  style={{
+                    transform: `scaleX(${overviewRemaining / OVERVIEW_SECONDS})`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 已完成比赛模态框 */}
-      <Modal
-        title={
-          <>
-            <TrophyOutlined style={{ marginRight: 8 }} />
-            已完成比赛
-          </>
-        }
-        open={completedCompetitionsModalVisible}
-        onCancel={() => setCompletedCompetitionsModalVisible(false)}
-        footer={null}
-        width={isMobile ? "95%" : 1000}
-        zIndex={completedModalZIndex}
-        styles={{
-          mask: { backdropFilter: "blur(8px)" },
-        }}
-      >
-        <Spin spinning={completedLoading}>
-          {isMobile ? (
-            completedCompetitions.length > 0 ? (
-              renderCompetitionCards(
-                completedCompetitions,
-                handleViewCompetitionDetail,
-              )
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 0",
-                  color: "#999",
-                }}
-              >
-                暂无已完成的比赛
-              </div>
-            )
-          ) : (
-            <Table
-              columns={completedCompetitionColumns}
-              dataSource={completedCompetitions}
-              rowKey="id"
-              tableLayout="auto"
-              pagination={{ pageSize: 8 }}
-              locale={{ emptyText: "暂无已完成的比赛" }}
-            />
-          )}
-        </Spin>
-      </Modal>
+      {/* 看板弹层：demo 设计语言 */}
+      <ScoreboardDialogs
+        completedOpen={completedCompetitionsModalVisible}
+        completedLoading={completedLoading}
+        completedCompetitions={completedCompetitions}
+        completedZIndex={completedModalZIndex}
+        onCloseCompleted={() => setCompletedCompetitionsModalVisible(false)}
+        pendingOpen={pendingCompetitionsModalVisible}
+        pendingLoading={pendingLoading}
+        pendingCompetitions={pendingCompetitions}
+        pendingZIndex={pendingModalZIndex}
+        onClosePending={() => setPendingCompetitionsModalVisible(false)}
+        studentModals={studentModals}
+        onCloseStudent={closeStudentModal}
+        classPointsModals={classPointsModals}
+        onCloseClassPoints={closeClassPointsModal}
+        detailModals={detailModals}
+        onCloseDetail={closeDetailModal}
+        onSelectCompetition={handleViewCompetitionDetail}
+        onViewCompetitionById={handleViewCompetitionById}
+        onViewStudent={handleViewStudentScores}
+        onReplay={replayAnimation}
+      />
 
-      {/* 待完成比赛模态框 */}
-      <Modal
-        title={
-          <>
-            <ClockCircleOutlined style={{ marginRight: 8 }} />
-            待完成比赛
-          </>
-        }
-        open={pendingCompetitionsModalVisible}
-        onCancel={() => setPendingCompetitionsModalVisible(false)}
-        footer={null}
-        width={isMobile ? "95%" : 1000}
-        zIndex={pendingModalZIndex}
-        styles={{
-          mask: { backdropFilter: "blur(8px)" },
-        }}
-      >
-        <Spin spinning={pendingLoading}>
-          {isMobile ? (
-            pendingCompetitions.length > 0 ? (
-              renderCompetitionCards(
-                pendingCompetitions,
-                handleViewCompetitionDetail,
-              )
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 0",
-                  color: "#999",
-                }}
-              >
-                暂无待完成的比赛
-              </div>
-            )
-          ) : (
-            <Table
-              columns={pendingCompetitionColumns}
-              dataSource={pendingCompetitions}
-              rowKey="id"
-              tableLayout="auto"
-              pagination={{ pageSize: 8 }}
-              locale={{ emptyText: "暂无待完成的比赛" }}
-            />
-          )}
-        </Spin>
-      </Modal>
-
-      {/* 学生成绩模态框 */}
-      {studentModals.map((modal) => (
-        <Modal
-          key={modal.id}
-          title={
-            <>
-              <UserOutlined style={{ marginRight: 8 }} />
-              {modal.studentName} - 个人成绩
-            </>
-          }
-          open={modal.open}
-          onCancel={() => closeStudentModal(modal.id)}
-          footer={null}
-          width={isMobile ? "95%" : 800}
-          zIndex={modal.zIndex}
-          styles={{
-            mask: { backdropFilter: "blur(8px)" },
-          }}
-        >
-          <Spin spinning={modal.loading}>
-            {isMobile ? (
-              modal.scores.length > 0 ? (
-                renderStudentScoreCards(modal.scores, modal.competitionUnits)
-              ) : (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "40px 0",
-                    color: "#999",
-                  }}
-                >
-                  该学生暂无成绩数据
-                </div>
-              )
-            ) : (
-              <Table
-                columns={getStudentScoresColumns(
-                  modal.competitionUnits,
-                  modal.pointsDetails,
-                )}
-                dataSource={modal.scores}
-                rowKey="id"
-                tableLayout="auto"
-                pagination={false}
-                size="middle"
-                locale={{ emptyText: "该学生暂无成绩数据" }}
-              />
-            )}
-          </Spin>
-        </Modal>
-      ))}
-
-      {/* 班级得分明细模态框 */}
-      {classPointsModals.map((modal) => (
-        <Modal
-          key={modal.id}
-          title={
-            <>
-              <TeamOutlined style={{ marginRight: 8 }} />
-              {modal.className} - 得分明细
-            </>
-          }
-          open={modal.open}
-          onCancel={() => closeClassPointsModal(modal.id)}
-          footer={null}
-          width={isMobile ? "95%" : 800}
-          zIndex={modal.zIndex}
-          styles={{
-            mask: { backdropFilter: "blur(8px)" },
-          }}
-          destroyOnClose
-          afterClose={() => {
-            setClassPointsModals((prev) =>
-              prev.filter((m) => m.id !== modal.id),
-            );
-          }}
-        >
-          <Spin spinning={modal.loading}>
-            {!modal.loading &&
-            (!modal.pointsDetails || modal.pointsDetails.length === 0) ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 0",
-                  color: "#999",
-                }}
-              >
-                该班级暂无得分数据
-              </div>
-            ) : (
-              <Table
-                columns={[
-                  {
-                    title: "比赛项目",
-                    dataIndex: "competition_name",
-                    key: "competition_name",
-                  },
-                  {
-                    title: "得分类型",
-                    dataIndex: "point_type",
-                    key: "point_type",
-                    render: (type: string) =>
-                      type === "ranking" ? (
-                        <Tag color="blue">排名得分</Tag>
-                      ) : (
-                        <Tag color="green">自定义得分</Tag>
-                      ),
-                  },
-                  {
-                    title: "排名",
-                    dataIndex: "ranking",
-                    key: "ranking",
-                    render: (ranking: number | undefined) =>
-                      ranking ? `第${ranking}名` : "-",
-                  },
-                  {
-                    title: "得分",
-                    dataIndex: "points",
-                    key: "points",
-                    render: (points: number) => (
-                      <span
-                        style={{
-                          fontWeight: "bold",
-                          fontSize: 16,
-                          color: "#ff4d4f",
-                        }}
-                      >
-                        {points.toFixed(1)}
-                      </span>
-                    ),
-                  },
-                  {
-                    title: "说明",
-                    dataIndex: "reason",
-                    key: "reason",
-                    render: (reason: string) => reason || "-",
-                  },
-                  {
-                    title: "时间",
-                    dataIndex: "created_at",
-                    key: "created_at",
-                    render: (date: string) =>
-                      new Date(date).toLocaleString("zh-CN"),
-                  },
-                ]}
-                dataSource={modal.pointsDetails}
-                rowKey="id"
-                pagination={false}
-                size="middle"
-                locale={{ emptyText: "该班级暂无得分数据" }}
-              />
-            )}
-          </Spin>
-        </Modal>
-      ))}
-
-      {/* 比赛详情模态框 */}
-      {detailModals.map((modal) => (
-        <Modal
-          key={modal.id}
-          title={
-            <>
-              <TrophyOutlined style={{ marginRight: 8 }} />
-              {modal.competition.name} - 比赛详情
-            </>
-          }
-          open={modal.open}
-          onCancel={() => closeDetailModal(modal.id)}
-          footer={
-            modal.competition.status === "completed" ? (
-              <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => replayAnimation(modal.competition)}
-                >
-                  重播动画
-                </Button>
-              </Space>
-            ) : null
-          }
-          width={isMobile ? "95%" : 1000}
-          zIndex={modal.zIndex}
-          styles={{
-            mask: { backdropFilter: "blur(8px)" },
-          }}
-        >
-          <>
-            {/* 比赛基本信息 */}
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 16,
-                background: "#f5f5f5",
-                borderRadius: 8,
-              }}
-            >
-              {/* 项目图片 */}
-              {modal.competition.image_path && (
-                <div style={{ marginBottom: 12, textAlign: "center" }}>
-                  <Image
-                    src={modal.competition.image_path}
-                    alt={modal.competition.name}
-                    width={120}
-                    height={120}
-                    style={{ borderRadius: 8, objectFit: "cover" }}
-                  />
-                </div>
-              )}
-
-              {/* 项目描述 */}
-              {modal.competition.description && (
-                <div style={{ marginBottom: 12 }}>
-                  <Text strong>项目描述：</Text>
-                  <div
-                    style={{
-                      marginTop: 4,
-                      padding: 8,
-                      background: "#fff",
-                      borderRadius: 4,
-                      border: "1px solid #d9d9d9",
-                    }}
-                  >
-                    <Text>{modal.competition.description}</Text>
-                  </div>
-                </div>
-              )}
-
-              <Row gutter={16}>
-                <Col span={isMobile ? 24 : 8}>
-                  <Text strong>比赛类型：</Text>
-                  {getCompetitionTypeTag(modal.competition.competition_type)}
-                </Col>
-                <Col span={isMobile ? 24 : 8}>
-                  <Text strong>性别要求：</Text>
-                  <Text>{getGenderText(modal.competition.gender)}</Text>
-                </Col>
-                {modal.competition.venue && (
-                  <Col span={isMobile ? 24 : 8}>
-                    <Text strong>比赛地点：</Text>
-                    <Text>{modal.competition.venue}</Text>
-                  </Col>
-                )}
-                {modal.competition.submitter_name && (
-                  <Col span={isMobile ? 24 : 8}>
-                    <Text strong>比赛推荐人：</Text>
-                    <Text>{modal.competition.submitter_name}</Text>
-                  </Col>
-                )}
-              </Row>
-            </div>
-
-            <Divider />
-
-            {/* 根据比赛状态显示不同内容 */}
-            {modal.competition.status === "completed" ? (
-              <>
-                {/* 成绩信息 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Title level={5}>比赛成绩</Title>
-                  <Row
-                    gutter={16}
-                    style={{ marginBottom: 12, fontSize: "14px" }}
-                  >
-                    <Col span={isMobile ? 24 : 12}>
-                      <Text strong>成绩提交人：</Text>
-                      {modal.competition.score_submitter_name || "未提交"}
-                    </Col>
-                    <Col span={isMobile ? 24 : 12}>
-                      <Text strong>成绩审核人：</Text>
-                      {modal.competition.score_reviewer_name || "未审核"}
-                    </Col>
-                    <Col span={isMobile ? 24 : 12}>
-                      <Text strong>成绩提交时间：</Text>
-                      {modal.competition.score_created_at
-                        ? new Date(
-                            modal.competition.score_created_at,
-                          ).toLocaleString()
-                        : "未提交"}
-                    </Col>
-                    <Col span={isMobile ? 24 : 12}>
-                      <Text strong>成绩审核时间：</Text>
-                      {modal.competition.score_reviewed_at
-                        ? new Date(
-                            modal.competition.score_reviewed_at,
-                          ).toLocaleString()
-                        : "未审核"}
-                    </Col>
-                  </Row>
-                </div>
-                <Spin spinning={modal.loading}>
-                  {isMobile ? (
-                    modal.scores.length > 0 ? (
-                      renderScoreCards(modal.scores, modal.competition.unit)
-                    ) : (
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "40px 0",
-                          color: "#999",
-                        }}
-                      >
-                        暂无成绩数据
-                      </div>
-                    )
-                  ) : (
-                    <Table
-                      columns={getScoresColumns(
-                        modal.competition.unit,
-                        modal.competition,
-                      )}
-                      dataSource={modal.scores}
-                      rowKey="id"
-                      tableLayout="auto"
-                      pagination={false}
-                      size="middle"
-                      locale={{ emptyText: "暂无成绩数据" }}
-                    />
-                  )}
-                </Spin>
-              </>
-            ) : (
-              <>
-                {/* 报名信息 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Title level={5}>报名名单</Title>
-                  <div
-                    style={{
-                      marginBottom: 12,
-                      color: "#1677ff",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    报名总数：{modal.registrations.length} 人
-                  </div>
-                </div>
-                <Spin spinning={modal.loading}>
-                  {isMobile ? (
-                    modal.registrations.length > 0 ? (
-                      renderRegistrationCards(modal.registrations)
-                    ) : (
-                      <div
-                        style={{
-                          textAlign: "center",
-                          padding: "40px 0",
-                          color: "#999",
-                        }}
-                      >
-                        该比赛暂无报名数据
-                      </div>
-                    )
-                  ) : (
-                    <Table
-                      columns={registrationsColumns}
-                      dataSource={modal.registrations}
-                      rowKey="id"
-                      tableLayout="auto"
-                      pagination={false}
-                      size="middle"
-                      locale={{ emptyText: "该比赛暂无报名数据" }}
-                    />
-                  )}
-                </Spin>
-              </>
-            )}
-          </>
-        </Modal>
-      ))}
+      <LoginDialog open={loginModalOpen} onClose={closeLoginModal} />
     </Layout>
   );
 };

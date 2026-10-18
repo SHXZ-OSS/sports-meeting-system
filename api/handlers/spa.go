@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
-	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
 // ServeIndexHTML 读取嵌入的 index.html，替换站点标题并注入初始数据后返回。
@@ -44,16 +43,6 @@ func ServeIndexHTML(staticFS fs.FS) gin.HandlerFunc {
 			1,
 		)
 
-		// 注入自定义 logo favicon（若已配置）
-		if cfg.Website.LogoFilepath != "" {
-			faviconURL := "/uploads/" + cfg.Website.LogoFilepath
-			faviconTags := fmt.Sprintf(
-				`<link rel="icon" href="%s" type="%s"><link rel="apple-touch-icon" href="%s">`,
-				faviconURL, utils.ImageContentType(cfg.Website.LogoFilepath), faviconURL,
-			)
-			htmlContent = strings.Replace(htmlContent, "</head>", faviconTags+"</head>", 1)
-		}
-
 		// 构建注入数据并替换脚本占位符
 		jsonBytes, err := json.Marshal(buildInitialData(cfg))
 		if err != nil {
@@ -74,6 +63,7 @@ func buildInitialData(cfg *config.Config) gin.H {
 	return gin.H{
 		"website_info": gin.H{
 			"name":                       cfg.Website.Name,
+			"event_name":                 currentEventName(cfg),
 			"dingtalk_corp_id":           cfg.DingTalk.CorpID,
 			"domain":                     cfg.Website.Domain,
 			"logo_url":                   logoURL(cfg),
@@ -90,10 +80,7 @@ func buildInitialData(cfg *config.Config) gin.H {
 	}
 }
 
-// logoURL 返回自定义 logo 的访问地址（未配置时为空串）
-func logoURL(cfg *config.Config) string {
-	if cfg.Website.LogoFilepath == "" {
-		return ""
-	}
-	return "/uploads/" + cfg.Website.LogoFilepath
+// logoURL 返回站点固定校徽的访问地址。
+func logoURL(_ *config.Config) string {
+	return "/school-emblem.svg"
 }

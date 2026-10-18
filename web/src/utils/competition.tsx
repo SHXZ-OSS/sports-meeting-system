@@ -81,6 +81,14 @@ export const getRankingColor = (ranking?: number) => {
   return "#1677ff";
 };
 
+// 看板浅色背景使用更沉稳的金银铜色，保留名次含义但避免刺眼。
+export const getScoreboardRankingColor = (ranking?: number) => {
+  if (ranking === 1) return "#a67c26";
+  if (ranking === 2) return "#7e8d9c";
+  if (ranking === 3) return "#a36a42";
+  return undefined;
+};
+
 export const getWinningCount = (scores?: Array<{ ranking?: number }>) => {
   return scores?.filter((s) => s.ranking && s.ranking <= 3).length || 0;
 };

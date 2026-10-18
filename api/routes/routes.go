@@ -194,8 +194,6 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	websiteMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionWebsiteManagement))
 	websiteMgmt.GET("", handlers.GetSettings)
 	websiteMgmt.PUT("", handlers.UpdateSettings)
-	// 自定义 logo 上传
-	websiteMgmt.POST("/logo", handlers.UploadLogo)
 	// 运动会届次管理
 	websiteMgmt.GET("/events", handlers.GetEvents)
 	websiteMgmt.POST("/events", handlers.CreateEvent)
@@ -224,6 +222,8 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 		"favicon.svg",
 		"logo192.png",
 		"logo512.png",
+		"school-emblem.svg",
+		"school-emblem.png",
 		"asset-manifest.json",
 		"apple-touch-icon.png",
 		"effect.mp3",

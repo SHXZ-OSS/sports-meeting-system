@@ -149,15 +149,15 @@ func DingTalkSSOCallback(c *gin.Context) {
 		return
 	}
 
-	// 重定向到登录页面处理
+	// 重定向到前端看板处理
 	userJSON, err := json.Marshal(session.User)
 	if err != nil {
-		redirectURL := fmt.Sprintf("%s/login?dingtalk_error=%s", baseURL, url.QueryEscape("用户信息序列化失败"))
+		redirectURL := fmt.Sprintf("%s/?dingtalk_error=%s", baseURL, url.QueryEscape("用户信息序列化失败"))
 		c.Redirect(http.StatusFound, redirectURL)
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s/login?dingtalk_token=%s&dingtalk_user=%s",
+	redirectURL := fmt.Sprintf("%s/?dingtalk_token=%s&dingtalk_user=%s",
 		baseURL,
 		url.QueryEscape(session.Token),
 		url.QueryEscape(string(userJSON)))
@@ -257,7 +257,7 @@ func OIDCSSOCallback(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?oidc_token=%s&oidc_user=%s",
+	c.Redirect(http.StatusFound, fmt.Sprintf("%s/?oidc_token=%s&oidc_user=%s",
 		baseURL,
 		url.QueryEscape(session.Token),
 		url.QueryEscape(string(userJSON))))
