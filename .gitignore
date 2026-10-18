@@ -29,3 +29,6 @@ sports-meeting-system.exe
 nul
 *.exe~
 run-preview/
+
+# Cross-compiled binaries
+sports-meeting-system-*
