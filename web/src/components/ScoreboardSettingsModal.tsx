@@ -66,10 +66,12 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
     });
   };
 
-  const updateAutoOpenResultModal = (autoOpenResultModal: boolean) => {
+  const updateOpenResultDetailAfterOverview = (
+    openResultDetailAfterOverview: boolean,
+  ) => {
     onChange({
       ...settings,
-      autoOpenResultModal,
+      openResultDetailAfterOverview,
     });
   };
 
@@ -122,8 +124,8 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
               动画结束弹窗
             </Text>
             <Switch
-              checked={settings.autoOpenResultModal}
-              onChange={updateAutoOpenResultModal}
+              checked={settings.openResultDetailAfterOverview}
+              onChange={updateOpenResultDetailAfterOverview}
               checkedChildren="开启"
               unCheckedChildren="关闭"
             />

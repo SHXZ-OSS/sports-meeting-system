@@ -25,6 +25,7 @@ import {
   getRankingColor,
   getScoreboardRankingColor,
 } from "../../utils/competition";
+import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
 import { shouldEnableBackgroundEffects } from "../../utils/performance";
 import {
@@ -170,6 +171,7 @@ const PublicScoreboard: React.FC = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, isAdmin } = useAuth();
   const [loginModalOpen, setLoginModalOpen] = useState(
     () =>
       Boolean((location.state as { openLogin?: boolean } | null)?.openLogin) ||
@@ -195,6 +197,15 @@ const PublicScoreboard: React.FC = () => {
       navigate("/", { replace: true });
     }
   }, [location.search, location.state, navigate]);
+
+  // 已登录时首页按钮直接进入对应后台，不再重复弹出登录框。
+  const handleAccountClick = useCallback(() => {
+    if (!isAuthenticated) {
+      setLoginModalOpen(true);
+      return;
+    }
+    navigate(isAdmin ? "/admin" : "/student");
+  }, [isAdmin, isAuthenticated, navigate]);
 
   const [lastNotifiedCompetitionId, setLastNotifiedCompetitionId] = useState<
     number | null
@@ -723,7 +734,7 @@ const PublicScoreboard: React.FC = () => {
     setOverviewStopped(false);
     setOverviewRemaining(OVERVIEW_SECONDS);
     // 只有在非手动重播且设置允许时才打开模态框
-    if (!isManualReplay && scoreboardSettings.autoOpenResultModal) {
+    if (!isManualReplay && scoreboardSettings.openResultDetailAfterOverview) {
       handleViewScores(animatingCompetition);
     }
     setCurrentIndex(0);
@@ -1206,7 +1217,8 @@ const PublicScoreboard: React.FC = () => {
         onOpenCompleted={handleViewCompletedCompetitions}
         onOpenPending={handleViewPendingCompetitions}
         onTitleClick={handleTitleClick}
-        onLogin={() => setLoginModalOpen(true)}
+        isLoggedIn={isAuthenticated}
+        onAccountClick={handleAccountClick}
       />
 
       <ScoreboardSettingsModal
