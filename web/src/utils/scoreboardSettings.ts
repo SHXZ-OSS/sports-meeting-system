@@ -12,7 +12,7 @@ export interface ScoreAnnouncementSettings {
 
 export interface ScoreboardSettings {
   backgroundEffectsPreference: BackgroundEffectsPreference;
-  autoOpenResultModal: boolean;
+  openResultDetailAfterOverview: boolean;
   scoreAnnouncement: ScoreAnnouncementSettings;
 }
 
@@ -20,7 +20,7 @@ const STORAGE_KEY = "public_scoreboard_settings";
 
 export const defaultScoreboardSettings: ScoreboardSettings = {
   backgroundEffectsPreference: "auto",
-  autoOpenResultModal: false,
+  openResultDetailAfterOverview: false,
   scoreAnnouncement: {
     enabled: false,
     scope: "top8",
@@ -52,10 +52,10 @@ export function getScoreboardSettings(): ScoreboardSettings {
       )
         ? parsed.backgroundEffectsPreference
         : defaultScoreboardSettings.backgroundEffectsPreference,
-      autoOpenResultModal:
-        typeof parsed.autoOpenResultModal === "boolean"
-          ? parsed.autoOpenResultModal
-          : defaultScoreboardSettings.autoOpenResultModal,
+      openResultDetailAfterOverview:
+        typeof parsed.openResultDetailAfterOverview === "boolean"
+          ? parsed.openResultDetailAfterOverview
+          : defaultScoreboardSettings.openResultDetailAfterOverview,
       scoreAnnouncement: {
         enabled:
           typeof parsed.scoreAnnouncement?.enabled === "boolean"

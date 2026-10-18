@@ -49,7 +49,8 @@ interface PublicHomeBoardProps {
   onOpenCompleted: () => void;
   onOpenPending: () => void;
   onTitleClick: () => void;
-  onLogin: () => void;
+  isLoggedIn: boolean;
+  onAccountClick: () => void;
 }
 
 export default function PublicHomeBoard({
@@ -66,7 +67,8 @@ export default function PublicHomeBoard({
   onOpenCompleted,
   onOpenPending,
   onTitleClick,
-  onLogin,
+  isLoggedIn,
+  onAccountClick,
 }: PublicHomeBoardProps) {
   const totalCount = completedCount + pendingCount;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -83,11 +85,20 @@ export default function PublicHomeBoard({
           <h1>{eventName?.trim() || "运动会"}</h1>
         </div>
         <div className="ph-side">
-          <button type="button" className="ph-login" onClick={onLogin}>
+          <button
+            type="button"
+            className="ph-login"
+            onClick={onAccountClick}
+            title={isLoggedIn ? "进入系统" : undefined}
+          >
             <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
+              {isLoggedIn ? (
+                <path d="M10 10a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 10 10Zm-6 6.4c0-2.5 2.7-4.2 6-4.2s6 1.7 6 4.2" />
+              ) : (
+                <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
+              )}
             </svg>
-            登录
+            {isLoggedIn ? "进入系统" : "登录"}
           </button>
         </div>
       </header>

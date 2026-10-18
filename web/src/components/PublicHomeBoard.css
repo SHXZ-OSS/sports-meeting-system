@@ -154,6 +154,7 @@
 .ph-login svg {
   width: 14px;
   height: 14px;
+  flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.6;
