@@ -83,7 +83,7 @@ export const adminClassAPI = {
   getClasses: async (params?: {
     page?: number;
     page_size?: number;
-    name?: string;
+    keyword?: string;
   }): Promise<PaginatedResponse<Class[]>> => {
     return await callPaginatedApi(() => api.get("/admin/classes", { params }));
   },

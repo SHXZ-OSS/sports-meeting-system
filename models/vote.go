@@ -33,6 +33,11 @@ func VoteCompetition(db *gorm.DB, studentID, competitionID int, voteType types.V
 		return errors.New("该比赛已开始检录或已结束，投票已关闭")
 	}
 
+	// 全校性、仅报名项目不是征集项目，不参与投票
+	if competition.CompetitionType == types.TypeSchool || competition.CompetitionType == types.TypeRegistration {
+		return errors.New("该项目不支持投票")
+	}
+
 	// 检查学生是否存在
 	var student types.Student
 	if err := db.First(&student, studentID).Error; err != nil {

@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -9,6 +12,14 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
+
+// dingTalkUserIDPattern 钉钉 UserID 仅允许字母、数字与 . _ -
+var dingTalkUserIDPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// SendDingTalkTestRequest 发送钉钉测试通知请求
+type SendDingTalkTestRequest struct {
+	UserID string `json:"userid"`
+}
 
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
@@ -189,6 +200,37 @@ func UpdateSettings(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseSuccessWithCustomMessage(c, "更新成功")
+}
+
+// SendDingTalkTest 使用当前已保存的钉钉配置向指定用户发送测试通知
+func SendDingTalkTest(c *gin.Context) {
+	var req SendDingTalkTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "请输入钉钉 UserID")
+		return
+	}
+
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" || len(userID) > 64 || !dingTalkUserIDPattern.MatchString(userID) {
+		utils.ResponseError(c, http.StatusBadRequest, "钉钉 UserID 格式不正确")
+		return
+	}
+
+	lines := []string{
+		"【测试通知】钉钉通知配置正常",
+		"这是一条来自运动会管理系统的测试消息。",
+	}
+	if domain := strings.TrimRight(config.Get().Website.Domain, "/"); domain != "" {
+		lines = append(lines, "查看运动会看板："+domain+"/")
+	}
+	lines = append(lines, "（发送于 "+time.Now().Format(time.RFC3339)+"）")
+
+	if err := utils.SendDingTalkText([]string{userID}, strings.Join(lines, "\n")); err != nil {
+		utils.ResponseError(c, http.StatusInternalServerError, "发送失败："+err.Error())
+		return
+	}
+
+	utils.ResponseSuccessWithCustomMessage(c, "测试通知已发送")
 }
 
 // GetEvents 获取运动会届次列表

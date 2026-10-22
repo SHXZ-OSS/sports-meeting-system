@@ -98,10 +98,22 @@ export const getBestRanking = (scores?: Array<{ ranking?: number }>) => {
   return rankings && rankings.length > 0 ? Math.min(...rankings) : null;
 };
 
+// 全校性比赛与团体赛都按班级录一条成绩
+export const isClassScoredType = (competitionType?: string) =>
+  competitionType === "team" || competitionType === "school";
+
+export const isSchoolWideType = (competitionType?: string) =>
+  competitionType === "school";
+
+export const isRegistrationOnlyType = (competitionType?: string) =>
+  competitionType === "registration";
+
 export const getCompetitionTypeTag = (competitionType: string) => {
   const typeMap = {
     individual: { color: "blue", text: "个人赛" },
     team: { color: "purple", text: "团体赛" },
+    school: { color: "orange", text: "全校性" },
+    registration: { color: "cyan", text: "仅报名" },
   };
 
   const config = typeMap[competitionType as keyof typeof typeMap];

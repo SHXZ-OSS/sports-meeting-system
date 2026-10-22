@@ -23,27 +23,46 @@ import {
   UserOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
+  MinusCircleOutlined,
 } from "@ant-design/icons";
 import { pointsAPI } from "../../api/admin/points";
 import { adminClassAPI } from "../../api/admin/student";
+import { adminRegistrationAPI } from "../../api/admin/registration";
+import { useAuth } from "../../contexts/AuthContext";
 import {
+  handleBatchResp,
   handleResp,
   handleRespWithNotifySuccess,
 } from "../../utils/handleResp";
 import { getRankingDisplayForTable } from "../../utils/competition";
 import { chineseSort } from "../../utils/sort";
+import { PERMISSIONS } from "../../types";
 import type {
   ClassPointsSummary,
   StudentPointsSummary,
   PointDetail,
   Class,
+  Competition,
 } from "../../types";
 import CertificateExport from "../../components/CertificateExport";
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
+interface DeductTarget {
+  classId: number;
+  className: string;
+  competitions: string[];
+  missingCount: number;
+  deducted: boolean;
+}
+
 const PointsManagement: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canDeductUnderfilled =
+    hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) &&
+    hasPermission(PERMISSIONS.REGISTRATION_MANAGEMENT);
+
   const [form] = Form.useForm();
   const [classPoints, setClassPoints] = useState<ClassPointsSummary[]>([]);
   const [studentPoints, setStudentPoints] = useState<StudentPointsSummary[]>(
@@ -60,6 +79,11 @@ const PointsManagement: React.FC = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
   const [certificateModalVisible, setCertificateModalVisible] = useState(false);
+  const [deductModalVisible, setDeductModalVisible] = useState(false);
+  const [deductTargets, setDeductTargets] = useState<DeductTarget[]>([]);
+  const [deductPoints, setDeductPoints] = useState(1);
+  const [deductLoading, setDeductLoading] = useState(false);
+  const [deductPreviewLoading, setDeductPreviewLoading] = useState(false);
 
   // 获取班级列表
   const fetchClasses = async () => {
@@ -168,6 +192,179 @@ const PointsManagement: React.FC = () => {
     });
   };
 
+  // 打开报名未满扣分预览：复用报名检查清单，前端汇总未满班级
+  const openDeductModal = async () => {
+    setDeductPreviewLoading(true);
+    try {
+      const [checklistResponse, competitionsResponse, classesResponse] =
+        await Promise.all([
+          adminRegistrationAPI.getCompetitionChecklist(),
+          adminRegistrationAPI.getCompetitions({
+            status:
+              "approved,checking_in,in_progress,pending_score_review,completed",
+          }),
+          adminRegistrationAPI.getClasses(),
+        ]);
+
+      let checklist: Array<{
+        competition_id: number;
+        competition_name: string;
+        status: "ok" | "warning" | "error";
+        message: string;
+      }> = [];
+      let competitions: Competition[] = [];
+      let classList: Class[] = [];
+
+      handleResp(checklistResponse, (data) => {
+        checklist = data || [];
+      });
+      handleResp(competitionsResponse, (data) => {
+        competitions = data || [];
+      });
+      handleResp(classesResponse, (data) => {
+        classList = data || [];
+      });
+
+      const activeCompetitionIDs = new Set(
+        competitions
+          .filter((competition) => competition.competition_type !== "school")
+          .map((competition) => competition.id),
+      );
+      const classIDByName = new Map(classList.map((cls) => [cls.name, cls.id]));
+
+      const grouped = new Map<
+        string,
+        {
+          classId: number;
+          className: string;
+          competitions: Set<string>;
+          missingCount: number;
+        }
+      >();
+      checklist.forEach((issue) => {
+        if (issue.status !== "error" || !issue.message.includes("不足")) {
+          return;
+        }
+        if (!activeCompetitionIDs.has(issue.competition_id)) {
+          return;
+        }
+        const match = issue.message.match(
+          /^班级 (.+?) (报名人数|女生人数|男生人数)不足（(\d+)\/(\d+)）$/,
+        );
+        if (!match) {
+          return;
+        }
+        const className = match[1];
+        const current = Number(match[3]);
+        const min = Number(match[4]);
+        const missing = Math.max(0, min - current);
+        const classId = classIDByName.get(className);
+        if (!classId) {
+          return;
+        }
+        const item = grouped.get(className) ?? {
+          classId,
+          className,
+          competitions: new Set<string>(),
+          missingCount: 0,
+        };
+        item.competitions.add(issue.competition_name);
+        item.missingCount += missing;
+        grouped.set(className, item);
+      });
+
+      const targets = await Promise.all(
+        Array.from(grouped.values()).map(async (item) => {
+          const detailsResponse = await pointsAPI.getClassPointDetails(
+            item.classId,
+          );
+          let deducted = false;
+          handleResp(detailsResponse, (details) => {
+            deducted = (details || []).some(
+              (detail) =>
+                detail.point_type === "custom" &&
+                (detail.reason ?? "").startsWith("[报名未满扣分]"),
+            );
+          });
+          return {
+            classId: item.classId,
+            className: item.className,
+            competitions: Array.from(item.competitions),
+            missingCount: item.missingCount,
+            deducted,
+          };
+        }),
+      );
+
+      if (targets.length === 0) {
+        message.success("没有报名未满的班级");
+        return;
+      }
+
+      setDeductTargets(targets);
+      setDeductPoints(1);
+      setDeductModalVisible(true);
+    } finally {
+      setDeductPreviewLoading(false);
+    }
+  };
+
+  // 为报名未满的班级一键扣分：按缺额人数 × 每人扣分逐班调用现成的自定义得分接口
+  const handleDeductUnderfilled = async () => {
+    if (deductPoints <= 0) {
+      message.warning("每人扣分必须大于 0");
+      return;
+    }
+
+    const targets = deductTargets.filter(
+      (target) => !target.deducted && target.missingCount > 0,
+    );
+    if (targets.length === 0) {
+      message.info("所有未满班级都已扣过分");
+      return;
+    }
+
+    setDeductLoading(true);
+    try {
+      const items = targets.map((target) => ({
+        id: target.classId,
+        name: target.className,
+        request: async () => {
+          const reason =
+            `[报名未满扣分] 缺${target.missingCount}人：${target.competitions.join(
+              "、",
+            )}`.slice(0, 500);
+          const response = await pointsAPI.addCustomPointsToClass(
+            target.classId,
+            -Math.abs(deductPoints) * target.missingCount,
+            reason,
+          );
+          if (response.code !== 200) {
+            throw new Error(response.message);
+          }
+          return response.data;
+        },
+      }));
+
+      const results = await handleBatchResp(items);
+      const failed = results.filter((result) => !result.success);
+      setDeductModalVisible(false);
+      fetchClassPoints();
+
+      if (failed.length > 0) {
+        message.warning(
+          `已完成 ${results.length - failed.length} 个班级，${
+            failed.length
+          } 个失败：${failed.map((result) => result.name).join("、")}`,
+        );
+      } else {
+        message.success(`已为 ${targets.length} 个班级扣分`);
+      }
+    } finally {
+      setDeductLoading(false);
+    }
+  };
+
   // 导出团体得分表格
   const handleExportClassPoints = async () => {
     setExportLoading(true);
@@ -231,7 +428,10 @@ const PointsManagement: React.FC = () => {
           if (detail.point_type === "ranking") {
             if (detail.competition_type === "individual") {
               individualProjects.add(detail.competition_name);
-            } else if (detail.competition_type === "team") {
+            } else if (
+              detail.competition_type === "team" ||
+              detail.competition_type === "school"
+            ) {
               teamProjects.add(detail.competition_name);
             }
           }
@@ -252,7 +452,7 @@ const PointsManagement: React.FC = () => {
       const headerRow1 = [
         "班级",
         ...Array(individualProjectList.length + 1).fill("个人项目"),
-        ...Array(teamProjectList.length).fill("团体项目"),
+        ...Array(teamProjectList.length).fill("团体/全校性项目"),
         "班级总分",
         "班级名次",
       ];
@@ -409,7 +609,11 @@ const PointsManagement: React.FC = () => {
       title: "自定义得分",
       dataIndex: "custom_points",
       key: "custom_points",
-      render: (points: number) => points.toFixed(1),
+      render: (points: number) => (
+        <span style={{ color: points < 0 ? "#ff4d4f" : undefined }}>
+          {points.toFixed(1)}
+        </span>
+      ),
     },
     {
       title: "操作",
@@ -489,7 +693,7 @@ const PointsManagement: React.FC = () => {
         dataIndex: "points",
         key: "points",
         render: (points: number) => (
-          <Text strong style={{ color: "#52c41a" }}>
+          <Text strong style={{ color: points < 0 ? "#ff4d4f" : "#52c41a" }}>
             {points > 0 ? "+" : ""}
             {points.toFixed(1)}
           </Text>
@@ -572,6 +776,16 @@ const PointsManagement: React.FC = () => {
           >
             导出团体得分
           </Button>
+          {canDeductUnderfilled && (
+            <Button
+              danger
+              icon={<MinusCircleOutlined />}
+              onClick={openDeductModal}
+              loading={deductPreviewLoading}
+            >
+              为报名未满班级扣分
+            </Button>
+          )}
           <Button
             icon={<FilePdfOutlined />}
             onClick={() => setCertificateModalVisible(true)}
@@ -687,6 +901,88 @@ const PointsManagement: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 报名未满一键扣分Modal */}
+      <Modal
+        title="为报名未满班级扣分"
+        open={deductModalVisible}
+        onCancel={() => setDeductModalVisible(false)}
+        width={760}
+        footer={
+          <Space>
+            <Button onClick={() => setDeductModalVisible(false)}>取消</Button>
+            <Button
+              danger
+              type="primary"
+              loading={deductLoading}
+              onClick={handleDeductUnderfilled}
+            >
+              确认扣分
+            </Button>
+          </Space>
+        }
+      >
+        <div style={{ marginBottom: 12, color: "#666", fontSize: 13 }}>
+          按缺额人数扣分：每人扣 N 分，班级扣除“缺额人数 × 每人扣分”。
+          已扣分的班级会自动跳过，未满项目会写入扣分原因。
+        </div>
+        <Space style={{ marginBottom: 12 }}>
+          <span>每人扣分：</span>
+          <InputNumber
+            min={0.5}
+            step={0.5}
+            value={deductPoints}
+            onChange={(value) => setDeductPoints(value ?? 1)}
+          />
+        </Space>
+        <Table
+          size="small"
+          rowKey="classId"
+          dataSource={deductTargets}
+          pagination={false}
+          columns={[
+            {
+              title: "班级",
+              dataIndex: "className",
+              key: "className",
+              width: 110,
+            },
+            {
+              title: "未满项目",
+              key: "competitions",
+              render: (_: unknown, record: DeductTarget) =>
+                record.competitions.join("、"),
+            },
+            {
+              title: "缺额人数",
+              key: "missingCount",
+              width: 90,
+              render: (_: unknown, record: DeductTarget) =>
+                `缺 ${record.missingCount} 人`,
+            },
+            {
+              title: "本次扣分",
+              key: "deduction",
+              width: 90,
+              render: (_: unknown, record: DeductTarget) =>
+                record.deducted
+                  ? "—"
+                  : `-${(record.missingCount * deductPoints).toFixed(1)}`,
+            },
+            {
+              title: "状态",
+              key: "status",
+              width: 130,
+              render: (_: unknown, record: DeductTarget) =>
+                record.deducted ? (
+                  <Tag color="default">已扣分，将跳过</Tag>
+                ) : (
+                  <Tag color="orange">待扣分</Tag>
+                ),
+            },
+          ]}
+        />
       </Modal>
 
       {/* 得分明细Modal */}

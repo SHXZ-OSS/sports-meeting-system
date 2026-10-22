@@ -1,6 +1,7 @@
 import { api, callApi, callPaginatedApi } from "../config";
 import {
   Registration,
+  RegistrationCustomValueInput,
   Student,
   Class,
   ApiResponse,
@@ -11,6 +12,7 @@ import {
 export interface AdminRegisterRequest {
   student_id: number;
   competition_id: number;
+  custom_values?: RegistrationCustomValueInput[];
 }
 
 export interface AdminUnregisterRequest {
@@ -85,6 +87,20 @@ export const adminRegistrationAPI = {
     return await callApi(() =>
       api.delete(`/admin/registrations/unregister/${competitionId}`, {
         data: { student_id: studentId },
+      }),
+    );
+  },
+
+  /**
+   * 修改报名自定义字段值
+   */
+  updateRegistrationCustomValues: async (
+    registrationId: number,
+    customValues: RegistrationCustomValueInput[],
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.patch(`/admin/registrations/${registrationId}/custom-values`, {
+        custom_values: customValues,
       }),
     );
   },

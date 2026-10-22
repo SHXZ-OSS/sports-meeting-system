@@ -17,6 +17,7 @@ import {
   Table,
   Popconfirm,
   message,
+  Divider,
 } from "antd";
 import {
   SaveOutlined,
@@ -79,6 +80,8 @@ const Settings: React.FC = () => {
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testUserID, setTestUserID] = useState("");
+  const [testSending, setTestSending] = useState(false);
   const { refresh: refreshWebsiteInfo } = useWebsite();
 
   // Event management states
@@ -283,6 +286,22 @@ const Settings: React.FC = () => {
       () => {
         setSaving(false);
       },
+    );
+  };
+
+  const handleSendTest = async () => {
+    const userID = testUserID.trim();
+    if (!userID) {
+      message.warning("请输入钉钉 UserID");
+      return;
+    }
+
+    setTestSending(true);
+    const response = await adminSettingsAPI.sendDingTalkTest(userID);
+    handleRespWithNotifySuccess(
+      response,
+      () => setTestSending(false),
+      () => setTestSending(false),
     );
   };
 
@@ -656,6 +675,28 @@ const Settings: React.FC = () => {
             >
               <Switch />
             </Form.Item>
+
+            <Divider style={{ margin: "8px 0 16px" }} />
+            <Typography.Text strong>发送测试通知</Typography.Text>
+            <div style={{ color: "rgba(0, 0, 0, 0.45)", margin: "4px 0 12px" }}>
+              使用当前已保存的钉钉配置，向指定用户发送一条测试消息；修改上方配置后请先保存。
+            </div>
+            <Space.Compact style={{ width: "100%", maxWidth: 420 }}>
+              <Input
+                placeholder="接收人的钉钉 UserID"
+                value={testUserID}
+                onChange={(event) => setTestUserID(event.target.value)}
+                onPressEnter={handleSendTest}
+                allowClear
+              />
+              <Button
+                type="primary"
+                onClick={handleSendTest}
+                loading={testSending}
+              >
+                发送测试
+              </Button>
+            </Space.Compact>
           </Card>
 
           {/* 统一认证设置 */}

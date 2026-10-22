@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -30,6 +31,7 @@ var (
 	ErrMaleMaxLessThanMin           = errors.New("男生最大人数不能小于最小人数")
 	ErrInvalidStatusForRegistration = errors.New("当前比赛状态不允许报名或取消报名")
 	ErrEndTimeBeforeStartTime       = errors.New("结束时间不能早于开始时间")
+	ErrSchoolCompetitionNoRegister  = errors.New("全校性比赛无需报名")
 )
 
 // 性别常量
@@ -328,7 +330,7 @@ func (rv *RegistrationValidator) ValidateRegistration(
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status, gender, competition_type").
+	if err := rv.db.Select("status, gender, competition_type, max_participants_per_class").
 		Where("id = ? AND event_id = ?", competitionID, currentEventID).
 		First(&competition).
 		Error; err != nil {
@@ -342,6 +344,11 @@ func (rv *RegistrationValidator) ValidateRegistration(
 		return ErrInvalidStatusForRegistration
 	}
 
+	// 全校性比赛按班级录入成绩，不允许学生报名
+	if competition.CompetitionType == types.TypeSchool {
+		return ErrSchoolCompetitionNoRegister
+	}
+
 	// 个人和团体比赛都以学生为单位报名
 	if studentID == nil || *studentID <= 0 {
 		return ErrStudentNotFound
@@ -349,7 +356,7 @@ func (rv *RegistrationValidator) ValidateRegistration(
 
 	// 检查学生是否存在
 	var student types.Student
-	if err := rv.db.Select("gender").First(&student, *studentID).Error; err != nil {
+	if err := rv.db.Select("gender", "class_id").First(&student, *studentID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrStudentNotFound
 		}
@@ -371,6 +378,20 @@ func (rv *RegistrationValidator) ValidateRegistration(
 	}
 	if count > 0 {
 		return ErrAlreadyRegistered
+	}
+
+	// 仅报名项目按班级限制名额（如志愿者每班 3 人），超出直接拒绝
+	if competition.CompetitionType == types.TypeRegistration && competition.MaxParticipantsPerClass > 0 {
+		var classCount int64
+		if err := rv.db.Model(&types.Registration{}).
+			Where("competition_id = ? AND class_id = ?", competitionID, student.ClassID).
+			Count(&classCount).
+			Error; err != nil {
+			return err
+		}
+		if int(classCount) >= competition.MaxParticipantsPerClass {
+			return fmt.Errorf("该班级报名人数已满（最多%d人）", competition.MaxParticipantsPerClass)
+		}
 	}
 
 	// 检查学生报名数量限制（全局管理员无此限制，非全局管理员需要检查，仅统计个人比赛）
@@ -415,7 +436,7 @@ func (rv *RegistrationValidator) ValidateUnregistration(
 
 	// 检查比赛是否存在
 	var competition types.Competition
-	if err := rv.db.Select("status").
+	if err := rv.db.Select("status, competition_type").
 		Where("id = ? AND event_id = ?", competitionID, currentEventID).
 		First(&competition).
 		Error; err != nil {
@@ -427,6 +448,10 @@ func (rv *RegistrationValidator) ValidateUnregistration(
 
 	if !IsCompetitionStatusValidForRegistration(competition.Status) {
 		return ErrInvalidStatusForRegistration
+	}
+
+	if competition.CompetitionType == types.TypeSchool {
+		return ErrSchoolCompetitionNoRegister
 	}
 
 	// 检查学生是否存在

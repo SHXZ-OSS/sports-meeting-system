@@ -1,6 +1,8 @@
 import { api, callApi, callPaginatedApi } from "../config";
 import {
   Competition,
+  CompetitionType,
+  RegistrationCustomValueInput,
   Score,
   ApiResponse,
   PaginatedResponse,
@@ -12,7 +14,7 @@ export interface CreateCompetitionRequest {
   description: string;
   ranking_mode: "higher_first" | "lower_first";
   gender: number;
-  competition_type: "individual" | "team";
+  competition_type: CompetitionType;
   min_participants_per_class: number;
   max_participants_per_class: number;
   min_female_per_class?: number;
@@ -26,6 +28,7 @@ export interface CreateCompetitionRequest {
 
 export interface RegisterCompetitionRequest {
   competition_id: number;
+  custom_values?: RegistrationCustomValueInput[];
 }
 
 export interface RegistrationResponse {

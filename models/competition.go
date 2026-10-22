@@ -2,6 +2,8 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,6 +23,7 @@ func CreateCompetition(
 	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterStudentID, classSubmitterUserID int,
 	startTime, endTime *time.Time,
 	allowConcurrent bool,
+	customFields []types.CompetitionCustomField,
 ) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
@@ -81,11 +84,14 @@ func CreateCompetition(
 
 	// 使用事务插入比赛数据
 	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.Create(competition).Error
+		if err := tx.Create(competition).Error; err != nil {
+			return err
+		}
+		return createCustomFields(tx, competition.ID, customFields)
 	})
 }
 
-func UpdateCompetition(competition *types.Competition) error {
+func UpdateCompetition(competition *types.Competition, customFields []types.CompetitionCustomField) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
@@ -100,9 +106,30 @@ func UpdateCompetition(competition *types.Competition) error {
 		return err
 	}
 
+	// 已有报名或成绩时禁止修改比赛类型，避免历史数据与类型不一致
+	var existing types.Competition
+	if err := db.Select("competition_type").First(&existing, competition.ID).Error; err != nil {
+		return err
+	}
+	if existing.CompetitionType != competition.CompetitionType {
+		var registrationCount int64
+		if err := db.Model(&types.Registration{}).Where("competition_id = ?", competition.ID).
+			Count(&registrationCount).Error; err != nil {
+			return err
+		}
+		var scoreCount int64
+		if err := db.Model(&types.Score{}).Where("competition_id = ?", competition.ID).
+			Count(&scoreCount).Error; err != nil {
+			return err
+		}
+		if registrationCount > 0 || scoreCount > 0 {
+			return errors.New("该项目已有报名或成绩，不能修改比赛类型")
+		}
+	}
+
 	// 使用事务更新比赛数据
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Model(competition).
+		if err := tx.Model(competition).
 			Select("name", "description", "venue", "image_path", "unit", "gender", "ranking_mode", "competition_type", "min_participants_per_class", "max_participants_per_class", "min_female_per_class", "max_female_per_class", "min_male_per_class", "max_male_per_class", "start_time", "end_time", "allow_concurrent").
 			Updates(map[string]any{
 				"name":                       competition.Name,
@@ -123,7 +150,10 @@ func UpdateCompetition(competition *types.Competition) error {
 				"end_time":                   competition.EndTime,
 				"allow_concurrent":           competition.AllowConcurrent,
 			}).
-			Error
+			Error; err != nil {
+			return err
+		}
+		return syncCustomFields(tx, competition.ID, customFields)
 	})
 	if err != nil {
 		return err
@@ -187,6 +217,7 @@ func AdminCreateCompetition(
 	minParticipantsPerClass, maxParticipantsPerClass, minFemalePerClass, maxFemalePerClass, minMalePerClass, maxMalePerClass, submitterID int,
 	startTime, endTime *time.Time,
 	allowConcurrent bool,
+	customFields []types.CompetitionCustomField,
 ) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
@@ -243,8 +274,162 @@ func AdminCreateCompetition(
 
 	// 使用事务插入比赛数据
 	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.Create(competition).Error
+		if err := tx.Create(competition).Error; err != nil {
+			return err
+		}
+		return createCustomFields(tx, competition.ID, customFields)
 	})
+}
+
+// validateCustomFields 校验报名自定义字段定义
+func validateCustomFields(fields []types.CompetitionCustomField) error {
+	seen := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		name := strings.TrimSpace(field.Name)
+		if name == "" {
+			return errors.New("自定义字段名称不能为空")
+		}
+		if len([]rune(name)) > 50 {
+			return fmt.Errorf("自定义字段名称过长：%s", name)
+		}
+		if strings.ContainsAny(name, "|;；") {
+			return fmt.Errorf("自定义字段名称不能包含 | 或 ;：%s", name)
+		}
+		if !isValidCustomFieldType(field.FieldType) {
+			return fmt.Errorf("自定义字段「%s」类型无效", name)
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("自定义字段名称重复：%s", name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
+// isValidCustomFieldType 判断自定义字段类型是否合法
+func isValidCustomFieldType(fieldType string) bool {
+	switch fieldType {
+	case types.CustomFieldTypeString, types.CustomFieldTypeInt, types.CustomFieldTypeFloat, types.CustomFieldTypeBool:
+		return true
+	default:
+		return false
+	}
+}
+
+// createCustomFields 创建比赛的报名自定义字段
+func createCustomFields(tx *gorm.DB, competitionID int, fields []types.CompetitionCustomField) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	if err := validateCustomFields(fields); err != nil {
+		return err
+	}
+
+	records := make([]types.CompetitionCustomField, 0, len(fields))
+	for i, field := range fields {
+		sortOrder := field.SortOrder
+		if sortOrder == 0 {
+			sortOrder = i
+		}
+		records = append(records, types.CompetitionCustomField{
+			CompetitionID: competitionID,
+			Name:          strings.TrimSpace(field.Name),
+			FieldType:     field.FieldType,
+			Required:      field.Required,
+			SortOrder:     sortOrder,
+		})
+	}
+	return tx.Create(&records).Error
+}
+
+// syncCustomFields 同步比赛的自定义字段定义；已有报名值的字段禁止修改或删除
+func syncCustomFields(tx *gorm.DB, competitionID int, fields []types.CompetitionCustomField) error {
+	if err := validateCustomFields(fields); err != nil {
+		return err
+	}
+
+	var existing []types.CompetitionCustomField
+	if err := tx.Where("competition_id = ?", competitionID).Find(&existing).Error; err != nil {
+		return err
+	}
+
+	existingByID := make(map[int]types.CompetitionCustomField, len(existing))
+	for _, field := range existing {
+		existingByID[field.ID] = field
+	}
+
+	incomingByID := make(map[int]types.CompetitionCustomField, len(fields))
+	newFields := make([]types.CompetitionCustomField, 0)
+	for i, field := range fields {
+		field.Name = strings.TrimSpace(field.Name)
+		if field.ID > 0 {
+			if _, ok := existingByID[field.ID]; !ok {
+				return fmt.Errorf("自定义字段不存在：%d", field.ID)
+			}
+			incomingByID[field.ID] = field
+			continue
+		}
+		if field.SortOrder == 0 {
+			field.SortOrder = i
+		}
+		field.CompetitionID = competitionID
+		newFields = append(newFields, field)
+	}
+
+	for _, oldField := range existing {
+		incoming, ok := incomingByID[oldField.ID]
+		if !ok {
+			count, err := countCustomFieldValues(tx, oldField.ID)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				return fmt.Errorf("字段「%s」已有报名数据，不能删除", oldField.Name)
+			}
+			if err := tx.Delete(&types.CompetitionCustomField{}, oldField.ID).Error; err != nil {
+				return err
+			}
+			continue
+		}
+
+		if incoming.Name == oldField.Name &&
+			incoming.FieldType == oldField.FieldType &&
+			incoming.Required == oldField.Required &&
+			incoming.SortOrder == oldField.SortOrder {
+			continue
+		}
+
+		count, err := countCustomFieldValues(tx, oldField.ID)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return fmt.Errorf("字段「%s」已有报名数据，不能修改", oldField.Name)
+		}
+
+		if err := tx.Model(&types.CompetitionCustomField{}).Where("id = ?", oldField.ID).Updates(map[string]any{
+			"name":       incoming.Name,
+			"field_type": incoming.FieldType,
+			"required":   incoming.Required,
+			"sort_order": incoming.SortOrder,
+		}).Error; err != nil {
+			return err
+		}
+	}
+
+	if len(newFields) > 0 {
+		if err := tx.Create(&newFields).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// countCustomFieldValues 统计字段已有多少报名值
+func countCustomFieldValues(tx *gorm.DB, fieldID int) (int64, error) {
+	var count int64
+	err := tx.Model(&types.RegistrationCustomValue{}).Where("field_id = ?", fieldID).Count(&count).Error
+	return count, err
 }
 
 // GetCompetitionByID 通过ID获取比赛项目
@@ -263,6 +448,9 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 		Preload("Reviewer").
 		Preload("ScoreSubmitter").
 		Preload("ScoreReviewer").
+		Preload("CustomFields", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC, id ASC")
+		}).
 		Where("event_id = ?", currentEventID).
 		First(&comp, id).Error
 	if err != nil {
@@ -270,6 +458,33 @@ func GetCompetitionByID(id int) (*types.Competition, error) {
 			return nil, utils.ErrCompetitionNotFound
 		}
 		return nil, err
+	}
+
+	// 标记已有报名值的自定义字段，供前端禁用编辑
+	if len(comp.CustomFields) > 0 {
+		fieldIDs := make([]int, 0, len(comp.CustomFields))
+		for _, field := range comp.CustomFields {
+			fieldIDs = append(fieldIDs, field.ID)
+		}
+
+		var rows []struct {
+			FieldID int
+			Count   int64
+		}
+		if err := db.Model(&types.RegistrationCustomValue{}).
+			Select("field_id, COUNT(*) AS count").
+			Where("field_id IN ?", fieldIDs).
+			Group("field_id").
+			Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		counts := make(map[int]int64, len(rows))
+		for _, row := range rows {
+			counts[row.FieldID] = row.Count
+		}
+		for i := range comp.CustomFields {
+			comp.CustomFields[i].HasRegistrationData = counts[comp.CustomFields[i].ID] > 0
+		}
 	}
 
 	// 设置衍生字段
@@ -314,6 +529,25 @@ func GetAllCompetitions(
 	gender int,
 	sortBy string,
 ) ([]*types.Competition, int, error) {
+	return getAllCompetitions(page, pageSize, statuses, gender, sortBy, false)
+}
+
+// GetPublicCompetitions 获取公开比赛列表（排除仅报名项目）
+func GetPublicCompetitions(
+	page, pageSize int,
+	statuses []types.CompetitionStatus,
+	sortBy string,
+) ([]*types.Competition, int, error) {
+	return getAllCompetitions(page, pageSize, statuses, 0, sortBy, true)
+}
+
+func getAllCompetitions(
+	page, pageSize int,
+	statuses []types.CompetitionStatus,
+	gender int,
+	sortBy string,
+	excludeRegistration bool,
+) ([]*types.Competition, int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
@@ -328,7 +562,10 @@ func GetAllCompetitions(
 		Preload("ClassSubmitter").
 		Preload("Reviewer").
 		Preload("ScoreSubmitter").
-		Preload("ScoreReviewer")
+		Preload("ScoreReviewer").
+		Preload("CustomFields", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC, id ASC")
+		})
 
 	// 添加过滤条件
 	if gender > 0 {
@@ -339,6 +576,10 @@ func GetAllCompetitions(
 		query = query.Where("status IN ?", statuses)
 	}
 
+	if excludeRegistration {
+		query = query.Where("competition_type <> ?", types.TypeRegistration)
+	}
+
 	// 获取总数
 	var total int64
 	countQuery := db.Model(&types.Competition{}).Where("event_id = ?", currentEventID)
@@ -347,6 +588,9 @@ func GetAllCompetitions(
 	}
 	if len(statuses) > 0 {
 		countQuery = countQuery.Where("status IN ?", statuses)
+	}
+	if excludeRegistration {
+		countQuery = countQuery.Where("competition_type <> ?", types.TypeRegistration)
 	}
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -423,6 +667,23 @@ func DeleteCompetition(id int) error {
 
 	// 使用事务删除
 	return db.Transaction(func(tx *gorm.DB) error {
+		// 删除该比赛报名的自定义字段值（必须在删除报名之前）
+		if err := tx.Where(
+			"registration_id IN (SELECT id FROM registrations WHERE competition_id = ?)", id,
+		).Delete(&types.RegistrationCustomValue{}).Error; err != nil {
+			return err
+		}
+
+		// 删除自定义字段定义
+		if err := tx.Where("competition_id = ?", id).Delete(&types.CompetitionCustomField{}).Error; err != nil {
+			return err
+		}
+
+		// 删除该比赛的排名积分（points.competition_id 外键要求先清理）
+		if err := tx.Where("competition_id = ?", id).Delete(&types.Points{}).Error; err != nil {
+			return err
+		}
+
 		// 删除相关的报名记录
 		if err := tx.Where("competition_id = ?", id).Delete(&types.Registration{}).Error; err != nil {
 			return err

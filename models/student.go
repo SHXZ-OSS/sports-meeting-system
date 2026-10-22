@@ -244,6 +244,13 @@ func DeleteStudent(id int) error {
 
 	// 使用事务删除学生及相关记录
 	return db.Transaction(func(tx *gorm.DB) error {
+		// 删除学生报名的自定义字段值
+		if err := tx.Where(
+			"registration_id IN (SELECT id FROM registrations WHERE student_id = ?)", id,
+		).Delete(&types.RegistrationCustomValue{}).Error; err != nil {
+			return err
+		}
+
 		// 删除学生的报名记录
 		if err := tx.Where("student_id = ?", id).Delete(&types.Registration{}).Error; err != nil {
 			return err
@@ -251,6 +258,11 @@ func DeleteStudent(id int) error {
 
 		// 删除学生的成绩记录
 		if err := tx.Where("student_id = ?", id).Delete(&types.Score{}).Error; err != nil {
+			return err
+		}
+
+		// 删除学生的个人积分（points.student_id 外键要求先清理）
+		if err := tx.Where("student_id = ?", id).Delete(&types.Points{}).Error; err != nil {
 			return err
 		}
 

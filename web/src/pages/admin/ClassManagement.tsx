@@ -41,44 +41,16 @@ const ClassManagement: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [nameFilter, setNameFilter] = useState<string>("");
 
-  const fetchClasses = async (
-    page = currentPage,
-    size = pageSize,
-    isSearch = false,
-  ) => {
+  const fetchClasses = async (page = currentPage, size = pageSize) => {
     setLoading(true);
-    const params: { page?: number; page_size?: number; name?: string } = {};
-
-    // 如果是搜索，不指定分页参数以获取全部数据
-    if (isSearch) {
-      if (searchText) {
-        // 搜索时获取所有数据，在前端过滤
-        const response = await adminClassAPI.getClasses();
-        handleResp(
-          response,
-          (data) => {
-            // 前端过滤搜索结果
-            const filteredData = data.filter((cls: { name: string }) =>
-              cls.name.toLowerCase().includes(searchText.toLowerCase()),
-            );
-            setClasses(filteredData);
-            setTotal(filteredData.length);
-            setLoading(false);
-          },
-          () => {
-            setLoading(false);
-          },
-        );
-        return;
-      }
+    const params: { page?: number; page_size?: number; keyword?: string } = {
+      page,
+      page_size: size,
+    };
+    if (searchText) {
+      params.keyword = searchText;
     }
-
-    // 正常分页请求
-    params.page = page;
-    params.page_size = size;
-    if (nameFilter) params.name = nameFilter;
 
     const response = await adminClassAPI.getClasses(params);
     handleResp(
@@ -94,16 +66,11 @@ const ClassManagement: React.FC = () => {
     );
   };
 
-  const refreshClasses = () =>
-    fetchClasses(currentPage, pageSize, Boolean(searchText));
+  const refreshClasses = () => fetchClasses(currentPage, pageSize);
 
   useEffect(() => {
-    if (searchText) {
-      fetchClasses(currentPage, pageSize, true);
-    } else {
-      fetchClasses();
-    }
-  }, [currentPage, pageSize, nameFilter, searchText]);
+    fetchClasses();
+  }, [currentPage, pageSize, searchText]);
 
   const openModal = (cls?: Class) => {
     setEditingClass(cls || null);
@@ -171,9 +138,6 @@ const ClassManagement: React.FC = () => {
       title: "班级名称",
       dataIndex: "name",
       key: "name",
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value: boolean | React.Key, record: Class) =>
-        record.name.toLowerCase().includes(value.toString().toLowerCase()),
     },
     {
       title: "操作",
@@ -244,7 +208,6 @@ const ClassManagement: React.FC = () => {
               allowClear
               onSearch={(value) => {
                 setSearchText(value);
-                setNameFilter(value);
                 setCurrentPage(1); // 搜索时重置到第一页
               }}
               size="large"
@@ -277,7 +240,6 @@ const ClassManagement: React.FC = () => {
                 allowClear
                 onSearch={(value) => {
                   setSearchText(value);
-                  setNameFilter(value);
                   setCurrentPage(1); // 搜索时重置到第一页
                 }}
                 style={{ width: 250 }}

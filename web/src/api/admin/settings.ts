@@ -121,6 +121,15 @@ export const adminSettingsAPI = {
   },
 
   /**
+   * 发送钉钉测试通知
+   */
+  sendDingTalkTest: async (userid: string): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.post("/admin/settings/dingtalk/test", { userid }),
+    );
+  },
+
+  /**
    * 获取运动会届次列表
    */
   getEvents: async (): Promise<ApiResponse<EventListResponse>> => {

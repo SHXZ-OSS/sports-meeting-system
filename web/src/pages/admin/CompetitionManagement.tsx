@@ -5,7 +5,6 @@ import {
   Table,
   Button,
   Space,
-  Tag,
   Modal,
   Form,
   Input,
@@ -35,14 +34,23 @@ import {
   FileExcelOutlined,
 } from "@ant-design/icons";
 import { adminCompetitionAPI } from "../../api/admin/competition";
-import { Competition } from "../../types";
+import { Competition, CompetitionCustomField } from "../../types";
 import {
   handleResp,
   handleRespWithNotifySuccess,
   handleBatchResp,
 } from "../../utils/handleResp";
-import { getStatusTag, getGenderText } from "../../utils/competition";
+import {
+  getStatusTag,
+  getGenderText,
+  getCompetitionTypeTag,
+} from "../../utils/competition";
+import {
+  parseCustomFieldSpec,
+  serializeCustomFieldSpec,
+} from "../../utils/customFields";
 import { useIsMobile } from "../../utils/mobile";
+import CustomFieldsEditor from "../../components/CustomFieldsEditor";
 import BatchResults, { BatchResult } from "../../components/BatchResults";
 import BatchImportExport from "../../components/BatchImportExport";
 import BatchProgress from "../../components/BatchProgress";
@@ -56,6 +64,7 @@ const CompetitionManagement: React.FC = () => {
   const [form] = Form.useForm();
   const isMobile = useIsMobile();
   const genderValue = Form.useWatch("gender", form);
+  const competitionTypeValue = Form.useWatch("competition_type", form);
 
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -194,9 +203,13 @@ const CompetitionManagement: React.FC = () => {
       不限: 3,
     };
 
-    const competitionTypeMap: { [key: string]: "individual" | "team" } = {
+    const competitionTypeMap: {
+      [key: string]: "individual" | "team" | "school" | "registration";
+    } = {
       个人: "individual",
       团体: "team",
+      全校性: "school",
+      仅报名: "registration",
     };
 
     const items = data.map((row, index) => ({
@@ -207,6 +220,7 @@ const CompetitionManagement: React.FC = () => {
         const response = await adminCompetitionAPI.createCompetition({
           name: row["名称"],
           description: row["描述"],
+          venue: row["场地"] || "",
           ranking_mode: rankingModeMap[row["排名模式"]] || "higher_first",
           unit: row["单位"],
           competition_type: competitionTypeMap[row["比赛类型"]] || "individual",
@@ -228,6 +242,7 @@ const CompetitionManagement: React.FC = () => {
             ? dayjs(row["结束时间"]).toISOString()
             : undefined,
           allow_concurrent: row["允许兼项"] === "是",
+          custom_fields: parseCustomFieldSpec(row["报名自定义字段"]),
         });
         if (response.code !== 200) {
           throw new Error(response.message);
@@ -317,7 +332,7 @@ const CompetitionManagement: React.FC = () => {
     });
   };
 
-  const openModal = (competition?: Competition) => {
+  const openModal = async (competition?: Competition) => {
     setEditingCompetition(competition || null);
     setModalVisible(true);
 
@@ -341,12 +356,22 @@ const CompetitionManagement: React.FC = () => {
           : null,
         end_time: competition.end_time ? dayjs(competition.end_time) : null,
         allow_concurrent: competition.allow_concurrent || false,
+        custom_fields: competition.custom_fields || [],
+      });
+
+      // 详情接口会返回字段是否已有报名数据，用于禁用已锁定字段
+      const response = await adminCompetitionAPI.getCompetition(competition.id);
+      handleResp(response, (data) => {
+        form.setFieldsValue({
+          custom_fields: data.custom_fields || [],
+        });
       });
     } else {
       form.resetFields();
       // 设置默认值
       form.setFieldsValue({
         competition_type: "individual",
+        custom_fields: [],
       });
     }
   };
@@ -369,7 +394,15 @@ const CompetitionManagement: React.FC = () => {
       });
     }
 
-    const isMixed = values.gender === 3;
+    const gender = values.gender ?? 3;
+    const isMixed = gender === 3;
+    const isRegistrationOnly = values.competition_type === "registration";
+    const unit = isRegistrationOnly ? values.unit || "无" : values.unit;
+    const rankingMode = isRegistrationOnly
+      ? values.ranking_mode || "higher_first"
+      : values.ranking_mode;
+    const customFields: CompetitionCustomField[] = values.custom_fields || [];
+
     if (editingCompetition) {
       const response = await adminCompetitionAPI.updateCompetition(
         editingCompetition.id,
@@ -378,11 +411,11 @@ const CompetitionManagement: React.FC = () => {
           description: values.description,
           venue: values.venue || "",
           competition_type: values.competition_type,
-          ranking_mode: values.ranking_mode,
-          gender: values.gender,
-          unit: values.unit,
-          min_participants_per_class: values.min_participants_per_class,
-          max_participants_per_class: values.max_participants_per_class,
+          ranking_mode: rankingMode,
+          gender,
+          unit,
+          min_participants_per_class: values.min_participants_per_class ?? 0,
+          max_participants_per_class: values.max_participants_per_class ?? 0,
           min_female_per_class: isMixed
             ? (values.min_female_per_class ?? 0)
             : 0,
@@ -395,6 +428,7 @@ const CompetitionManagement: React.FC = () => {
           start_time: values.start_time?.toISOString(),
           end_time: values.end_time?.toISOString(),
           allow_concurrent: values.allow_concurrent ?? false,
+          custom_fields: customFields,
         },
       );
       handleRespWithNotifySuccess(response, () => {
@@ -407,11 +441,11 @@ const CompetitionManagement: React.FC = () => {
         description: values.description,
         venue: values.venue || "",
         competition_type: values.competition_type,
-        ranking_mode: values.ranking_mode,
-        gender: values.gender,
-        unit: values.unit,
-        min_participants_per_class: values.min_participants_per_class,
-        max_participants_per_class: values.max_participants_per_class,
+        ranking_mode: rankingMode,
+        gender,
+        unit,
+        min_participants_per_class: values.min_participants_per_class ?? 0,
+        max_participants_per_class: values.max_participants_per_class ?? 0,
         min_female_per_class: isMixed ? (values.min_female_per_class ?? 0) : 0,
         max_female_per_class: isMixed ? (values.max_female_per_class ?? 0) : 0,
         min_male_per_class: isMixed ? (values.min_male_per_class ?? 0) : 0,
@@ -420,6 +454,7 @@ const CompetitionManagement: React.FC = () => {
         start_time: values.start_time?.toISOString(),
         end_time: values.end_time?.toISOString(),
         allow_concurrent: values.allow_concurrent ?? false,
+        custom_fields: customFields,
       });
       handleRespWithNotifySuccess(response, () => {
         closeModal();
@@ -529,11 +564,7 @@ const CompetitionManagement: React.FC = () => {
       title: "类型",
       dataIndex: "competition_type",
       key: "competition_type",
-      render: (type: string) => (
-        <Tag color={type === "team" ? "blue" : "green"}>
-          {type === "team" ? "团体" : "个人"}
-        </Tag>
-      ),
+      render: (type: string) => getCompetitionTypeTag(type),
     },
     {
       title: "性别",
@@ -897,71 +928,117 @@ const CompetitionManagement: React.FC = () => {
             name="competition_type"
             rules={[{ required: true, message: "请选择比赛类型" }]}
           >
-            <Radio.Group>
+            <Radio.Group
+              onChange={(event) => {
+                const type = event.target.value;
+                if (type === "registration") {
+                  form.setFieldsValue({
+                    unit: "无",
+                    ranking_mode: "higher_first",
+                    gender: form.getFieldValue("gender") ?? 3,
+                  });
+                } else if (type === "school") {
+                  form.setFieldsValue({
+                    gender: 3,
+                    min_participants_per_class: 0,
+                    max_participants_per_class: 0,
+                    min_female_per_class: 0,
+                    max_female_per_class: 0,
+                    min_male_per_class: 0,
+                    max_male_per_class: 0,
+                    allow_concurrent: false,
+                    custom_fields: [],
+                  });
+                }
+              }}
+            >
               <Radio value="individual">个人比赛</Radio>
               <Radio value="team">团体比赛</Radio>
+              <Radio value="school">全校性比赛</Radio>
+              <Radio value="registration">仅报名</Radio>
             </Radio.Group>
           </Form.Item>
+
+          {competitionTypeValue === "school" && (
+            <div style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>
+              全校性比赛不开放报名，赛事进程页直接按班级录入成绩。
+            </div>
+          )}
+          {competitionTypeValue === "registration" && (
+            <div style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>
+              仅报名项目不录入成绩、不产生积分，单位与排名设置会被忽略。
+            </div>
+          )}
 
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="性别要求"
-                name="gender"
-                rules={[{ required: true, message: "请选择性别要求" }]}
-              >
-                <Select>
-                  <Option value={1}>男子</Option>
-                  <Option value={2}>女子</Option>
-                  <Option value={3}>不限</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="成绩单位"
-                name="unit"
-                rules={[{ required: true, message: "请输入成绩单位" }]}
-              >
-                <Input placeholder="如：秒、米、分等" />
-              </Form.Item>
-            </Col>
+            {competitionTypeValue !== "school" && (
+              <Col span={competitionTypeValue === "registration" ? 24 : 12}>
+                <Form.Item
+                  label="性别要求"
+                  name="gender"
+                  rules={[{ required: true, message: "请选择性别要求" }]}
+                >
+                  <Select>
+                    <Option value={1}>男子</Option>
+                    <Option value={2}>女子</Option>
+                    <Option value={3}>不限</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            )}
+            {competitionTypeValue !== "registration" && (
+              <Col span={competitionTypeValue === "school" ? 24 : 12}>
+                <Form.Item
+                  label="成绩单位"
+                  name="unit"
+                  rules={[{ required: true, message: "请输入成绩单位" }]}
+                >
+                  <Input placeholder="如：秒、米、分等" />
+                </Form.Item>
+              </Col>
+            )}
           </Row>
 
-          <Form.Item
-            label="排名方式"
-            name="ranking_mode"
-            rules={[{ required: true, message: "请选择排名方式" }]}
-          >
-            <Radio.Group>
-              <Radio value="higher_first">
-                分数越高排名越好（适用于跳高、跳远、投掷等项目）
-              </Radio>
-              <Radio value="lower_first">
-                分数越低排名越好（适用于跑步、时间类等项目）
-              </Radio>
-            </Radio.Group>
-          </Form.Item>
+          {competitionTypeValue !== "registration" && (
+            <Form.Item
+              label="排名方式"
+              name="ranking_mode"
+              rules={[{ required: true, message: "请选择排名方式" }]}
+            >
+              <Radio.Group>
+                <Radio value="higher_first">
+                  分数越高排名越好（适用于跳高、跳远、投掷等项目）
+                </Radio>
+                <Radio value="lower_first">
+                  分数越低排名越好（适用于跑步、时间类等项目）
+                </Radio>
+              </Radio.Group>
+            </Form.Item>
+          )}
 
-          <Form.Item
-            label="每班最少报名人数"
-            name="min_participants_per_class"
-            rules={[{ required: true, message: "请输入每班最少报名人数" }]}
-            extra="0表示无限制"
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
+          {competitionTypeValue !== "school" && (
+            <>
+              <Form.Item
+                label="每班最少报名人数"
+                name="min_participants_per_class"
+                rules={[{ required: true, message: "请输入每班最少报名人数" }]}
+                extra="0表示无限制"
+              >
+                <InputNumber min={0} style={{ width: "100%" }} />
+              </Form.Item>
 
-          <Form.Item
-            label="每班最多报名人数"
-            name="max_participants_per_class"
-            rules={[{ required: true, message: "请输入每班最多报名人数" }]}
-            extra="0表示无限制"
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
+              <Form.Item
+                label="每班最多报名人数"
+                name="max_participants_per_class"
+                rules={[{ required: true, message: "请输入每班最多报名人数" }]}
+                extra="0表示无限制"
+              >
+                <InputNumber min={0} style={{ width: "100%" }} />
+              </Form.Item>
+            </>
+          )}
 
-          {genderValue === 3 && (
+          {genderValue === 3 && competitionTypeValue !== "school" && (
             <>
               <Row gutter={16}>
                 <Col span={12}>
@@ -1008,6 +1085,16 @@ const CompetitionManagement: React.FC = () => {
                 </Col>
               </Row>
             </>
+          )}
+
+          {competitionTypeValue !== "school" && (
+            <Form.Item
+              label="报名自定义字段"
+              name="custom_fields"
+              extra="报名时需要填写的附加信息（如斗腕的体重）；已有报名数据的字段不可修改或删除"
+            >
+              <CustomFieldsEditor />
+            </Form.Item>
           )}
 
           <Row gutter={16}>
@@ -1088,6 +1175,7 @@ const CompetitionManagement: React.FC = () => {
               [
                 "名称",
                 "描述",
+                "场地",
                 "比赛类型",
                 "排名模式",
                 "单位",
@@ -1101,10 +1189,12 @@ const CompetitionManagement: React.FC = () => {
                 "开始时间",
                 "结束时间",
                 "允许兼项",
+                "报名自定义字段",
               ],
               [
                 "混合接力",
                 "男女混合接力",
+                "田径场",
                 "团体",
                 "越低越好",
                 "秒",
@@ -1118,9 +1208,11 @@ const CompetitionManagement: React.FC = () => {
                 "2026-05-01 09:00",
                 "2026-05-01 10:00",
                 "否",
+                "",
               ],
               [
                 "跳远",
+                "",
                 "",
                 "个人",
                 "越高越好",
@@ -1135,6 +1227,26 @@ const CompetitionManagement: React.FC = () => {
                 "",
                 "",
                 "否",
+                "",
+              ],
+              [
+                "斗腕",
+                "按体重分级",
+                "田径场",
+                "个人",
+                "越低越好",
+                "次序",
+                "男",
+                "1",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "",
+                "",
+                "否",
+                "体重|小数|必填",
               ],
             ],
             importTemplateFilename: "比赛导入模板.xlsx",
@@ -1153,7 +1265,15 @@ const CompetitionManagement: React.FC = () => {
               data.map((c: any) => ({
                 名称: c.name,
                 描述: c.description,
-                比赛类型: c.competition_type === "team" ? "团体" : "个人",
+                场地: c.venue,
+                比赛类型:
+                  c.competition_type === "team"
+                    ? "团体"
+                    : c.competition_type === "school"
+                      ? "全校性"
+                      : c.competition_type === "registration"
+                        ? "仅报名"
+                        : "个人",
                 排名模式:
                   c.ranking_mode === "higher_first" ? "越高越好" : "越低越好",
                 单位: c.unit,
@@ -1171,6 +1291,7 @@ const CompetitionManagement: React.FC = () => {
                   ? dayjs(c.end_time).format("YYYY-MM-DD HH:mm")
                   : "",
                 允许兼项: c.allow_concurrent ? "是" : "否",
+                报名自定义字段: serializeCustomFieldSpec(c.custom_fields),
                 状态: c.status,
               })),
             exportFilename: "比赛数据.xlsx",

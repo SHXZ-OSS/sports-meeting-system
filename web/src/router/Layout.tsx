@@ -38,6 +38,7 @@ import { useWebsite } from "../contexts/WebsiteContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { PERMISSIONS } from "../types";
 import { useIsMobile } from "../utils";
+import { isTimeInRange } from "../utils/windows";
 import LoadingSpinner from "../components/Spinner";
 import NotFound from "../components/NotFound";
 
@@ -146,7 +147,14 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
     name: websiteName,
     logo_url,
     allow_student_submission,
+    submission_start_time,
+    submission_end_time,
   } = useWebsite();
+  // 项目征集时间窗口（空 = 不限制）
+  const submissionOpen = isTimeInRange(
+    submission_start_time,
+    submission_end_time,
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const isMobile = useIsMobile();
@@ -208,12 +216,13 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         icon: <DashboardOutlined />,
         label: navLink("/admin", "仪表板"),
       },
-      // 班级账号专属：代本班学生提交推荐项目
-      user?.class_id && {
-        key: "/admin/submit-competition",
-        icon: <PlusCircleOutlined />,
-        label: navLink("/admin/submit-competition", "提交推荐项目"),
-      },
+      // 班级账号专属：代本班学生提交推荐项目（征集时间外隐藏）
+      user?.class_id &&
+        submissionOpen && {
+          key: "/admin/submit-competition",
+          icon: <PlusCircleOutlined />,
+          label: navLink("/admin/submit-competition", "提交推荐项目"),
+        },
       hasPermission(PERMISSIONS.USER_MANAGEMENT) && {
         key: "/admin/users",
         icon: <UserOutlined />,
@@ -278,12 +287,13 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         icon: <TrophyOutlined />,
         label: navLink("/student/competitions", "项目总览"),
       },
-      // 学生本人提交被配置关闭时隐藏入口（班级账号走管理端）
-      allow_student_submission && {
-        key: "/student/submit",
-        icon: <FormOutlined />,
-        label: navLink("/student/submit", "推荐项目"),
-      },
+      // 学生本人提交被配置关闭或不在征集时间时隐藏入口（班级账号走管理端）
+      allow_student_submission &&
+        submissionOpen && {
+          key: "/student/submit",
+          icon: <FormOutlined />,
+          label: navLink("/student/submit", "推荐项目"),
+        },
       {
         key: "/student/registrations",
         icon: <FileTextOutlined />,
@@ -377,7 +387,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
       return (
         <Routes>
           <Route path="/" element={<AdminDashboard />} />
-          {user?.class_id && (
+          {user?.class_id && submissionOpen && (
             <Route
               path="/submit-competition"
               element={<AdminSubmitCompetition />}
@@ -417,7 +427,9 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         <Routes>
           <Route path="/" element={<StudentDashboard />} />
           <Route path="/competitions" element={<StudentCompetitions />} />
-          <Route path="/submit" element={<SubmitCompetition />} />
+          {allow_student_submission && submissionOpen && (
+            <Route path="/submit" element={<SubmitCompetition />} />
+          )}
           <Route path="/registrations" element={<StudentRegistrations />} />
           <Route path="/scores" element={<StudentScores />} />
           {/* 404处理 - 未匹配的学生路由 */}

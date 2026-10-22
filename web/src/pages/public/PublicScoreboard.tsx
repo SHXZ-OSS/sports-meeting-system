@@ -24,6 +24,7 @@ import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
 import {
   getRankingColor,
   getScoreboardRankingColor,
+  isClassScoredType,
 } from "../../utils/competition";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
@@ -884,6 +885,28 @@ const PublicScoreboard: React.FC = () => {
     });
   };
 
+  // 通知链接携带 ?id= 时，进入看板后自动打开对应比赛详情
+  const notificationCompetitionId = useMemo(() => {
+    const raw = new URLSearchParams(location.search).get("id");
+    if (!raw) {
+      return null;
+    }
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }, [location.search]);
+  const autoOpenedCompetitionIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (notificationCompetitionId === null) {
+      return;
+    }
+    if (autoOpenedCompetitionIdRef.current === notificationCompetitionId) {
+      return;
+    }
+    autoOpenedCompetitionIdRef.current = notificationCompetitionId;
+    void handleViewCompetitionById(notificationCompetitionId);
+  }, [notificationCompetitionId, handleViewCompetitionById]);
+
   // 处理查看比赛成绩（从动画或其他地方调用）
   const handleViewScores = async (competition: Competition) => {
     // 直接调用查看比赛详情
@@ -1004,9 +1027,10 @@ const PublicScoreboard: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animationRevealed, setAnimationRevealed] = useState(false);
   const [lightRaysColor, setLightRaysColor] = useState("#FFD700");
-  const stepsPerScore =
-    animatingCompetition?.competition_type === "team" ? 3 : 4;
-  const isTeamCompetition = animatingCompetition?.competition_type === "team";
+  const isClassCompetition = isClassScoredType(
+    animatingCompetition?.competition_type,
+  );
+  const stepsPerScore = isClassCompetition ? 3 : 4;
   const overviewRows = [...overviewScores]
     .sort(
       (left, right) =>
@@ -1294,6 +1318,9 @@ const PublicScoreboard: React.FC = () => {
                   const rankColor = getRankingColor(score?.ranking || 0);
                   const isTeam =
                     animatingCompetition.competition_type === "team";
+                  const isClassBased = isClassScoredType(
+                    animatingCompetition.competition_type,
+                  );
                   return (
                     <>
                       <div className="score-card__row score-card__row--primary">
@@ -1331,7 +1358,7 @@ const PublicScoreboard: React.FC = () => {
                       </div>
                       <div
                         className={`score-card__row score-card__row--secondary${
-                          isTeam ? " score-card__row--single" : ""
+                          isClassBased ? " score-card__row--single" : ""
                         }`}
                       >
                         <div className="score-card__field">
@@ -1350,7 +1377,7 @@ const PublicScoreboard: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        {!isTeam && (
+                        {!isClassBased && (
                           <div className="score-card__field score-card__field--right">
                             <span className="score-card__label">姓名</span>
                             <div className="score-card__value score-card__value--meta">
@@ -1410,11 +1437,11 @@ const PublicScoreboard: React.FC = () => {
                         <div className="score-overview__who">
                           <div className="score-overview__name">
                             <strong>
-                              {isTeamCompetition
+                              {isClassCompetition
                                 ? score.class_name || "—"
                                 : score.student_name || "—"}
                             </strong>
-                            {!isTeamCompetition && score.class_name && (
+                            {!isClassCompetition && score.class_name && (
                               <small>{score.class_name}</small>
                             )}
                           </div>

@@ -200,16 +200,16 @@ type DingTalkUserInfo struct {
 	DeviceID string `json:"deviceId"`
 }
 
-// ActionCardMessage 定义钉钉卡片消息结构
-type ActionCardMessage struct {
-	Title       string `json:"title"`
-	Markdown    string `json:"markdown"`
-	SingleTitle string `json:"single_title"`
-	SingleURL   string `json:"single_url"`
+// SendDingTalkText 发送钉钉纯文本工作消息（通知栏会展示正文首行）
+func SendDingTalkText(userIDs []string, content string) error {
+	return sendDingTalkMessage(userIDs, map[string]any{
+		"msgtype": "text",
+		"text":    map[string]string{"content": content},
+	})
 }
 
-// SendDingTalkActionCard 发送钉钉卡片消息
-func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
+// sendDingTalkMessage 发送工作消息，超过 100 人自动分批
+func sendDingTalkMessage(userIDs []string, msg map[string]any) error {
 	// 获取访问令牌
 	accessToken, err := GetDingTalkToken()
 	if err != nil {
@@ -230,34 +230,27 @@ func SendDingTalkActionCard(userIDs []string, card ActionCardMessage) error {
 
 		// 分批发送
 		for _, batch := range batches {
-			err := sendDingTalkActionCardBatch(accessToken, agentID, batch, card)
+			err := sendDingTalkMessageBatch(accessToken, agentID, batch, msg)
 			if err != nil {
 				return err
 			}
-			time.Sleep(1000 * time.Millisecond) // 避免触发QPS限制
+			// 钉钉限额：每分钟最多 5000 人接收；100 人/批 + 1.5s 间隔 = 4000 人/分钟
+			time.Sleep(1500 * time.Millisecond)
 		}
 		return nil
 	}
 
 	// 单批发送
-	return sendDingTalkActionCardBatch(accessToken, agentID, userIDs, card)
+	return sendDingTalkMessageBatch(accessToken, agentID, userIDs, msg)
 }
 
-// sendDingTalkActionCardBatch 按批次发送钉钉卡片消息
-func sendDingTalkActionCardBatch(accessToken, agentID string, userIDs []string, card ActionCardMessage) error {
+// sendDingTalkMessageBatch 按批次发送钉钉工作消息
+func sendDingTalkMessageBatch(accessToken, agentID string, userIDs []string, msg map[string]any) error {
 	// 构建请求数据
 	data := map[string]any{
 		"agent_id":    agentID,
 		"userid_list": strings.Join(userIDs, ","),
-		"msg": map[string]any{
-			"msgtype": "action_card",
-			"action_card": map[string]string{
-				"title":        card.Title,
-				"markdown":     card.Markdown,
-				"single_title": card.SingleTitle,
-				"single_url":   card.SingleURL,
-			},
-		},
+		"msg":         msg,
 	}
 
 	// 编码请求数据

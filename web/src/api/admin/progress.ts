@@ -1,10 +1,12 @@
-import { api, callApi } from "../config";
+import { api, callApi, callPaginatedApi } from "../config";
 import {
+  Class,
   Competition,
   Registration,
   Score,
   StudentScore,
   ApiResponse,
+  PaginatedResponse,
 } from "../../types";
 
 export interface CreateScoreRequest {
@@ -53,6 +55,13 @@ export const adminProgressAPI = {
     return await callApi(() =>
       api.get("/admin/progress/competitions", { params }),
     );
+  },
+
+  /**
+   * 获取班级列表（全校性比赛录成绩使用）
+   */
+  getClasses: async (): Promise<PaginatedResponse<Class[]>> => {
+    return await callPaginatedApi(() => api.get("/admin/progress/classes"));
   },
 
   /**

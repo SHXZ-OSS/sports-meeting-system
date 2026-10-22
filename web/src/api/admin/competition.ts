@@ -1,5 +1,11 @@
 import { api, callApi, callPaginatedApi } from "../config";
-import { Competition, ApiResponse, PaginatedResponse } from "../../types";
+import {
+  Competition,
+  CompetitionCustomField,
+  CompetitionType,
+  ApiResponse,
+  PaginatedResponse,
+} from "../../types";
 
 export interface CreateCompetitionRequest {
   name: string;
@@ -7,7 +13,7 @@ export interface CreateCompetitionRequest {
   venue?: string; // 比赛地点
   ranking_mode: "higher_first" | "lower_first";
   gender: number;
-  competition_type: "individual" | "team";
+  competition_type: CompetitionType;
   min_participants_per_class: number;
   max_participants_per_class: number;
   min_female_per_class?: number;
@@ -19,6 +25,7 @@ export interface CreateCompetitionRequest {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  custom_fields?: CompetitionCustomField[];
 }
 
 export interface UpdateCompetitionRequest {
@@ -26,7 +33,7 @@ export interface UpdateCompetitionRequest {
   description?: string;
   venue?: string; // 比赛地点
   ranking_mode?: "higher_first" | "lower_first";
-  competition_type?: "individual" | "team";
+  competition_type?: CompetitionType;
   min_participants_per_class?: number;
   max_participants_per_class?: number;
   min_female_per_class?: number;
@@ -39,6 +46,7 @@ export interface UpdateCompetitionRequest {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  custom_fields?: CompetitionCustomField[];
 }
 
 /**

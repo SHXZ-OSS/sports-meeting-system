@@ -28,7 +28,11 @@ import {
 } from "@ant-design/icons";
 import { studentAPI } from "../../api/student";
 import { useWebsite } from "../../contexts/WebsiteContext";
-import { Competition, VoteType } from "../../types";
+import {
+  Competition,
+  RegistrationCustomValueInput,
+  VoteType,
+} from "../../types";
 import {
   handleResp,
   handleRespWithNotifySuccess,
@@ -38,7 +42,13 @@ import {
   getGenderText,
   getRankingModeText,
   getCompetitionTypeTag,
+  isRegistrationOnlyType,
+  isSchoolWideType,
 } from "../../utils/competition";
+import { getMissingRequiredFields } from "../../utils/customFields";
+import CustomFieldInputs, {
+  CustomFieldValueMap,
+} from "../../components/CustomFieldInputs";
 import { useIsMobile } from "../../utils/mobile";
 import { isTimeInRange } from "../../utils/windows";
 import VoteButtons from "../../components/VoteButtons";
@@ -75,6 +85,12 @@ const StudentCompetitions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "votes">("name");
   const [userVotes, setUserVotes] = useState<Record<number, VoteType>>({});
+  const [registerTarget, setRegisterTarget] = useState<Competition | null>(
+    null,
+  );
+  const [registerValues, setRegisterValues] = useState<CustomFieldValueMap>({});
+  const [registerModalVisible, setRegisterModalVisible] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
 
   useEffect(() => {
     if (searchText) {
@@ -226,39 +242,93 @@ const StudentCompetitions: React.FC = () => {
     return registrations?.some((reg) => reg.id === competitionId);
   };
 
-  const handleRegister = async (competition: Competition) => {
-    const response = await studentAPI.registerCompetition({
-      competition_id: competition.id,
-    });
+  const handleRegister = async (
+    competition: Competition,
+    customValues?: RegistrationCustomValueInput[],
+  ) => {
+    setRegisterLoading(true);
+    try {
+      const response = await studentAPI.registerCompetition({
+        competition_id: competition.id,
+        custom_values: customValues,
+      });
 
-    handleRespWithNotifySuccess(response, (data) => {
-      // 刷新数据
-      fetchData();
+      handleRespWithNotifySuccess(response, (data) => {
+        // 刷新数据
+        fetchData();
+        setRegisterModalVisible(false);
+        setRegisterTarget(null);
+        setRegisterValues({});
 
-      // 检查是否超限
-      if (data.exceeding && data.registrants && data.registrants.length > 0) {
-        // 显示超限提示
-        Modal.info({
-          title: "报名成功",
-          icon: <ExclamationCircleOutlined style={{ color: "#faad14" }} />,
-          content: (
-            <div>
-              <p>您已成功报名！</p>
-              <p style={{ color: "#faad14", fontWeight: "bold" }}>
-                温馨提示：该项目每班最多{" "}
-                {competition.max_participants_per_class} 人报名， 您的班级已有{" "}
-                {data.registrants.length} 人报名，已达到或超过限制。
-              </p>
-              <p>
-                <strong>本班已报名学生：</strong>
-              </p>
-              <p>{data.registrants.join("、")}</p>
-            </div>
-          ),
-          okText: "知道了",
-        });
-      }
-    });
+        // 检查是否超限
+        if (data.exceeding && data.registrants && data.registrants.length > 0) {
+          // 显示超限提示
+          Modal.info({
+            title: "报名成功",
+            icon: <ExclamationCircleOutlined style={{ color: "#faad14" }} />,
+            content: (
+              <div>
+                <p>您已成功报名！</p>
+                <p style={{ color: "#faad14", fontWeight: "bold" }}>
+                  温馨提示：该项目每班最多{" "}
+                  {competition.max_participants_per_class} 人报名， 您的班级已有{" "}
+                  {data.registrants.length} 人报名，已达到或超过限制。
+                </p>
+                <p>
+                  <strong>本班已报名学生：</strong>
+                </p>
+                <p>{data.registrants.join("、")}</p>
+              </div>
+            ),
+            okText: "知道了",
+          });
+        }
+      });
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const openRegister = (competition: Competition) => {
+    if ((competition.custom_fields?.length ?? 0) > 0) {
+      setRegisterTarget(competition);
+      setRegisterValues({});
+      setRegisterModalVisible(true);
+      return;
+    }
+    handleRegister(competition);
+  };
+
+  const handleConfirmRegister = () => {
+    if (!registerTarget) {
+      return;
+    }
+
+    const missingFields = getMissingRequiredFields(
+      registerTarget.custom_fields,
+      registerValues,
+    );
+    if (missingFields.length > 0) {
+      message.warning(
+        `请填写：${missingFields.map((field) => field.name).join("、")}`,
+      );
+      return;
+    }
+
+    const customValues: RegistrationCustomValueInput[] = (
+      registerTarget.custom_fields ?? []
+    )
+      .filter(
+        (field) =>
+          registerValues[field.id] !== undefined &&
+          registerValues[field.id] !== "",
+      )
+      .map((field) => ({
+        field_id: field.id,
+        value: registerValues[field.id] as string | number | boolean,
+      }));
+
+    handleRegister(registerTarget, customValues);
   };
 
   const handleUnregister = async (competition: Competition) => {
@@ -274,6 +344,10 @@ const StudentCompetitions: React.FC = () => {
   };
 
   const canRegister = (competition: Competition) => {
+    // 全校性比赛按班级计分，不接受学生报名
+    if (isSchoolWideType(competition.competition_type)) {
+      return false;
+    }
     // 学生本人报名被配置关闭时，不展示报名入口（仅管理员与班级账号可报名）
     if (!allow_student_registration) {
       return false;
@@ -287,8 +361,11 @@ const StudentCompetitions: React.FC = () => {
   };
 
   const canUnregister = (competition: Competition) => {
-    // 团体比赛学生不能取消报名
-    if (competition.competition_type === "team") {
+    // 团体比赛学生不能取消报名；全校性比赛没有报名
+    if (
+      competition.competition_type === "team" ||
+      isSchoolWideType(competition.competition_type)
+    ) {
       return false;
     }
     // 报名时间窗口外不展示取消入口
@@ -435,6 +512,9 @@ const StudentCompetitions: React.FC = () => {
                         ? `${dayjs(comp.start_time).format("MM-DD HH:mm")} - ${dayjs(comp.end_time).format("HH:mm")}`
                         : "时间待定"}
                       {comp.venue ? ` · ${comp.venue}` : ""}
+                      {isSchoolWideType(comp.competition_type)
+                        ? " · 全校性比赛，无需报名"
+                        : ""}
                     </div>
                   </div>
                 </div>
@@ -448,14 +528,17 @@ const StudentCompetitions: React.FC = () => {
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {comp.status === "approved" && votingOpen && (
-                    <VoteButtons
-                      voteCount={comp.vote_count || 0}
-                      userVote={userVotes[comp.id]}
-                      onVote={(voteType) => handleVote(comp.id, voteType)}
-                      size={isMobile ? "small" : "medium"}
-                    />
-                  )}
+                  {comp.status === "approved" &&
+                    votingOpen &&
+                    !isSchoolWideType(comp.competition_type) &&
+                    !isRegistrationOnlyType(comp.competition_type) && (
+                      <VoteButtons
+                        voteCount={comp.vote_count || 0}
+                        userVote={userVotes[comp.id]}
+                        onVote={(voteType) => handleVote(comp.id, voteType)}
+                        size={isMobile ? "small" : "medium"}
+                      />
+                    )}
                   <Space size={4} style={{ marginTop: 8 }} wrap>
                     <Button
                       size="small"
@@ -469,7 +552,7 @@ const StudentCompetitions: React.FC = () => {
                         size="small"
                         type="primary"
                         icon={<UserAddOutlined />}
-                        onClick={() => handleRegister(comp)}
+                        onClick={() => openRegister(comp)}
                       >
                         报名
                       </Button>
@@ -529,7 +612,7 @@ const StudentCompetitions: React.FC = () => {
                   type="primary"
                   icon={<UserAddOutlined />}
                   onClick={() => {
-                    handleRegister(selectedCompetition);
+                    openRegister(selectedCompetition);
                     setDetailModalVisible(false);
                   }}
                 >
@@ -618,20 +701,25 @@ const StudentCompetitions: React.FC = () => {
                 <br />
                 <Text>{selectedCompetition.vote_count || 0}</Text>
               </Col>
-              {selectedCompetition.status === "approved" && votingOpen && (
-                <Col span={12}>
-                  <Text strong>我的投票：</Text>
-                  <br />
-                  <VoteButtons
-                    voteCount={selectedCompetition.vote_count || 0}
-                    userVote={userVotes[selectedCompetition.id]}
-                    onVote={(voteType) =>
-                      handleVote(selectedCompetition.id, voteType)
-                    }
-                    size="medium"
-                  />
-                </Col>
-              )}
+              {selectedCompetition.status === "approved" &&
+                votingOpen &&
+                !isSchoolWideType(selectedCompetition.competition_type) &&
+                !isRegistrationOnlyType(
+                  selectedCompetition.competition_type,
+                ) && (
+                  <Col span={12}>
+                    <Text strong>我的投票：</Text>
+                    <br />
+                    <VoteButtons
+                      voteCount={selectedCompetition.vote_count || 0}
+                      userVote={userVotes[selectedCompetition.id]}
+                      onVote={(voteType) =>
+                        handleVote(selectedCompetition.id, voteType)
+                      }
+                      size="medium"
+                    />
+                  </Col>
+                )}
             </Row>
 
             {selectedCompetition.submitter_name && (
@@ -645,6 +733,30 @@ const StudentCompetitions: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* 报名自定义字段填写 */}
+      <Modal
+        title={registerTarget ? `报名：${registerTarget.name}` : "报名"}
+        open={registerModalVisible}
+        onCancel={() => {
+          if (!registerLoading) {
+            setRegisterModalVisible(false);
+            setRegisterTarget(null);
+            setRegisterValues({});
+          }
+        }}
+        onOk={handleConfirmRegister}
+        confirmLoading={registerLoading}
+        okText="确认报名"
+        cancelText="取消"
+        width={480}
+      >
+        <CustomFieldInputs
+          fields={registerTarget?.custom_fields}
+          values={registerValues}
+          onChange={setRegisterValues}
+        />
       </Modal>
     </div>
   );

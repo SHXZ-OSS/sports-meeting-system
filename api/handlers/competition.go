@@ -52,44 +52,46 @@ func isValidCompetitionStatus(status types.CompetitionStatus) bool {
 
 // CreateCompetitionRequest 创建比赛项目请求
 type CreateCompetitionRequest struct {
-	Name                    string                `json:"name"                       binding:"required"`
-	Description             string                `json:"description"`
-	RankingMode             types.RankingMode     `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
-	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
-	CompetitionType         types.CompetitionType `json:"competition_type"           binding:"required,oneof=individual team"`
-	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
-	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
-	MinFemalePerClass       int                   `json:"min_female_per_class"       binding:"min=0"`
-	MaxFemalePerClass       int                   `json:"max_female_per_class"       binding:"min=0"`
-	MinMalePerClass         int                   `json:"min_male_per_class"         binding:"min=0"`
-	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
-	Image                   string                `json:"image"`
-	Unit                    string                `json:"unit"                       binding:"required"`
-	Venue                   string                `json:"venue"`
-	StartTime               *time.Time            `json:"start_time"`
-	EndTime                 *time.Time            `json:"end_time"`
-	AllowConcurrent         bool                  `json:"allow_concurrent"`
+	Name                    string                         `json:"name"                       binding:"required"`
+	Description             string                         `json:"description"`
+	RankingMode             types.RankingMode              `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
+	Gender                  int                            `json:"gender"                     binding:"required,min=1,max=3"`
+	CompetitionType         types.CompetitionType          `json:"competition_type"           binding:"required,oneof=individual team school registration"`
+	MinParticipantsPerClass int                            `json:"min_participants_per_class" binding:"min=0"`
+	MaxParticipantsPerClass int                            `json:"max_participants_per_class" binding:"min=0"`
+	MinFemalePerClass       int                            `json:"min_female_per_class"       binding:"min=0"`
+	MaxFemalePerClass       int                            `json:"max_female_per_class"       binding:"min=0"`
+	MinMalePerClass         int                            `json:"min_male_per_class"         binding:"min=0"`
+	MaxMalePerClass         int                            `json:"max_male_per_class"         binding:"min=0"`
+	Image                   string                         `json:"image"`
+	Unit                    string                         `json:"unit"                       binding:"required"`
+	Venue                   string                         `json:"venue"`
+	StartTime               *time.Time                     `json:"start_time"`
+	EndTime                 *time.Time                     `json:"end_time"`
+	AllowConcurrent         bool                           `json:"allow_concurrent"`
+	CustomFields            []types.CompetitionCustomField `json:"custom_fields"`
 }
 
 // UpdateCompetitionRequest 更新比赛项目请求
 type UpdateCompetitionRequest struct {
-	Name                    string                `json:"name"                       binding:"required"`
-	Description             string                `json:"description"`
-	RankingMode             types.RankingMode     `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
-	CompetitionType         types.CompetitionType `json:"competition_type"           binding:"required,oneof=individual team"`
-	MinParticipantsPerClass int                   `json:"min_participants_per_class" binding:"min=0"`
-	MaxParticipantsPerClass int                   `json:"max_participants_per_class" binding:"min=0"`
-	MinFemalePerClass       int                   `json:"min_female_per_class"       binding:"min=0"`
-	MaxFemalePerClass       int                   `json:"max_female_per_class"       binding:"min=0"`
-	MinMalePerClass         int                   `json:"min_male_per_class"         binding:"min=0"`
-	MaxMalePerClass         int                   `json:"max_male_per_class"         binding:"min=0"`
-	Image                   string                `json:"image"`
-	Unit                    string                `json:"unit"                       binding:"required"`
-	Venue                   string                `json:"venue"`
-	Gender                  int                   `json:"gender"                     binding:"required,min=1,max=3"`
-	StartTime               *time.Time            `json:"start_time"`
-	EndTime                 *time.Time            `json:"end_time"`
-	AllowConcurrent         bool                  `json:"allow_concurrent"`
+	Name                    string                         `json:"name"                       binding:"required"`
+	Description             string                         `json:"description"`
+	RankingMode             types.RankingMode              `json:"ranking_mode"               binding:"required,oneof=higher_first lower_first"`
+	CompetitionType         types.CompetitionType          `json:"competition_type"           binding:"required,oneof=individual team school registration"`
+	MinParticipantsPerClass int                            `json:"min_participants_per_class" binding:"min=0"`
+	MaxParticipantsPerClass int                            `json:"max_participants_per_class" binding:"min=0"`
+	MinFemalePerClass       int                            `json:"min_female_per_class"       binding:"min=0"`
+	MaxFemalePerClass       int                            `json:"max_female_per_class"       binding:"min=0"`
+	MinMalePerClass         int                            `json:"min_male_per_class"         binding:"min=0"`
+	MaxMalePerClass         int                            `json:"max_male_per_class"         binding:"min=0"`
+	Image                   string                         `json:"image"`
+	Unit                    string                         `json:"unit"                       binding:"required"`
+	Venue                   string                         `json:"venue"`
+	Gender                  int                            `json:"gender"                     binding:"required,min=1,max=3"`
+	StartTime               *time.Time                     `json:"start_time"`
+	EndTime                 *time.Time                     `json:"end_time"`
+	AllowConcurrent         bool                           `json:"allow_concurrent"`
+	CustomFields            []types.CompetitionCustomField `json:"custom_fields"`
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -243,7 +245,7 @@ func GetAllPublicCompetitions(c *gin.Context) {
 	}
 
 	// 获取比赛列表
-	competitions, total, err := models.GetAllCompetitions(page, pageSize, statuses, 0, sortBy)
+	competitions, total, err := models.GetPublicCompetitions(page, pageSize, statuses, sortBy)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取比赛列表失败")
 		return
@@ -274,6 +276,12 @@ func GetPublicCompetition(c *gin.Context) {
 	}
 
 	if competition.Status == types.StatusPendingApproval || competition.Status == types.StatusRejected {
+		utils.ResponseError(c, http.StatusForbidden, "比赛项目不可见")
+		return
+	}
+
+	// 仅报名项目不对外展示成绩详情
+	if competition.CompetitionType == types.TypeRegistration {
 		utils.ResponseError(c, http.StatusForbidden, "比赛项目不可见")
 		return
 	}
@@ -357,6 +365,19 @@ func CreateCompetition(c *gin.Context) {
 		req.RankingMode = types.RankingHigherFirst // 默认为分数高的排名靠前
 	}
 
+	// 全校性、仅报名项目及报名自定义字段仅允许全局管理员配置
+	isGlobalAdmin := role == services.RoleAdmin && user != nil && !models.IsClassBound(user)
+	if !isGlobalAdmin {
+		if req.CompetitionType == types.TypeSchool || req.CompetitionType == types.TypeRegistration {
+			utils.ResponseError(c, http.StatusForbidden, "无权创建该类型的比赛项目")
+			return
+		}
+		if len(req.CustomFields) > 0 {
+			utils.ResponseError(c, http.StatusForbidden, "无权设置报名自定义字段")
+			return
+		}
+	}
+
 	// 确保图片目录存在
 	uploadDir := "./data/uploads"
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
@@ -379,7 +400,9 @@ func CreateCompetition(c *gin.Context) {
 	}
 
 	// 验证比赛类型，默认为个人比赛
-	if req.CompetitionType != types.TypeIndividual && req.CompetitionType != types.TypeTeam {
+	switch req.CompetitionType {
+	case types.TypeIndividual, types.TypeTeam, types.TypeSchool, types.TypeRegistration:
+	default:
 		req.CompetitionType = types.TypeIndividual
 	}
 
@@ -407,6 +430,7 @@ func CreateCompetition(c *gin.Context) {
 			req.StartTime,
 			req.EndTime,
 			req.AllowConcurrent,
+			req.CustomFields,
 		)
 	case user != nil && models.IsClassBound(user):
 		// 班级账号代学生提交推荐项目，与学生提交一致走待审核路径
@@ -430,6 +454,7 @@ func CreateCompetition(c *gin.Context) {
 			req.StartTime,
 			req.EndTime,
 			req.AllowConcurrent,
+			req.CustomFields,
 		)
 	default:
 		err = models.AdminCreateCompetition(
@@ -451,6 +476,7 @@ func CreateCompetition(c *gin.Context) {
 			req.StartTime,
 			req.EndTime,
 			req.AllowConcurrent,
+			req.CustomFields,
 		)
 	}
 	if err != nil {
@@ -536,7 +562,7 @@ func UpdateCompetition(c *gin.Context) {
 		}
 		competition.ImagePath = imagePath
 	}
-	err = models.UpdateCompetition(competition)
+	err = models.UpdateCompetition(competition, req.CustomFields)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "更新比赛项目失败: "+err.Error())
 		return
@@ -708,6 +734,18 @@ func UpdateCompetitionProgressStatus(c *gin.Context) {
 	competition, err := models.GetCompetitionByID(id)
 	if err != nil {
 		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+
+	// 仅报名项目没有赛事进程
+	if competition.CompetitionType == types.TypeRegistration {
+		utils.ResponseError(c, http.StatusBadRequest, "仅报名项目无需赛事进程")
+		return
+	}
+
+	// 全校性比赛不检录，直接开始录入成绩
+	if competition.CompetitionType == types.TypeSchool && req.Status == types.StatusCheckingIn {
+		utils.ResponseError(c, http.StatusBadRequest, "全校性比赛无需检录")
 		return
 	}
 
