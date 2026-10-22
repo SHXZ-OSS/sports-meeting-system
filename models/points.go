@@ -22,7 +22,9 @@ func RecalculatePointsByCompetitionID(competitionID int) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 获取比赛信息
 		var competition types.Competition
-		if err := tx.Select("id", "competition_type", "status").First(&competition, competitionID).Error; err != nil {
+		if err := tx.Select("id", "event_id", "competition_type", "status").
+			First(&competition, competitionID).
+			Error; err != nil {
 			return err
 		}
 
@@ -30,6 +32,11 @@ func RecalculatePointsByCompetitionID(competitionID int) error {
 		if err := tx.Where("competition_id = ? AND point_type = ?", competitionID, types.PointTypeRanking).
 			Delete(&types.Points{}).Error; err != nil {
 			return err
+		}
+
+		// 仅报名项目不产生积分
+		if competition.CompetitionType == types.TypeRegistration {
+			return nil
 		}
 
 		// 获取该比赛的所有成绩（已排名）
@@ -46,8 +53,8 @@ func RecalculatePointsByCompetitionID(competitionID int) error {
 		cfg := config.Get()
 		var pointsMapping map[string]float64
 
-		// 根据比赛类型选择得分映射
-		if competition.CompetitionType == types.TypeTeam {
+		// 根据比赛类型选择得分映射（全校性与团体赛都按班级计分）
+		if competition.CompetitionType == types.TypeTeam || competition.CompetitionType == types.TypeSchool {
 			pointsMapping = cfg.Scoring.TeamPointsMapping
 		} else {
 			pointsMapping = cfg.Scoring.IndividualPointsMapping
@@ -77,113 +84,117 @@ func RecalculatePointsByCompetitionID(competitionID int) error {
 				continue
 			}
 
-			if competition.CompetitionType == types.TypeTeam {
-				// 团体赛：给所有参赛学生加分 + 给班级加一次分
-				if score.ClassID == nil {
-					continue
-				}
-
-				// 查询该班级该比赛的所有报名学生
-				var registrations []types.Registration
-				if err := tx.Preload("Student").Joins("JOIN students ON students.id = registrations.student_id").
-					Where("students.class_id = ? AND registrations.competition_id = ?", *score.ClassID, competitionID).
-					Find(&registrations).Error; err != nil {
-					return err
-				}
-
-				// 收集学生名字用于班级得分的reason
-				studentNames := make([]string, 0)
-
-				// 给每个参赛学生加分
-				for _, reg := range registrations {
-					if reg.StudentID == nil {
-						continue
-					}
-
-					// 收集学生名字
-					if reg.Student != nil {
-						studentNames = append(studentNames, reg.Student.FullName)
-					}
-
-					studentPoint := &types.Points{
-						CompetitionID: competitionID,
-						StudentID:     reg.StudentID,
-						Points:        points,
-						PointType:     types.PointTypeRanking,
-						Ranking:       &score.Ranking,
-					}
-					if err := tx.Create(studentPoint).Error; err != nil {
-						return err
-					}
-				}
-
-				// 给班级加一次分，reason记录参赛学生名字
-				reason := ""
-				if len(studentNames) > 0 {
-					reason = ""
-					var reasonSb122 strings.Builder
-					for i, name := range studentNames {
-						if i > 0 {
-							reasonSb122.WriteString("、")
-						}
-						reasonSb122.WriteString(name)
-					}
-					reason += reasonSb122.String()
-				}
-
-				classPoint := &types.Points{
-					CompetitionID: competitionID,
-					ClassID:       score.ClassID,
-					Points:        points,
-					PointType:     types.PointTypeRanking,
-					Ranking:       &score.Ranking,
-					Reason:        reason,
-				}
-				if err := tx.Create(classPoint).Error; err != nil {
-					return err
-				}
-			} else {
-				// 个人赛：同时给学生和班级加分
-				if score.StudentID == nil {
-					continue
-				}
-
-				// 给学生加分
-				studentPoint := &types.Points{
-					CompetitionID: competitionID,
-					StudentID:     score.StudentID,
-					Points:        points,
-					PointType:     types.PointTypeRanking,
-					Ranking:       &score.Ranking,
-				}
-				if err := tx.Create(studentPoint).Error; err != nil {
-					return err
-				}
-
-				// 给学生所在班级加分，reason记录学生姓名
-				if score.Student != nil && score.Student.ClassID > 0 {
-					reason := ""
-					if score.Student.FullName != "" {
-						reason = score.Student.FullName
-					}
-
-					classPoint := &types.Points{
-						CompetitionID: competitionID,
-						ClassID:       &score.Student.ClassID,
-						Points:        points,
-						PointType:     types.PointTypeRanking,
-						Ranking:       &score.Ranking,
-						Reason:        reason,
-					}
-					if err := tx.Create(classPoint).Error; err != nil {
-						return err
-					}
-				}
+			if err := createRankingPointsForScore(tx, &competition, competitionID, &score, points); err != nil {
+				return err
 			}
 		}
 
 		return nil
 	})
+}
+
+// createRankingPointsForScore 按比赛类型为一条成绩创建对应积分
+func createRankingPointsForScore(
+	tx *gorm.DB,
+	competition *types.Competition,
+	competitionID int,
+	score *types.Score,
+	points float64,
+) error {
+	switch competition.CompetitionType {
+	case types.TypeTeam:
+		// 团体赛：给所有参赛学生加分 + 给班级加一次分
+		if score.ClassID == nil {
+			return nil
+		}
+
+		var registrations []types.Registration
+		if err := tx.Preload("Student").
+			Joins("JOIN students ON students.id = registrations.student_id").
+			Where("students.class_id = ? AND registrations.competition_id = ?", *score.ClassID, competitionID).
+			Find(&registrations).Error; err != nil {
+			return err
+		}
+
+		studentNames := make([]string, 0, len(registrations))
+		for _, reg := range registrations {
+			if reg.StudentID == nil {
+				continue
+			}
+			if reg.Student != nil {
+				studentNames = append(studentNames, reg.Student.FullName)
+			}
+			if err := tx.Create(&types.Points{
+				CompetitionID: &competitionID,
+				EventID:       competition.EventID,
+				StudentID:     reg.StudentID,
+				Points:        points,
+				PointType:     types.PointTypeRanking,
+				Ranking:       &score.Ranking,
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Create(&types.Points{
+			CompetitionID: &competitionID,
+			EventID:       competition.EventID,
+			ClassID:       score.ClassID,
+			Points:        points,
+			PointType:     types.PointTypeRanking,
+			Ranking:       &score.Ranking,
+			Reason:        strings.Join(studentNames, "、"),
+		}).Error
+
+	case types.TypeSchool:
+		// 全校性比赛：只给班级加分，不产生学生积分
+		if score.ClassID == nil {
+			return nil
+		}
+		return tx.Create(&types.Points{
+			CompetitionID: &competitionID,
+			EventID:       competition.EventID,
+			ClassID:       score.ClassID,
+			Points:        points,
+			PointType:     types.PointTypeRanking,
+			Ranking:       &score.Ranking,
+		}).Error
+
+	case types.TypeRegistration:
+		return nil
+
+	case types.TypeIndividual:
+		// 个人赛：同时给学生和班级加分
+		if score.StudentID == nil {
+			return nil
+		}
+		if err := tx.Create(&types.Points{
+			CompetitionID: &competitionID,
+			EventID:       competition.EventID,
+			StudentID:     score.StudentID,
+			Points:        points,
+			PointType:     types.PointTypeRanking,
+			Ranking:       &score.Ranking,
+		}).Error; err != nil {
+			return err
+		}
+
+		if score.Student == nil || score.Student.ClassID <= 0 {
+			return nil
+		}
+		return tx.Create(&types.Points{
+			CompetitionID: &competitionID,
+			EventID:       competition.EventID,
+			ClassID:       &score.Student.ClassID,
+			Points:        points,
+			PointType:     types.PointTypeRanking,
+			Ranking:       &score.Ranking,
+			Reason:        score.Student.FullName,
+		}).Error
+
+	default:
+		return nil
+	}
 }
 
 // AddCustomPointsToClass 为班级添加自定义得分（如开幕式加分）
@@ -203,12 +214,10 @@ func AddCustomPointsToClass(classID int, points float64, reason string, createdB
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 
-	// 创建一个虚拟比赛ID（用于存储自定义得分）
-	// 使用负数ID表示自定义得分，避免与真实比赛ID冲突
-	virtualCompetitionID := -currentEventID
-
+	// 自定义积分不关联具体比赛，按届次归集
 	point := &types.Points{
-		CompetitionID: virtualCompetitionID,
+		CompetitionID: nil,
+		EventID:       currentEventID,
 		ClassID:       &classID,
 		Points:        points,
 		PointType:     types.PointTypeCustom,
@@ -227,7 +236,7 @@ func GetClassPointsSummary() ([]types.ClassPointsSummary, error) {
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 
-	// 查询所有班级的得分汇总
+	// 查询有得分的班级汇总（0 分班级不上榜）
 	var results []types.ClassPointsSummary
 	err := db.Raw(`
 		SELECT
@@ -239,11 +248,12 @@ func GetClassPointsSummary() ([]types.ClassPointsSummary, error) {
 		FROM classes c
 		LEFT JOIN points p ON c.id = p.class_id AND (
 			p.competition_id IN (SELECT id FROM competitions WHERE event_id = ?) OR
-			p.competition_id = ?
+			(p.competition_id IS NULL AND p.event_id = ?)
 		)
 		GROUP BY c.id, c.name
+		HAVING total_points <> 0
 		ORDER BY total_points DESC
-	`, types.PointTypeRanking, types.PointTypeCustom, currentEventID, -currentEventID).Scan(&results).Error
+	`, types.PointTypeRanking, types.PointTypeCustom, currentEventID, currentEventID).Scan(&results).Error
 	if err != nil {
 		return nil, err
 	}
@@ -315,8 +325,8 @@ func GetClassPointDetails(classID int) ([]types.PointDetail, error) {
 
 	var points []types.Points
 	err := db.Preload("Competition").Preload("Creator").
-		Where("class_id = ? AND (competition_id IN (SELECT id FROM competitions WHERE event_id = ?) OR competition_id = ?)",
-			classID, currentEventID, -currentEventID).
+		Where("class_id = ? AND (competition_id IN (SELECT id FROM competitions WHERE event_id = ?) OR (competition_id IS NULL AND event_id = ?))",
+			classID, currentEventID, currentEventID).
 		Order("created_at DESC").
 		Find(&points).Error
 	if err != nil {
@@ -326,9 +336,13 @@ func GetClassPointDetails(classID int) ([]types.PointDetail, error) {
 	// 转换为详细信息
 	details := make([]types.PointDetail, 0, len(points))
 	for _, p := range points {
+		competitionID := 0
+		if p.CompetitionID != nil {
+			competitionID = *p.CompetitionID
+		}
 		detail := types.PointDetail{
 			ID:            p.ID,
-			CompetitionID: p.CompetitionID,
+			CompetitionID: competitionID,
 			Points:        p.Points,
 			PointType:     p.PointType,
 			Ranking:       p.Ranking,
@@ -376,9 +390,13 @@ func GetStudentPointDetails(studentID int) ([]types.PointDetail, error) {
 	// 转换为详细信息
 	details := make([]types.PointDetail, 0, len(points))
 	for _, p := range points {
+		competitionID := 0
+		if p.CompetitionID != nil {
+			competitionID = *p.CompetitionID
+		}
 		detail := types.PointDetail{
 			ID:              p.ID,
-			CompetitionID:   p.CompetitionID,
+			CompetitionID:   competitionID,
 			CompetitionName: p.Competition.Name,
 			CompetitionType: p.Competition.CompetitionType,
 			Points:          p.Points,

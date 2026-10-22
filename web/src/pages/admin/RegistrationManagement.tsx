@@ -25,10 +25,15 @@ import {
   CameraOutlined,
   FileExcelOutlined,
   TrophyOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
 import html2canvas from "html2canvas-pro";
 import { adminRegistrationAPI } from "../../api/admin/registration";
 import { Competition, Registration, Class, Student } from "../../types";
+import type {
+  CompetitionCustomField,
+  RegistrationCustomValue,
+} from "../../types";
 import {
   handleResp,
   handleRespWithNotifySuccess,
@@ -39,7 +44,17 @@ import {
   getStatusTag,
   getGenderText,
   getGenderTag,
+  getCompetitionTypeTag,
 } from "../../utils/competition";
+import {
+  formatCustomFieldValue,
+  getCustomFieldValue,
+  getMissingRequiredFields,
+} from "../../utils/customFields";
+import CustomFieldInputs, {
+  CustomFieldValueMap,
+} from "../../components/CustomFieldInputs";
+import CompetitionDescription from "../../components/CompetitionDescription";
 import { useIsMobile } from "../../utils/mobile";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
@@ -83,6 +98,13 @@ const RegistrationManagement: React.FC = () => {
   const [addRegistrationVisible, setAddRegistrationVisible] = useState(false);
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  const [customRegisterStudent, setCustomRegisterStudent] =
+    useState<Student | null>(null);
+  const [customRegisterValues, setCustomRegisterValues] =
+    useState<CustomFieldValueMap>({});
+  const [customRegisterVisible, setCustomRegisterVisible] = useState(false);
+  const [customRegisterLoading, setCustomRegisterLoading] = useState(false);
+  const hasCustomFields = (currentCompetition?.custom_fields?.length ?? 0) > 0;
   const [batchRegistrationLoading, setBatchRegistrationLoading] =
     useState(false);
   const [batchResultsVisible, setBatchResultsVisible] = useState(false);
@@ -127,6 +149,13 @@ const RegistrationManagement: React.FC = () => {
   const [registrationClassFilter, setRegistrationClassFilter] = useState<
     string | null
   >(null);
+  const [editRegistration, setEditRegistration] = useState<Registration | null>(
+    null,
+  );
+  const [editRegistrationValues, setEditRegistrationValues] =
+    useState<CustomFieldValueMap>({});
+  const [editRegistrationVisible, setEditRegistrationVisible] = useState(false);
+  const [editRegistrationLoading, setEditRegistrationLoading] = useState(false);
 
   const fetchCompetitions = async (
     page = currentPage,
@@ -146,10 +175,17 @@ const RegistrationManagement: React.FC = () => {
         handleResp(
           response,
           (data) => {
-            // 前端过滤搜索结果
-            const filteredData = data.filter((competition: any) =>
-              competition.name.toLowerCase().includes(searchText.toLowerCase()),
-            );
+            // 前端过滤搜索结果，并排除全校性比赛（无需报名）
+            const filteredData = data
+              .filter(
+                (competition: Competition) =>
+                  competition.competition_type !== "school",
+              )
+              .filter((competition: Competition) =>
+                competition.name
+                  .toLowerCase()
+                  .includes(searchText.toLowerCase()),
+              );
             setCompetitions(filteredData);
             setTotal(filteredData.length);
             setLoading(false);
@@ -174,8 +210,16 @@ const RegistrationManagement: React.FC = () => {
     handleResp(
       response,
       (data, pagination) => {
-        setCompetitions(data);
-        setTotal(pagination?.total || 0);
+        // 全校性比赛按班级录成绩，不参与报名管理
+        const filteredData = data.filter(
+          (competition) => competition.competition_type !== "school",
+        );
+        setCompetitions(filteredData);
+        setTotal(
+          filteredData.length === data.length
+            ? pagination?.total || 0
+            : filteredData.length,
+        );
         setLoading(false);
       },
       () => {
@@ -221,7 +265,11 @@ const RegistrationManagement: React.FC = () => {
     const resp = await adminRegistrationAPI.getCompetitions({
       status: "approved,checking_in,in_progress,pending_score_review,completed",
     });
-    handleResp(resp, (data) => setExportAllCompetitions(data));
+    handleResp(resp, (data) =>
+      setExportAllCompetitions(
+        data.filter((competition) => competition.competition_type !== "school"),
+      ),
+    );
   };
 
   // 根据班级获取学生列表
@@ -401,6 +449,121 @@ const RegistrationManagement: React.FC = () => {
     });
   };
 
+  // 打开报名信息编辑（自定义字段）
+  const openEditRegistration = (registration: Registration) => {
+    if (!currentCompetition) return;
+
+    const values: CustomFieldValueMap = {};
+    (currentCompetition.custom_fields ?? []).forEach((field) => {
+      const raw = getCustomFieldValue(registration.custom_values, field.id);
+      if (raw === undefined) return;
+      values[field.id] =
+        field.field_type === "int" || field.field_type === "float"
+          ? Number(raw)
+          : raw;
+    });
+
+    setEditRegistration(registration);
+    setEditRegistrationValues(values);
+    setEditRegistrationVisible(true);
+  };
+
+  // 保存报名自定义字段值
+  const handleSaveRegistrationValues = async () => {
+    if (!currentCompetition || !editRegistration) return;
+
+    const missingFields = getMissingRequiredFields(
+      currentCompetition.custom_fields,
+      editRegistrationValues,
+    );
+    if (missingFields.length > 0) {
+      message.warning(
+        `请填写：${missingFields.map((field) => field.name).join("、")}`,
+      );
+      return;
+    }
+
+    const customValues = (currentCompetition.custom_fields ?? [])
+      .filter(
+        (field) =>
+          editRegistrationValues[field.id] !== undefined &&
+          editRegistrationValues[field.id] !== "",
+      )
+      .map((field) => ({
+        field_id: field.id,
+        value: editRegistrationValues[field.id] as string | number | boolean,
+      }));
+
+    setEditRegistrationLoading(true);
+    try {
+      const response =
+        await adminRegistrationAPI.updateRegistrationCustomValues(
+          editRegistration.id,
+          customValues,
+        );
+      handleRespWithNotifySuccess(response, () => {
+        setEditRegistrationVisible(false);
+        setEditRegistration(null);
+        setEditRegistrationValues({});
+        fetchRegistrations(currentCompetition.id);
+      });
+    } finally {
+      setEditRegistrationLoading(false);
+    }
+  };
+
+  // 打开单个学生的报名信息填写（有自定义字段时）
+  const openCustomRegister = (student: Student) => {
+    setCustomRegisterStudent(student);
+    setCustomRegisterValues({});
+    setCustomRegisterVisible(true);
+  };
+
+  // 提交单个学生的报名及自定义字段
+  const handleCustomRegisterSubmit = async () => {
+    if (!currentCompetition || !customRegisterStudent) return;
+
+    const missingFields = getMissingRequiredFields(
+      currentCompetition.custom_fields,
+      customRegisterValues,
+    );
+    if (missingFields.length > 0) {
+      message.warning(
+        `请填写：${missingFields.map((field) => field.name).join("、")}`,
+      );
+      return;
+    }
+
+    const customValues = (currentCompetition.custom_fields ?? [])
+      .filter(
+        (field) =>
+          customRegisterValues[field.id] !== undefined &&
+          customRegisterValues[field.id] !== "",
+      )
+      .map((field) => ({
+        field_id: field.id,
+        value: customRegisterValues[field.id] as string | number | boolean,
+      }));
+
+    setCustomRegisterLoading(true);
+    try {
+      const response = await adminRegistrationAPI.registerStudent({
+        student_id: customRegisterStudent.id,
+        competition_id: currentCompetition.id,
+        custom_values: customValues,
+      });
+      handleRespWithNotifySuccess(response, () => {
+        setCustomRegisterVisible(false);
+        setCustomRegisterStudent(null);
+        setCustomRegisterValues({});
+        fetchRegistrations(currentCompetition.id);
+        fetchCompetitions();
+      });
+    } finally {
+      setCustomRegisterLoading(false);
+    }
+  };
+
   // 打开报名管理模态框
   const openRegistrationModal = async (competition: Competition) => {
     setCurrentCompetition(competition);
@@ -420,6 +583,9 @@ const RegistrationManagement: React.FC = () => {
     setClasses([]);
     setSelectedStudents([]);
     setRegistrationClassFilter(null);
+    setCustomRegisterVisible(false);
+    setCustomRegisterStudent(null);
+    setCustomRegisterValues({});
   };
 
   // 处理班级选择
@@ -510,6 +676,22 @@ const RegistrationManagement: React.FC = () => {
   };
 
   // 导出报名情况到 Excel
+  // 格式化报名自定义字段（用于导出）
+  const formatRegistrationCustomValues = (
+    fields: CompetitionCustomField[] | undefined,
+    values: RegistrationCustomValue[] | undefined,
+  ): string =>
+    (fields ?? [])
+      .map((field) => {
+        const value = formatCustomFieldValue(
+          field,
+          getCustomFieldValue(values, field.id),
+        );
+        return value ? `${field.name}:${value}` : "";
+      })
+      .filter(Boolean)
+      .join(" ");
+
   const handleExportRegistrations = async () => {
     setExportLoading(true);
     try {
@@ -570,9 +752,11 @@ const RegistrationManagement: React.FC = () => {
 
         return {
           name: comp.name,
+          customFields: comp.custom_fields ?? [],
           registrations: registrations.map((reg) => ({
             class_name: reg.class_name,
             student_name: reg.student_name,
+            custom_values: reg.custom_values,
           })),
         };
       }),
@@ -630,7 +814,14 @@ const RegistrationManagement: React.FC = () => {
           for (let j = 0; j < 4; j++) {
             const reg = sortedRegistrations[i + j];
             if (reg) {
-              row.push(reg.class_name, reg.student_name);
+              const extra = formatRegistrationCustomValues(
+                competition.customFields,
+                reg.custom_values,
+              );
+              row.push(
+                reg.class_name,
+                extra ? `${reg.student_name}（${extra}）` : reg.student_name,
+              );
             } else {
               row.push("", "");
             }
@@ -664,15 +855,22 @@ const RegistrationManagement: React.FC = () => {
       const totalCols = 3 + testGroupCols + compGroupCols;
 
       const sheets = filteredCompetitions.map((competition) => {
+        const customFields = competition.customFields;
+        const sheetCols = totalCols + customFields.length;
         const sheetData: any[][] = [];
         const merges: any[] = [];
 
         // 标题行（合并全列）
-        sheetData.push([competition.name, ...Array(totalCols - 1).fill("")]);
-        merges.push(createMerge(0, 0, 0, totalCols - 1, true, true));
+        sheetData.push([competition.name, ...Array(sheetCols - 1).fill("")]);
+        merges.push(createMerge(0, 0, 0, sheetCols - 1, true, true));
 
         // 表头行
-        const headerRow: string[] = ["序号", "班级", "姓名"];
+        const headerRow: string[] = [
+          "序号",
+          "班级",
+          "姓名",
+          ...customFields.map((field) => field.name),
+        ];
         if (hasTest) {
           for (let i = 1; i <= exportTestCount; i++) headerRow.push(`第${i}次`);
           headerRow.push(exportScoreType, "名次");
@@ -687,12 +885,18 @@ const RegistrationManagement: React.FC = () => {
             index + 1,
             reg.class_name,
             reg.student_name,
+            ...customFields.map((field) =>
+              formatCustomFieldValue(
+                field,
+                getCustomFieldValue(reg.custom_values, field.id),
+              ),
+            ),
             ...Array(testGroupCols + compGroupCols).fill(""),
           ]);
         });
 
         // 列宽
-        const colWidths: number[] = [5, 10, 10];
+        const colWidths: number[] = [5, 10, 10, ...customFields.map(() => 10)];
         if (hasTest) {
           colWidths.push(...Array(exportTestCount).fill(8), 12, 5);
         }
@@ -765,6 +969,24 @@ const RegistrationManagement: React.FC = () => {
               nameRow.push(group[i]?.student_name ?? "");
             data.push(nameRow);
             row++;
+
+            // 自定义字段备注行
+            if (competition.customFields.length > 0) {
+              const noteRow: any[] = ["备注"];
+              for (let i = 0; i < N; i++) {
+                const reg = group[i];
+                noteRow.push(
+                  reg
+                    ? formatRegistrationCustomValues(
+                        competition.customFields,
+                        reg.custom_values,
+                      )
+                    : "",
+                );
+              }
+              data.push(noteRow);
+              row++;
+            }
 
             if (includeScore) {
               data.push(["成绩", ...Array(N).fill("")]);
@@ -864,9 +1086,13 @@ const RegistrationManagement: React.FC = () => {
         registrations.forEach((reg) => {
           // 筛选当前班级学生的报名
           if (reg.student_id && classStudentIds.has(reg.student_id)) {
+            const extra = formatRegistrationCustomValues(
+              comp.custom_fields,
+              reg.custom_values,
+            );
             allRegistrations.push({
               student_id: reg.student_id,
-              competition_name: comp.name,
+              competition_name: comp.name + (extra ? `（${extra}）` : ""),
             });
           }
         });
@@ -957,7 +1183,14 @@ const RegistrationManagement: React.FC = () => {
         key={competition.id}
         hoverable
         size="small"
-        styles={{ body: { padding: "12px 16px" } }}
+        styles={{
+          body: {
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+          },
+        }}
         onClick={() => openRegistrationModal(competition)}
         style={{ cursor: "pointer", height: "100%" }}
       >
@@ -970,25 +1203,35 @@ const RegistrationManagement: React.FC = () => {
           }}
         >
           <div
-            style={{ fontWeight: 600, fontSize: 15, flex: 1, marginRight: 8 }}
+            style={{
+              fontWeight: 600,
+              fontSize: 15,
+              flex: 1,
+              marginRight: 8,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={competition.name}
           >
             {competition.name}
           </div>
           {getStatusTag(competition.status)}
         </div>
 
-        {competition.description && (
-          <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-            {competition.description}
-          </div>
-        )}
-
-        {competition.start_time && competition.end_time && (
-          <div style={{ fontSize: 12, color: "#999", marginBottom: 10 }}>
-            {dayjs(competition.start_time).format("MM-DD HH:mm")} –{" "}
-            {dayjs(competition.end_time).format("HH:mm")}
-          </div>
-        )}
+        <div
+          style={{
+            fontSize: 12,
+            color: "#999",
+            marginBottom: 10,
+          }}
+        >
+          {competition.start_time && competition.end_time
+            ? `${dayjs(competition.start_time).format("MM-DD HH:mm")} – ${dayjs(
+                competition.end_time,
+              ).format("HH:mm")}`
+            : "时间待定"}
+        </div>
 
         <div
           style={{
@@ -998,12 +1241,7 @@ const RegistrationManagement: React.FC = () => {
             marginBottom: 10,
           }}
         >
-          <Tag
-            color={competition.competition_type === "team" ? "blue" : "green"}
-            style={{ margin: 0 }}
-          >
-            {competition.competition_type === "team" ? "团体" : "个人"}
-          </Tag>
+          {getCompetitionTypeTag(competition.competition_type)}
           {getGenderTag(competition.gender)}
         </div>
 
@@ -1012,6 +1250,7 @@ const RegistrationManagement: React.FC = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            marginTop: "auto",
           }}
         >
           <span style={{ fontSize: 12, color: "#888" }}>
@@ -1183,7 +1422,7 @@ const RegistrationManagement: React.FC = () => {
             xxxl: 3,
           }}
           renderItem={(competition) => (
-            <List.Item style={{ marginBottom: 16 }}>
+            <List.Item style={{ marginBottom: 16, height: "100%" }}>
               {renderCompetitionCard(competition)}
             </List.Item>
           )}
@@ -1217,11 +1456,10 @@ const RegistrationManagement: React.FC = () => {
         zIndex={1001}
       >
         <div>
-          {currentCompetition?.description && (
-            <div style={{ marginBottom: 12, color: "#666", fontSize: 14 }}>
-              {currentCompetition.description}
-            </div>
-          )}
+          <CompetitionDescription
+            description={currentCompetition?.description}
+            clampLines={3}
+          />
           <div style={{ marginBottom: 16 }}>
             <Space>
               {canModifyRegistration && (
@@ -1318,6 +1556,7 @@ const RegistrationManagement: React.FC = () => {
                             display: "flex",
                             alignItems: "center",
                             gap: 16,
+                            flexWrap: "wrap",
                           }}
                         >
                           <span style={{ fontWeight: 500, minWidth: 60 }}>
@@ -1336,23 +1575,53 @@ const RegistrationManagement: React.FC = () => {
                               ? dayjs(reg.created_at).format("MM-DD HH:mm")
                               : new Date(reg.created_at).toLocaleString()}
                           </span>
+                          {(currentCompetition?.custom_fields ?? []).map(
+                            (field) => {
+                              const value = getCustomFieldValue(
+                                reg.custom_values,
+                                field.id,
+                              );
+                              return (
+                                <span
+                                  key={field.id}
+                                  style={{ fontSize: 12, color: "#666" }}
+                                >
+                                  {field.name}：
+                                  {formatCustomFieldValue(field, value) ||
+                                    "未填写"}
+                                </span>
+                              );
+                            },
+                          )}
                         </div>
-                        {canModifyRegistration && (
-                          <Popconfirm
-                            title="确定取消此学生的报名吗？"
-                            onConfirm={() => handleRemoveRegistration(reg)}
-                            okText="确定"
-                            cancelText="取消"
-                          >
+                        <Space size={4}>
+                          {(currentCompetition?.custom_fields?.length ?? 0) >
+                            0 && (
                             <Button
                               size="small"
-                              danger
-                              icon={<DeleteOutlined />}
+                              icon={<EditOutlined />}
+                              onClick={() => openEditRegistration(reg)}
                             >
-                              取消报名
+                              编辑信息
                             </Button>
-                          </Popconfirm>
-                        )}
+                          )}
+                          {canModifyRegistration && (
+                            <Popconfirm
+                              title="确定取消此学生的报名吗？"
+                              onConfirm={() => handleRemoveRegistration(reg)}
+                              okText="确定"
+                              cancelText="取消"
+                            >
+                              <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                              >
+                                取消报名
+                              </Button>
+                            </Popconfirm>
+                          )}
+                        </Space>
                       </div>
                     </Card>
                   ))}
@@ -1360,6 +1629,31 @@ const RegistrationManagement: React.FC = () => {
             )}
           </Spin>
         </div>
+      </Modal>
+
+      {/* 编辑报名自定义字段 */}
+      <Modal
+        title={`${editRegistration?.student_name ?? ""} - 编辑报名信息`}
+        open={editRegistrationVisible}
+        onCancel={() => {
+          if (!editRegistrationLoading) {
+            setEditRegistrationVisible(false);
+            setEditRegistration(null);
+            setEditRegistrationValues({});
+          }
+        }}
+        onOk={handleSaveRegistrationValues}
+        confirmLoading={editRegistrationLoading}
+        okText="保存"
+        cancelText="取消"
+        width={480}
+        zIndex={1002}
+      >
+        <CustomFieldInputs
+          fields={currentCompetition?.custom_fields}
+          values={editRegistrationValues}
+          onChange={setEditRegistrationValues}
+        />
       </Modal>
 
       {/* 新增报名模态框 */}
@@ -1371,12 +1665,34 @@ const RegistrationManagement: React.FC = () => {
           setSelectedClass(null);
           setStudents([]);
           setSelectedStudents([]);
+          setCustomRegisterVisible(false);
+          setCustomRegisterStudent(null);
+          setCustomRegisterValues({});
         }}
         footer={null}
         width={700}
         zIndex={1002}
       >
         <div>
+          {hasCustomFields && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "8px 12px",
+                background: "#fffbe6",
+                border: "1px solid #ffe58f",
+                borderRadius: 6,
+                fontSize: 12,
+                color: "#ad6800",
+              }}
+            >
+              该项目需要填写：
+              {(currentCompetition?.custom_fields ?? [])
+                .map((field) => field.name)
+                .join("、")}
+              。点击学生后填写信息并报名，必填项需填写完整。
+            </div>
+          )}
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>
               <strong>选择班级</strong>
@@ -1620,6 +1936,10 @@ const RegistrationManagement: React.FC = () => {
                               }}
                               onClick={() => {
                                 if (!canSelect) return;
+                                if (hasCustomFields) {
+                                  openCustomRegister(student);
+                                  return;
+                                }
                                 handleStudentSelect(
                                   isSelected
                                     ? selectedStudents.filter(
@@ -1652,7 +1972,7 @@ const RegistrationManagement: React.FC = () => {
                     />
                   </div>
 
-                  {selectedStudents.length > 0 && (
+                  {!hasCustomFields && selectedStudents.length > 0 && (
                     <div
                       style={{
                         marginTop: 16,
@@ -1679,6 +1999,33 @@ const RegistrationManagement: React.FC = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* 单个学生填写报名自定义字段 */}
+      <Modal
+        title={`${currentCompetition?.name ?? ""} - ${
+          customRegisterStudent?.full_name ?? ""
+        }`}
+        open={customRegisterVisible}
+        onCancel={() => {
+          if (!customRegisterLoading) {
+            setCustomRegisterVisible(false);
+            setCustomRegisterStudent(null);
+            setCustomRegisterValues({});
+          }
+        }}
+        onOk={handleCustomRegisterSubmit}
+        confirmLoading={customRegisterLoading}
+        okText="确认报名"
+        cancelText="取消"
+        width={480}
+        zIndex={1003}
+      >
+        <CustomFieldInputs
+          fields={currentCompetition?.custom_fields}
+          values={customRegisterValues}
+          onChange={setCustomRegisterValues}
+        />
       </Modal>
 
       {/* 批量操作结果弹窗 */}

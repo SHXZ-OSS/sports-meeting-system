@@ -16,13 +16,15 @@ import (
 
 // RegisterCompetitionRequest 报名比赛请求
 type RegisterCompetitionRequest struct {
-	CompetitionID int `json:"competition_id" binding:"required"`
+	CompetitionID int                                  `json:"competition_id" binding:"required"`
+	CustomValues  []types.RegistrationCustomValueInput `json:"custom_values"`
 }
 
 // AdminRegisterRequest 管理员替学生报名请求
 type AdminRegisterRequest struct {
-	StudentID     int `json:"student_id"     binding:"required"`
-	CompetitionID int `json:"competition_id" binding:"required"`
+	StudentID     int                                  `json:"student_id"     binding:"required"`
+	CompetitionID int                                  `json:"competition_id" binding:"required"`
+	CustomValues  []types.RegistrationCustomValueInput `json:"custom_values"`
 }
 
 // AdminUnregisterRequest 管理员替学生取消报名请求
@@ -88,6 +90,11 @@ func GetCompetitionRegistrationsForPublic(c *gin.Context) {
 		return
 	}
 
+	// 公开接口不暴露体重等自定义字段值
+	for _, registration := range registrations {
+		registration.CustomValues = nil
+	}
+
 	// 返回响应
 	utils.ResponseOK(c, registrations)
 }
@@ -129,7 +136,13 @@ func RegisterForCompetitionForStudent(c *gin.Context) {
 	}
 
 	// 报名比赛（学生报名，传入nil表示非管理员）
-	if err := models.RegisterForCompetitionForStudent(&studentID, nil, req.CompetitionID, nil); err != nil {
+	if err := models.RegisterForCompetitionForStudent(
+		&studentID,
+		nil,
+		req.CompetitionID,
+		req.CustomValues,
+		nil,
+	); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "报名失败: "+err.Error())
 		return
 	}
@@ -240,8 +253,9 @@ func GetCompetitionRegistrations(c *gin.Context) {
 func RegisterForCompetitionForAdmin(c *gin.Context) {
 	// 解析请求
 	var req struct {
-		StudentID     int `json:"student_id"`
-		CompetitionID int `json:"competition_id"`
+		StudentID     int                                  `json:"student_id"`
+		CompetitionID int                                  `json:"competition_id"`
+		CustomValues  []types.RegistrationCustomValueInput `json:"custom_values"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
@@ -275,7 +289,9 @@ func RegisterForCompetitionForAdmin(c *gin.Context) {
 	}
 
 	// 执行报名（传入user对象，只有全局管理员可以跳过时间和数量限制）
-	if err := models.RegisterForCompetitionForStudent(&req.StudentID, nil, req.CompetitionID, user); err != nil {
+	if err := models.RegisterForCompetitionForStudent(
+		&req.StudentID, nil, req.CompetitionID, req.CustomValues, user,
+	); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "报名失败: "+err.Error())
 		return
 	}
@@ -365,6 +381,56 @@ func GetCompetitionChecklist(c *gin.Context) {
 	}
 
 	utils.ResponseOK(c, results)
+}
+
+// UpdateRegistrationCustomValues 管理员修改报名自定义字段值
+func UpdateRegistrationCustomValues(c *gin.Context) {
+	registrationID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的报名ID")
+		return
+	}
+
+	var req struct {
+		CustomValues []types.RegistrationCustomValueInput `json:"custom_values"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
+		return
+	}
+
+	userID, ok := middlewares.GetUserIDFromContext(c)
+	if !ok {
+		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
+		return
+	}
+	user, err := models.GetUserByID(userID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusUnauthorized, "用户信息获取失败")
+		return
+	}
+
+	registration, err := models.GetRegistrationByID(registrationID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "报名记录不存在")
+		return
+	}
+
+	classID := 0
+	if registration.ClassID != nil {
+		classID = *registration.ClassID
+	}
+	if !models.CanAccessClass(user, classID) {
+		utils.ResponseError(c, http.StatusForbidden, "您只能修改自己班级学生的报名信息")
+		return
+	}
+
+	if err := models.UpdateRegistrationCustomValues(registrationID, req.CustomValues); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "更新报名信息失败: "+err.Error())
+		return
+	}
+
+	utils.ResponseSuccessWithCustomMessage(c, "更新成功")
 }
 
 // RemindStudent 对单个已报名学生发送检录提醒

@@ -23,6 +23,33 @@ export interface Class {
   name: string;
 }
 
+export type CompetitionType = "individual" | "team" | "school" | "registration";
+
+export type CustomFieldType = "string" | "int" | "float" | "bool";
+
+export interface CompetitionCustomField {
+  id: number;
+  competition_id?: number;
+  name: string;
+  field_type: CustomFieldType;
+  required: boolean;
+  sort_order: number;
+  has_registration_data?: boolean;
+}
+
+export interface RegistrationCustomValue {
+  id?: number;
+  registration_id?: number;
+  field_id: number;
+  value: string;
+  field?: CompetitionCustomField;
+}
+
+export interface RegistrationCustomValueInput {
+  field_id: number;
+  value: string | number | boolean;
+}
+
 export interface Competition {
   id: number;
   name: string;
@@ -40,7 +67,7 @@ export interface Competition {
   ranking_mode: "higher_first" | "lower_first";
   unit: string;
   gender: number;
-  competition_type: "individual" | "team"; // 比赛类型：个人或团体
+  competition_type: CompetitionType; // 比赛类型：个人/团体/全校性/仅报名
   min_participants_per_class: number;
   max_participants_per_class: number;
   min_female_per_class: number;
@@ -64,6 +91,7 @@ export interface Competition {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  custom_fields?: CompetitionCustomField[];
   scores?: Score[];
 }
 
@@ -90,6 +118,7 @@ export interface Registration {
   student_gender: number;
   class_name: string;
   created_at: string;
+  custom_values?: RegistrationCustomValue[];
 }
 
 export interface ClassPointsSummary {
@@ -115,7 +144,7 @@ export interface PointDetail {
   id: number;
   competition_id: number;
   competition_name: string;
-  competition_type: "individual" | "team";
+  competition_type: CompetitionType;
   points: number;
   point_type: "ranking" | "custom";
   ranking?: number;
@@ -166,7 +195,7 @@ export interface PaginatedResponse<T = unknown> extends ApiResponse<T> {
 
 export interface StudentScore {
   student_id?: number; // 个人比赛时使用
-  class_id?: number; // 团体比赛时使用
+  class_id?: number; // 团体/全校性比赛时使用
   score: number;
 }
 

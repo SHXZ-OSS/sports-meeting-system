@@ -26,6 +26,7 @@ func GetAllClasses(c *gin.Context) {
 	// 解析分页参数
 	page, _ := strconv.Atoi(c.Query("page"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size"))
+	keyword := c.Query("keyword")
 
 	if page <= 0 {
 		page = 0
@@ -49,12 +50,12 @@ func GetAllClasses(c *gin.Context) {
 
 	// 全局管理员返回所有班级
 	if !models.IsClassBound(user) {
-		classes, _, err := models.GetAllClasses(page, pageSize)
+		classes, total, err := models.GetAllClasses(page, pageSize, keyword)
 		if err != nil {
 			utils.ResponseError(c, http.StatusInternalServerError, "获取班级列表失败")
 			return
 		}
-		utils.ResponseOK(c, classes)
+		utils.ResponsePaginated(c, classes, total, page, pageSize)
 		return
 	}
 
@@ -64,7 +65,7 @@ func GetAllClasses(c *gin.Context) {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取班级列表失败")
 		return
 	}
-	utils.ResponseOK(c, []any{class})
+	utils.ResponsePaginated(c, []any{class}, 1, 1, 1)
 }
 
 // GetClass 获取班级信息

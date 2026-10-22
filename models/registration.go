@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,7 +14,13 @@ import (
 )
 
 // RegisterForCompetitionForStudent 学生报名比赛（个人赛和团体赛都以学生为单位）
-func RegisterForCompetitionForStudent(studentID *int, classID *int, competitionID int, user *types.User) error {
+func RegisterForCompetitionForStudent(
+	studentID *int,
+	classID *int,
+	competitionID int,
+	customValues []types.RegistrationCustomValueInput,
+	user *types.User,
+) error {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewRegistrationValidator(db)
@@ -31,13 +38,30 @@ func RegisterForCompetitionForStudent(studentID *int, classID *int, competitionI
 		}
 	}
 
-	// 创建报名记录
+	// 校验自定义字段；所有来源的报名都必须填完整必填字段
+	customRows, err := normalizeRegistrationCustomValues(db, competitionID, customValues, true)
+	if err != nil {
+		return err
+	}
+
+	// 创建报名记录及自定义字段值
 	registration := &types.Registration{
 		StudentID:     studentID,
 		ClassID:       classID,
 		CompetitionID: competitionID,
 	}
-	return db.Create(registration).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(registration).Error; err != nil {
+			return err
+		}
+		if len(customRows) == 0 {
+			return nil
+		}
+		for i := range customRows {
+			customRows[i].RegistrationID = registration.ID
+		}
+		return tx.Create(&customRows).Error
+	})
 }
 
 // UnregisterFromCompetition 取消报名
@@ -51,18 +75,41 @@ func UnregisterFromCompetition(studentID *int, classID *int, competitionID int, 
 		return err
 	}
 
-	// 删除报名记录
-	result := db.Where("student_id = ? AND competition_id = ?", *studentID, competitionID).Delete(&types.Registration{})
+	// 删除报名记录及其自定义字段值
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where(
+			"registration_id IN (SELECT id FROM registrations WHERE student_id = ? AND competition_id = ?)",
+			*studentID, competitionID,
+		).Delete(&types.RegistrationCustomValue{}).Error; err != nil {
+			return err
+		}
 
-	if result.Error != nil {
-		return result.Error
+		result := tx.Where("student_id = ? AND competition_id = ?", *studentID, competitionID).
+			Delete(&types.Registration{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return utils.ErrNotRegistered
+		}
+		return nil
+	})
+}
+
+// GetRegistrationByID 通过ID获取报名记录
+func GetRegistrationByID(id int) (*types.Registration, error) {
+	db := database.GetDB()
+
+	var registration types.Registration
+	if err := db.Preload("Student.Class").
+		Preload("CustomValues.Field").
+		First(&registration, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("报名记录不存在")
+		}
+		return nil, err
 	}
-
-	if result.RowsAffected == 0 {
-		return utils.ErrNotRegistered
-	}
-
-	return nil
+	return &registration, nil
 }
 
 // GetCompetitionRegistrations 获取比赛的报名列表
@@ -72,7 +119,9 @@ func GetCompetitionRegistrations(competitionID int, scopeClassID int) ([]*types.
 	db := database.GetDB()
 
 	// 构建查询
-	query := db.Preload("Student.Class").Where("competition_id = ?", competitionID)
+	query := db.Preload("Student.Class").
+		Preload("CustomValues.Field").
+		Where("competition_id = ?", competitionID)
 
 	// 如果限定了数据权限班级，应用过滤
 	if scopeClassID > 0 {
@@ -144,11 +193,12 @@ func GetStudentRegistrationsByStudentID(studentID int) ([]*types.Competition, er
 func GetCompetitionChecklist(scopeClassID int) ([]map[string]any, error) {
 	db := database.GetDB()
 
-	// 获取当前届次的所有比赛项目
+	// 获取当前届次的所有比赛项目（全校性比赛无需报名）
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 	var competitions []types.Competition
-	if err := db.Where("event_id = ?", currentEventID).Find(&competitions).Error; err != nil {
+	if err := db.Where("event_id = ? AND competition_type <> ?", currentEventID, types.TypeSchool).
+		Find(&competitions).Error; err != nil {
 		return nil, err
 	}
 

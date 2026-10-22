@@ -27,13 +27,28 @@ func GetClassByID(id int) (*types.Class, error) {
 	return &class, nil
 }
 
-// GetAllClasses 获取所有班级
-func GetAllClasses(page, pageSize int) ([]*types.Class, int, error) {
+// GetAllClasses 分页获取班级，keyword 按班级名称模糊匹配
+func GetAllClasses(page, pageSize int, keyword string) ([]*types.Class, int, error) {
 	// 获取数据库连接
 	db := database.GetDB()
 
+	// Count 与 Find 使用完全相同的筛选条件
+	buildQuery := func() *gorm.DB {
+		query := db.Model(&types.Class{})
+		if keyword != "" {
+			query = query.Where("name LIKE ?", "%"+keyword+"%")
+		}
+		return query
+	}
+
+	// 获取总数
+	var total int64
+	if err := buildQuery().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	// 构建查询
-	query := db.Model(&types.Class{}).Order("id ASC")
+	query := buildQuery().Order("id ASC")
 	if page > 0 && pageSize > 0 {
 		query = query.Offset((page - 1) * pageSize).Limit(pageSize)
 	}
@@ -41,12 +56,6 @@ func GetAllClasses(page, pageSize int) ([]*types.Class, int, error) {
 	// 执行查询
 	var classes []*types.Class
 	if err := query.Find(&classes).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// 获取总数
-	var total int64
-	if err := db.Model(&types.Class{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 

@@ -29,20 +29,22 @@ func getCompetitionCount() (int, int, error) {
 	cfg := config.Get()
 	currentEventID := cfg.CurrentEventID
 
-	// 查询已完成的比赛数量
+	// 查询已完成的比赛数量（仅报名项目不参与赛程统计）
 	var completedCount int64
 	if err := db.Model(&types.Competition{}).
-		Where("status = ? AND event_id = ?", types.StatusCompleted, currentEventID).
+		Where("status = ? AND event_id = ? AND competition_type <> ?",
+			types.StatusCompleted, currentEventID, types.TypeRegistration).
 		Count(&completedCount).
 		Error; err != nil {
 		return 0, 0, err
 	}
 
-	// 查询待完成的比赛数量
+	// 查询待完成的比赛数量（仅报名项目不参与赛程统计）
 	var remainingCount int64
 	if err := db.Model(&types.Competition{}).
-		Where("(status = ? OR status = ? OR status = ? OR status = ?) AND event_id = ?",
-			types.StatusApproved, types.StatusCheckingIn, types.StatusInProgress, types.StatusPendingScoreReview, currentEventID).
+		Where("(status = ? OR status = ? OR status = ? OR status = ?) AND event_id = ? AND competition_type <> ?",
+			types.StatusApproved, types.StatusCheckingIn, types.StatusInProgress, types.StatusPendingScoreReview,
+			currentEventID, types.TypeRegistration).
 		Count(&remainingCount).
 		Error; err != nil {
 		return 0, 0, err

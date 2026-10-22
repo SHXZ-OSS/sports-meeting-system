@@ -1,9 +1,14 @@
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Competition, PointDetail, Registration, Score } from "../types";
-import { getGenderText, getScoreboardRankingColor } from "../utils/competition";
+import {
+  getGenderText,
+  getScoreboardRankingColor,
+  isClassScoredType,
+} from "../utils/competition";
+import CompetitionDescription from "./CompetitionDescription";
 import "./ScoreboardDialogs.css";
 
 export interface StudentModalState {
@@ -144,6 +149,47 @@ interface DemoDialogProps {
   footer?: ReactNode;
 }
 
+interface EscapeCloseEntry {
+  id: number;
+  zIndex: number;
+  onClose: () => void;
+}
+
+// 多个弹窗叠加时只允许 zIndex 最高的弹窗响应 ESC，避免一次按键关闭全部弹窗
+const escapeCloseEntries = new Map<number, EscapeCloseEntry>();
+let nextEscapeCloseId = 1;
+let escapeCloseListening = false;
+
+const handleEscapeClose = (event: KeyboardEvent) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  let topmost: EscapeCloseEntry | undefined;
+  escapeCloseEntries.forEach((entry) => {
+    if (!topmost || entry.zIndex >= topmost.zIndex) {
+      topmost = entry;
+    }
+  });
+  topmost?.onClose();
+};
+
+const listenEscapeClose = () => {
+  if (escapeCloseListening) {
+    return;
+  }
+  window.addEventListener("keydown", handleEscapeClose);
+  escapeCloseListening = true;
+};
+
+const unlistenEscapeClose = () => {
+  if (!escapeCloseListening || escapeCloseEntries.size > 0) {
+    return;
+  }
+  window.removeEventListener("keydown", handleEscapeClose);
+  escapeCloseListening = false;
+};
+
 function DemoDialog({
   open,
   title,
@@ -154,20 +200,39 @@ function DemoDialog({
   footer,
 }: DemoDialogProps) {
   const titleId = useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const escapeIdRef = useRef<number | null>(null);
+  if (escapeIdRef.current === null) {
+    escapeIdRef.current = nextEscapeCloseId;
+    nextEscapeCloseId += 1;
+  }
 
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || escapeIdRef.current === null) return;
+
+    const id = escapeIdRef.current;
+    escapeCloseEntries.set(id, {
+      id,
+      zIndex,
+      onClose: () => onCloseRef.current(),
+    });
+    listenEscapeClose();
+
+    return () => {
+      escapeCloseEntries.delete(id);
+      unlistenEscapeClose();
+    };
+  }, [open, zIndex]);
 
   if (!open) return null;
 
@@ -623,7 +688,11 @@ function CompetitionDetailDialog({
         <span className="sd-meta-item">
           <span className="sd-meta-label">类型</span>
           <span className="sd-meta-value">
-            {competition.competition_type === "team" ? "团体赛" : "个人赛"}
+            {competition.competition_type === "team"
+              ? "团体赛"
+              : competition.competition_type === "school"
+                ? "全校性"
+                : "个人赛"}
           </span>
         </span>
         <span className="sd-meta-item">
@@ -657,6 +726,11 @@ function CompetitionDetailDialog({
           </span>
         </span>
       </div>
+
+      <CompetitionDescription
+        description={competition.description}
+        clampLines={4}
+      />
 
       {isCompleted && (
         <section className="sd-result-facts">
@@ -701,7 +775,7 @@ function CompetitionDetailDialog({
                   </span>
                   <div className="sd-result-main">
                     <div className="sd-result-name">
-                      {competition.competition_type === "team" ? (
+                      {isClassScoredType(competition.competition_type) ? (
                         <span>{score.class_name}</span>
                       ) : (
                         <>
@@ -754,6 +828,8 @@ function CompetitionDetailDialog({
         )
       ) : modal.loading ? (
         <p className="sd-loading">正在加载…</p>
+      ) : competition.competition_type === "school" ? (
+        <p className="sd-empty">全校性比赛，无需报名</p>
       ) : modal.registrations.length === 0 ? (
         <p className="sd-empty">该比赛暂无报名数据</p>
       ) : (

@@ -29,8 +29,10 @@ const (
 )
 
 const (
-	TypeIndividual CompetitionType = "individual" // 个人比赛
-	TypeTeam       CompetitionType = "team"       // 团体比赛
+	TypeIndividual   CompetitionType = "individual"   // 个人比赛
+	TypeTeam         CompetitionType = "team"         // 团体比赛
+	TypeSchool       CompetitionType = "school"       // 全校性比赛：不报名，按班级录入成绩
+	TypeRegistration CompetitionType = "registration" // 仅报名：不录入成绩
 )
 
 // Competition 比赛项目模型
@@ -44,8 +46,8 @@ type Competition struct {
 	Status                  CompetitionStatus `json:"status"                         gorm:"not null;default:'pending_approval'"`
 	RankingMode             RankingMode       `json:"ranking_mode"                   gorm:"default:'higher_first'"` // 排名方式
 	Unit                    string            `json:"unit"                           gorm:"default:'points'"`
-	Gender                  int               `json:"gender"                         gorm:"default:3"`            // 1: 女, 2: 男, 3: 混合
-	CompetitionType         CompetitionType   `json:"competition_type"               gorm:"default:'individual'"` // 比赛类型：个人或团体
+	Gender                  int               `json:"gender"                         gorm:"default:3"`            // 1: 男, 2: 女, 3: 混合
+	CompetitionType         CompetitionType   `json:"competition_type"               gorm:"default:'individual'"` // 比赛类型：个人/团体/全校性/仅报名
 	MinParticipantsPerClass int               `json:"min_participants_per_class"     gorm:"default:0"`            // 每班最少报名总人数，0表示无限制
 	MaxParticipantsPerClass int               `json:"max_participants_per_class"     gorm:"default:0"`            // 每班最多报名总人数，0表示无限制
 	MinFemalePerClass       int               `json:"min_female_per_class"           gorm:"default:0"`            // 每班最少女生人数，gender=3时有效，0表示无限制
@@ -69,6 +71,9 @@ type Competition struct {
 	StartTime               *time.Time        `json:"start_time,omitempty"`                                // 比赛开始时间
 	EndTime                 *time.Time        `json:"end_time,omitempty"`                                  // 比赛结束时间
 	AllowConcurrent         bool              `json:"allow_concurrent"               gorm:"default:false"` // 允许兼项
+
+	// 报名自定义字段
+	CustomFields []CompetitionCustomField `json:"custom_fields,omitempty" gorm:"foreignKey:CompetitionID"`
 
 	// 关联关系，不响应到前端
 	Event          *Event         `json:"-" gorm:"foreignKey:EventID"`

@@ -194,6 +194,23 @@ func autoMigrate() error {
 		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for registrations: %v", err))
 	}
 
+	// 报名自定义字段索引（外键对账重建表后需重新创建）
+	if err := db.Exec(
+		"CREATE INDEX IF NOT EXISTS idx_competition_custom_fields_competition ON competition_custom_fields(competition_id)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create index for competition_custom_fields: %v", err))
+	}
+	if err := db.Exec(
+		"CREATE INDEX IF NOT EXISTS idx_registration_custom_values_field ON registration_custom_values(field_id)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create index for registration_custom_values: %v", err))
+	}
+	if err := db.Exec(
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_registration_custom_field ON registration_custom_values(registration_id, field_id)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for registration_custom_values: %v", err))
+	}
+
 	// 学生登录已迁移至钉钉/OIDC，移除遗留的学生密码列
 	// DROP COLUMN 需整表重建，期间须关闭外键检查（同 foreignkey.go 的做法）；
 	// 删除失败必须中止启动，否则后续学生插入会因列 NOT NULL 约束在运行期失败
@@ -232,7 +249,9 @@ func allModels() []any {
 		&types.Student{},
 		&types.Event{},
 		&types.Competition{},
+		&types.CompetitionCustomField{},
 		&types.Registration{},
+		&types.RegistrationCustomValue{},
 		&types.Score{},
 		&types.Vote{},
 		&types.Points{},

@@ -30,12 +30,27 @@ import {
 import { adminProgressAPI, adminReviewAPI } from "../../api/admin/progress";
 import { useAuth } from "../../contexts/AuthContext";
 import { PERMISSIONS } from "../../types";
-import { Competition, Score, StudentScore, Registration } from "../../types";
+import {
+  Class,
+  Competition,
+  Score,
+  StudentScore,
+  Registration,
+} from "../../types";
 import {
   handleResp,
   handleRespWithNotifySuccess,
 } from "../../utils/handleResp";
 import { getRankingDisplayForTable } from "../../utils";
+import {
+  isClassScoredType,
+  isRegistrationOnlyType,
+  isSchoolWideType,
+} from "../../utils/competition";
+import {
+  formatCustomFieldValue,
+  getCustomFieldValue,
+} from "../../utils/customFields";
 import { useIsMobile } from "../../utils/mobile";
 import { chineseSort } from "../../utils/sort";
 import { adminRegistrationAPI } from "../../api/admin/registration";
@@ -77,6 +92,7 @@ const Progress: React.FC = () => {
     useState<Competition | null>(null);
   const [scores, setScores] = useState<Score[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [remindingId, setRemindingId] = useState<number | null>(null);
   const { hasPermission } = useAuth();
@@ -100,15 +116,16 @@ const Progress: React.FC = () => {
     handleResp(
       data,
       (data) => {
-        // 赛事进程页覆盖审核通过后的全部状态
+        // 赛事进程页覆盖审核通过后的全部状态；仅报名项目不录成绩
         setCompetitions(
           (data || []).filter(
             (c) =>
-              c.status === "approved" ||
-              c.status === "checking_in" ||
-              c.status === "in_progress" ||
-              c.status === "pending_score_review" ||
-              c.status === "completed",
+              c.competition_type !== "registration" &&
+              (c.status === "approved" ||
+                c.status === "checking_in" ||
+                c.status === "in_progress" ||
+                c.status === "pending_score_review" ||
+                c.status === "completed"),
           ),
         );
         setLoading(false);
@@ -134,23 +151,39 @@ const Progress: React.FC = () => {
     );
   };
 
-  const fetchRegistrations = async (competitionId: number) => {
+  const fetchRegistrations = async (
+    competitionId: number,
+  ): Promise<Registration[]> => {
     setLoading(true);
     const data = await adminProgressAPI.getRegisteredStudents(competitionId);
+    let result: Registration[] = [];
     handleResp(
       data,
-      (data) => {
-        setRegistrations(data || []);
+      (list) => {
+        result = list || [];
+        setRegistrations(result);
         setLoading(false);
       },
       () => {
         setLoading(false);
       },
     );
+    return result;
+  };
+
+  const fetchClasses = async (): Promise<Class[]> => {
+    const data = await adminProgressAPI.getClasses();
+    let result: Class[] = [];
+    handleResp(data, (list) => {
+      result = [...(list || [])].sort((a, b) => chineseSort(a.name, b.name));
+      setClasses(result);
+    });
+    return result;
   };
 
   useEffect(() => {
     fetchCompetitions();
+    fetchClasses();
   }, []);
 
   useEffect(() => {
@@ -172,52 +205,69 @@ const Progress: React.FC = () => {
     }
   };
 
+  // 根据比赛类型生成成绩录入行：个人按学生、团体按报名班级、全校性按全部班级
+  const buildInitialScores = (
+    competition: Competition,
+    registrationList: Registration[],
+    classList: Class[],
+    scoreList: Score[],
+  ): { student_id?: number; class_id?: number; score?: number }[] => {
+    if (isSchoolWideType(competition.competition_type)) {
+      return classList.map((cls) => ({
+        class_id: cls.id,
+        score: scoreList.find((score) => score.class_id === cls.id)?.score,
+      }));
+    }
+
+    if (competition.competition_type === "team") {
+      const classMap = new Map<number, { class_id: number; score?: number }>();
+      registrationList.forEach((registration) => {
+        if (!registration.class_id || classMap.has(registration.class_id)) {
+          return;
+        }
+        classMap.set(registration.class_id, {
+          class_id: registration.class_id,
+          score: scoreList.find(
+            (score) => score.class_id === registration.class_id,
+          )?.score,
+        });
+      });
+      return Array.from(classMap.values());
+    }
+
+    return registrationList.map((registration) => ({
+      student_id: registration.student_id,
+      score: scoreList.find(
+        (score) => score.student_id === registration.student_id,
+      )?.score,
+    }));
+  };
+
   // 初始化成绩录入表单数据，已有成绩则预填写
   const initScoreForm = async () => {
     if (!selectedCompetition) {
       return;
     }
 
-    // 如果还没有获取报名学生数据，先获取
-    if (registrations.length === 0) {
-      await fetchRegistrations(selectedCompetition.id);
-    }
+    let registrationList = registrations;
+    let classList = classes;
 
-    // 初始化成绩表单数据，如果已有成绩则预填写，否则为0
-    const isTeamCompetition = selectedCompetition.competition_type === "team";
-
-    let initialScores;
-    if (isTeamCompetition) {
-      // 团体赛：按班级去重，每个班级只有一条成绩记录
-      const classMap = new Map<number, { class_id: number; score?: number }>();
-      registrations.forEach((registration) => {
-        if (registration.class_id && !classMap.has(registration.class_id)) {
-          const existingScore = scores.find(
-            (score) => score.class_id === registration.class_id,
-          );
-          classMap.set(registration.class_id, {
-            class_id: registration.class_id,
-            score: existingScore ? existingScore.score : undefined,
-          });
-        }
-      });
-      initialScores = Array.from(classMap.values());
-    } else {
-      // 个人赛：每个学生一条成绩记录
-      initialScores = registrations.map((registration) => {
-        const existingScore = scores.find(
-          (score) => score.student_id === registration.student_id,
-        );
-        return {
-          student_id: registration.student_id,
-          score: existingScore ? existingScore.score : undefined,
-        };
-      });
+    if (isSchoolWideType(selectedCompetition.competition_type)) {
+      if (classList.length === 0) {
+        classList = await fetchClasses();
+      }
+    } else if (registrationList.length === 0) {
+      registrationList = await fetchRegistrations(selectedCompetition.id);
     }
 
     setScoreFormData({
       competition_id: selectedCompetition.id,
-      student_scores: initialScores,
+      student_scores: buildInitialScores(
+        selectedCompetition,
+        registrationList,
+        classList,
+        scores,
+      ),
     });
   };
 
@@ -317,6 +367,13 @@ const Progress: React.FC = () => {
       handleResp(competitionsResponse, (data) => {
         completedCompetitions = data;
       });
+
+      // 全校性比赛没有学生个人成绩，仅报名项目没有成绩，均不导出奖状
+      completedCompetitions = completedCompetitions.filter(
+        (competition) =>
+          !isSchoolWideType(competition.competition_type) &&
+          !isRegistrationOnlyType(competition.competition_type),
+      );
 
       if (completedCompetitions.length === 0) {
         message.warning("没有已完成的比赛可导出奖状");
@@ -435,10 +492,13 @@ const Progress: React.FC = () => {
         ({ competition, registrations, scores, scoreMap }) => {
           const sheetData: any[][] = [];
           const merges: any[] = [];
-          const isTeamCompetition = competition.competition_type === "team";
+          const isSchoolWide = isSchoolWideType(competition.competition_type);
+          const isClassCompetition = isClassScoredType(
+            competition.competition_type,
+          );
 
           // 根据比赛类型决定合并列数
-          const headerColCount = isTeamCompetition ? 5 : 6;
+          const headerColCount = isClassCompetition ? 5 : 6;
 
           // 添加比赛名称作为标题
           const titleRow = [competition.name];
@@ -448,15 +508,31 @@ const Progress: React.FC = () => {
           sheetData.push(titleRow);
           merges.push(createMerge(0, 0, 0, headerColCount - 1));
 
-          // 添加表头（团体比赛不显示"姓名"列）
-          if (isTeamCompetition) {
+          // 添加表头（团体/全校性比赛不显示"姓名"列）
+          if (isClassCompetition) {
             sheetData.push(["序号", "班级", "成绩", "名次", "得分"]);
           } else {
             sheetData.push(["序号", "班级", "姓名", "成绩", "名次", "得分"]);
           }
 
           // 处理数据行
-          if (isTeamCompetition) {
+          if (isSchoolWide) {
+            // 全校性比赛：成绩直接按班级记录
+            const sortedScores = [...scores].sort((a, b) =>
+              chineseSort(a.class_name, b.class_name),
+            );
+            sortedScores.forEach((score, index) => {
+              sheetData.push([
+                index + 1,
+                score.class_name,
+                `${score.score} ${competition.unit}`,
+                score.ranking || "",
+                score.point !== undefined && score.point !== null
+                  ? score.point
+                  : "",
+              ]);
+            });
+          } else if (isClassCompetition) {
             // 团体比赛：按班级去重，每个班级只显示一次
             const classMap = new Map<number, Registration>();
             registrations.forEach((reg) => {
@@ -507,7 +583,7 @@ const Progress: React.FC = () => {
             name: competition.name.substring(0, 31), // Excel sheet 名称限制31字符
             data: sheetData,
             merges: merges,
-            colWidths: isTeamCompetition
+            colWidths: isClassCompetition
               ? [5, 10, 10, 5, 5]
               : [5, 10, 10, 10, 5, 5],
           };
@@ -526,7 +602,9 @@ const Progress: React.FC = () => {
   };
 
   const getColumns = () => {
-    const isTeamCompetition = selectedCompetition?.competition_type === "team";
+    const isClassCompetition = isClassScoredType(
+      selectedCompetition?.competition_type,
+    );
 
     const baseColumns = [
       {
@@ -537,8 +615,8 @@ const Progress: React.FC = () => {
       },
     ];
 
-    // 团体比赛不显示学生姓名列
-    if (!isTeamCompetition) {
+    // 团体/全校性比赛不显示学生姓名列
+    if (!isClassCompetition) {
       baseColumns.push({
         title: "学生姓名",
         dataIndex: "student_name",
@@ -629,48 +707,26 @@ const Progress: React.FC = () => {
       return;
     }
 
-    // 如果还没有获取报名学生数据，先获取
-    if (registrations.length === 0) {
-      await fetchRegistrations(selectedCompetition.id);
+    let registrationList = registrations;
+    let classList = classes;
+
+    if (isSchoolWideType(selectedCompetition.competition_type)) {
+      if (classList.length === 0) {
+        classList = await fetchClasses();
+      }
+    } else if (registrationList.length === 0) {
+      registrationList = await fetchRegistrations(selectedCompetition.id);
     }
 
     setModalVisible(true);
-
-    // 初始化成绩表单数据，如果已有成绩则预填写，否则为0
-    const isTeamCompetition = selectedCompetition.competition_type === "team";
-
-    let initialScores;
-    if (isTeamCompetition) {
-      // 团体赛：按班级去重，每个班级只有一条成绩记录
-      const classMap = new Map<number, { class_id: number; score?: number }>();
-      registrations.forEach((registration) => {
-        if (registration.class_id && !classMap.has(registration.class_id)) {
-          const existingScore = scores.find(
-            (score) => score.class_id === registration.class_id,
-          );
-          classMap.set(registration.class_id, {
-            class_id: registration.class_id,
-            score: existingScore ? existingScore.score : undefined,
-          });
-        }
-      });
-      initialScores = Array.from(classMap.values());
-    } else {
-      // 个人赛：每个学生一条成绩记录
-      initialScores = registrations.map((registration) => {
-        const existingScore = scores.find(
-          (score) => score.student_id === registration.student_id,
-        );
-        return {
-          student_id: registration.student_id,
-          score: existingScore ? existingScore.score : undefined,
-        };
-      });
-    }
-
     setScoreFormData({
       competition_id: selectedCompetition.id,
-      student_scores: initialScores,
+      student_scores: buildInitialScores(
+        selectedCompetition,
+        registrationList,
+        classList,
+        scores,
+      ),
     });
   };
 
@@ -684,6 +740,8 @@ const Progress: React.FC = () => {
     const target = STATUS_STEP_ITEMS[idx];
     if (
       !canManageProgress ||
+      (isSchoolWideType(selectedCompetition.competition_type) &&
+        target.status === "checking_in") ||
       !legalTargets[selectedCompetition.status]?.includes(target.status)
     ) {
       return;
@@ -750,7 +808,12 @@ const Progress: React.FC = () => {
     ) {
       void initScoreForm();
     }
-  }, [selectedCompetition?.id, registrations.length, scores.length]);
+  }, [
+    selectedCompetition?.id,
+    registrations.length,
+    scores.length,
+    classes.length,
+  ]);
 
   const statusStepIndex = selectedCompetition
     ? STATUS_STEP_ITEMS.findIndex(
@@ -904,18 +967,24 @@ const Progress: React.FC = () => {
               <Space wrap>
                 {selectedCompetition.status === "approved" && (
                   <>
-                    <Button
-                      type="primary"
-                      icon={<NotificationOutlined />}
-                      onClick={handleStartCheckin}
-                    >
-                      开始检录
-                    </Button>
+                    {!isSchoolWideType(
+                      selectedCompetition.competition_type,
+                    ) && (
+                      <Button
+                        type="primary"
+                        icon={<NotificationOutlined />}
+                        onClick={handleStartCheckin}
+                      >
+                        开始检录
+                      </Button>
+                    )}
                     <Button
                       icon={<PlayCircleOutlined />}
                       onClick={handleStartCompetition}
                     >
-                      直接开始比赛（跳过检录）
+                      {isSchoolWideType(selectedCompetition.competition_type)
+                        ? "开始录入成绩"
+                        : "直接开始比赛（跳过检录）"}
                     </Button>
                   </>
                 )}
@@ -983,7 +1052,9 @@ const Progress: React.FC = () => {
               title: s.title,
               disabled:
                 !canManageProgress ||
-                !legalTargets[selectedCompetition.status]?.includes(s.status),
+                !legalTargets[selectedCompetition.status]?.includes(s.status) ||
+                (isSchoolWideType(selectedCompetition.competition_type) &&
+                  s.status === "checking_in"),
             }))}
             current={statusStepIndex}
             onChange={handleStepChange}
@@ -1017,6 +1088,7 @@ const Progress: React.FC = () => {
           </div>
 
           {canManageProgress &&
+            !isSchoolWideType(selectedCompetition.competition_type) &&
             (selectedCompetition.status === "approved" ||
               selectedCompetition.status === "checking_in") && (
               <Card type="inner" title="报名名单" style={{ marginTop: 16 }}>
@@ -1052,13 +1124,31 @@ const Progress: React.FC = () => {
                             padding: "4px 0",
                           }}
                         >
-                          <Space size={12}>
+                          <Space size={12} wrap>
                             <span style={{ fontWeight: 500 }}>
                               {reg.student_name}
                             </span>
                             <span style={{ fontSize: 12, color: "#666" }}>
                               {reg.class_name}
                             </span>
+                            {(selectedCompetition.custom_fields ?? []).map(
+                              (field) => {
+                                const value = getCustomFieldValue(
+                                  reg.custom_values,
+                                  field.id,
+                                );
+                                return (
+                                  <span
+                                    key={field.id}
+                                    style={{ fontSize: 12, color: "#666" }}
+                                  >
+                                    {field.name}：
+                                    {formatCustomFieldValue(field, value) ||
+                                      "未填写"}
+                                  </span>
+                                );
+                              },
+                            )}
                           </Space>
                           <Button
                             size="small"
@@ -1126,117 +1216,144 @@ const Progress: React.FC = () => {
           </Space>
         }
       >
-        {registrations.length === 0 ? (
-          <div>
-            该比赛暂无报名
-            {selectedCompetition?.competition_type === "team" ? "班级" : "学生"}
-          </div>
-        ) : (
-          <div style={{ maxHeight: "500px", overflowY: "auto" }}>
-            {(() => {
-              const isTeamCompetition =
-                selectedCompetition?.competition_type === "team";
-              // 团体赛：按班级去重
-              let displayList = isTeamCompetition
-                ? Array.from(
-                    new Map(
-                      registrations
-                        .filter((r) => r.class_id)
-                        .map((r) => [r.class_id, r]),
-                    ).values(),
-                  )
-                : registrations;
+        {(() => {
+          const competitionType = selectedCompetition?.competition_type;
+          const isSchoolWide = isSchoolWideType(competitionType);
+          const isTeamCompetition = competitionType === "team";
+          const isClassCompetition = isClassScoredType(competitionType);
 
-              // 按班级和姓名排序
-              displayList = [...displayList].sort((a, b) => {
+          type EntryRow = {
+            key: string;
+            class_id?: number;
+            student_id?: number;
+            class_name: string;
+            student_name?: string;
+          };
+
+          let rows: EntryRow[];
+          if (isSchoolWide) {
+            rows = classes.map((cls) => ({
+              key: `class-${cls.id}`,
+              class_id: cls.id,
+              class_name: cls.name,
+            }));
+          } else if (isTeamCompetition) {
+            const classMap = new Map<number, Registration>();
+            registrations.forEach((registration) => {
+              if (
+                registration.class_id &&
+                !classMap.has(registration.class_id)
+              ) {
+                classMap.set(registration.class_id, registration);
+              }
+            });
+            rows = Array.from(classMap.values())
+              .sort((a, b) => chineseSort(a.class_name, b.class_name))
+              .map((registration) => ({
+                key: `class-${registration.class_id}`,
+                class_id: registration.class_id,
+                class_name: registration.class_name,
+              }));
+          } else {
+            rows = [...registrations]
+              .sort((a, b) => {
                 const classCompare = chineseSort(a.class_name, b.class_name);
                 if (classCompare !== 0) return classCompare;
-                // 团体赛只按班级排序，个人赛还要按学生姓名排序
-                if (!isTeamCompetition) {
-                  return a.student_name.localeCompare(b.student_name, "zh-CN");
-                }
-                return 0;
-              });
+                return a.student_name.localeCompare(b.student_name, "zh-CN");
+              })
+              .map((registration) => ({
+                key: `student-${registration.id}`,
+                student_id: registration.student_id,
+                class_name: registration.class_name,
+                student_name: registration.student_name,
+              }));
+          }
 
-              return (
-                <>
-                  <div
-                    style={{
-                      marginBottom: "16px",
-                      padding: "12px",
-                      background: "#fafafa",
-                      borderRadius: "6px",
-                      textAlign: "center",
-                      fontWeight: 500,
-                    }}
-                  >
-                    共有 {displayList.length}{" "}
-                    {isTeamCompetition ? "个班级报名参赛" : "名学生报名参赛"}
-                  </div>
-                  <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                    {displayList.map((registration) => {
-                      const currentScore = scoreFormData.student_scores.find(
-                        (s) =>
-                          isTeamCompetition
-                            ? s.class_id === registration.class_id
-                            : s.student_id === registration.student_id,
-                      );
-                      return (
-                        <Card
-                          key={
-                            isTeamCompetition
-                              ? `class-${registration.class_id}`
-                              : `student-${registration.id}`
-                          }
-                          size="small"
-                          style={{ marginBottom: 8 }}
-                          title={
-                            <div>
-                              {isTeamCompetition ? (
-                                <strong>{registration.class_name}</strong>
-                              ) : (
-                                <>
-                                  <strong>{registration.student_name}</strong>
-                                  <span> ({registration.class_name})</span>
-                                </>
-                              )}
-                            </div>
-                          }
-                        >
-                          <Row gutter={16} align="middle">
-                            <Col span={12}>
-                              <span>成绩:</span>
-                            </Col>
-                            <Col span={12}>
-                              <InputNumber
-                                placeholder="请输入成绩"
-                                style={{ width: "100%" }}
-                                step={0.01}
-                                value={currentScore?.score}
-                                onChange={(value) =>
-                                  updateStudentScore(
-                                    isTeamCompetition
-                                      ? undefined
-                                      : registration.student_id,
-                                    isTeamCompetition
-                                      ? registration.class_id
-                                      : undefined,
-                                    value,
-                                  )
-                                }
-                                addonAfter={selectedCompetition?.unit}
-                              />
-                            </Col>
-                          </Row>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        )}
+          if (rows.length === 0) {
+            return (
+              <div>
+                {isSchoolWide
+                  ? "暂无班级"
+                  : isTeamCompetition
+                    ? "该比赛暂无报名班级"
+                    : "该比赛暂无报名学生"}
+              </div>
+            );
+          }
+
+          return (
+            <>
+              <div
+                style={{
+                  marginBottom: "16px",
+                  padding: "12px",
+                  background: "#fafafa",
+                  borderRadius: "6px",
+                  textAlign: "center",
+                  fontWeight: 500,
+                }}
+              >
+                共有 {rows.length}{" "}
+                {isClassCompetition
+                  ? isSchoolWide
+                    ? "个班级"
+                    : "个班级报名参赛"
+                  : "名学生报名参赛"}
+              </div>
+              <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+                {rows.map((row) => {
+                  const currentScore = scoreFormData.student_scores.find(
+                    (score) =>
+                      isClassCompetition
+                        ? score.class_id === row.class_id
+                        : score.student_id === row.student_id,
+                  );
+                  return (
+                    <Card
+                      key={row.key}
+                      size="small"
+                      style={{ marginBottom: 8 }}
+                      title={
+                        <div>
+                          {isClassCompetition ? (
+                            <strong>{row.class_name}</strong>
+                          ) : (
+                            <>
+                              <strong>{row.student_name}</strong>
+                              <span> ({row.class_name})</span>
+                            </>
+                          )}
+                        </div>
+                      }
+                    >
+                      <Row gutter={16} align="middle">
+                        <Col span={12}>
+                          <span>成绩:</span>
+                        </Col>
+                        <Col span={12}>
+                          <InputNumber
+                            placeholder="请输入成绩"
+                            style={{ width: "100%" }}
+                            step={0.01}
+                            value={currentScore?.score}
+                            onChange={(value) =>
+                              updateStudentScore(
+                                isClassCompetition ? undefined : row.student_id,
+                                isClassCompetition ? row.class_id : undefined,
+                                value,
+                              )
+                            }
+                            addonAfter={selectedCompetition?.unit}
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </Modal>
 
       {/* 奖状导出模态框 */}

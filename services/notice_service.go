@@ -44,8 +44,8 @@ func scoredDingTalkIDs(competitionID int) ([]string, error) {
 	return ids, nil
 }
 
-// joinMarkdown 组装通知正文，行间以空行分隔（钉钉 ActionCard 的单个换行不生效）
-func joinMarkdown(lines ...string) string {
+// joinBlocks 组装纯文本正文，段落间以空行分隔
+func joinBlocks(lines ...string) string {
 	parts := make([]string, 0, len(lines))
 	for _, line := range lines {
 		if line != "" {
@@ -71,23 +71,31 @@ func venueOr(venue string) string {
 	return venue
 }
 
-// sendActionCard 发送卡片，站点配置了域名时附上看板跳转按钮
-func sendActionCard(userIDs []string, title, markdown string) error {
+// competitionLink 比赛详情链接：看板解析 ?id= 后自动打开对应比赛详情
+func competitionLink(competitionID int) string {
+	domain := strings.TrimRight(config.Get().Website.Domain, "/")
+	if domain == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/?id=%d", domain, competitionID)
+}
+
+// sendTimeLine 发送时间：使用 RFC3339 时间戳，规避钉钉同内容去重
+func sendTimeLine() string {
+	return fmt.Sprintf("（发送于 %s）", time.Now().Format(time.RFC3339))
+}
+
+// sendNotice 发送纯文本工作通知：首行为标题（通知栏摘要），其后为正文、详情链接与发送时间
+func sendNotice(userIDs []string, title, body string, competitionID int) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
-	singleTitle := ""
-	singleURL := ""
-	if domain := strings.TrimRight(config.Get().Website.Domain, "/"); domain != "" {
-		singleTitle = "查看运动会看板"
-		singleURL = domain + "/"
+	lines := []string{title + "\n" + body}
+	if link := competitionLink(competitionID); link != "" {
+		lines = append(lines, "查看详情："+link)
 	}
-	return utils.SendDingTalkActionCard(userIDs, utils.ActionCardMessage{
-		Title:       title,
-		Markdown:    markdown,
-		SingleTitle: singleTitle,
-		SingleURL:   singleURL,
-	})
+	lines = append(lines, sendTimeLine())
+	return utils.SendDingTalkText(userIDs, strings.Join(lines, "\n"))
 }
 
 // SendCheckinNotice 开始检录通知，广播给全部已报名学生
@@ -96,12 +104,11 @@ func SendCheckinNotice(comp *types.Competition) error {
 	if err != nil {
 		return err
 	}
-	markdown := joinMarkdown(
-		fmt.Sprintf("**比赛地点**：%s", venueOr(comp.Venue)),
-		fmt.Sprintf("**计划开始**：%s", formatStartTime(comp.StartTime)),
-		"请已报名的同学尽快前往检录处。",
+	body := joinBlocks(
+		fmt.Sprintf("地点：%s\n时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),
+		"已报名的同学请尽快到检录处集合，祝比赛顺利！",
 	)
-	return sendActionCard(ids, "【检录通知】"+comp.Name, markdown)
+	return sendNotice(ids, "【检录通知】"+comp.Name, body, comp.ID)
 }
 
 // SendCompetitionChangeNotice 比赛时间（开始/结束）或地点变更通知
@@ -110,27 +117,35 @@ func SendCompetitionChangeNotice(comp *types.Competition, oldStartTime, oldEndTi
 	if err != nil {
 		return err
 	}
-	lines := []string{"比赛信息有如下变更："}
+	lines := make([]string, 0, 3)
 	if formatStartTime(oldStartTime) != formatStartTime(comp.StartTime) {
 		lines = append(
 			lines,
-			fmt.Sprintf("**计划开始**：%s → %s", formatStartTime(oldStartTime), formatStartTime(comp.StartTime)),
+			fmt.Sprintf("计划开始：%s → %s", formatStartTime(oldStartTime), formatStartTime(comp.StartTime)),
 		)
 	}
 	if formatStartTime(oldEndTime) != formatStartTime(comp.EndTime) {
 		lines = append(
 			lines,
-			fmt.Sprintf("**计划结束**：%s → %s", formatStartTime(oldEndTime), formatStartTime(comp.EndTime)),
+			fmt.Sprintf("计划结束：%s → %s", formatStartTime(oldEndTime), formatStartTime(comp.EndTime)),
 		)
 	}
 	if oldVenue != comp.Venue {
-		lines = append(lines, fmt.Sprintf("**比赛地点**：%s → %s", venueOr(oldVenue), venueOr(comp.Venue)))
+		lines = append(lines, fmt.Sprintf("地点：%s → %s", venueOr(oldVenue), venueOr(comp.Venue)))
 	}
-	return sendActionCard(ids, "【比赛信息变更】"+comp.Name, joinMarkdown(lines...))
+	body := strings.Join(lines, "\n") + "\n\n请留意最新安排，按新时间到场比赛～"
+	return sendNotice(ids, "【比赛信息变更】"+comp.Name, body, comp.ID)
 }
 
 // SendScorePublishedNotice 成绩公布通知（个人赛只发有成绩记录的学生，团体赛只发有成绩的团体所在班级的报名学生）
 func SendScorePublishedNotice(comp *types.Competition) error {
+	// 全校性比赛没有报名学生，仅报名项目没有成绩，均不发送成绩公布通知
+	if comp.CompetitionType == types.TypeSchool || comp.CompetitionType == types.TypeRegistration {
+		return nil
+	}
+
+	body := "成绩已经发布，快去看看你的名次和得分吧！"
+
 	if comp.CompetitionType == types.TypeTeam {
 		// 团体成绩行无 student_id，须以班级为桥梁：报名学生 ∩ 有成绩的班级
 		scoredClassIDs, err := models.GetCompetitionScoreClassIDs(comp.ID)
@@ -152,22 +167,14 @@ func SendScorePublishedNotice(comp *types.Competition) error {
 				ids = append(ids, reg.Student.DingTalkID)
 			}
 		}
-		markdown := joinMarkdown(
-			fmt.Sprintf("**%s** 的成绩已审核公布。", comp.Name),
-			"点击下方按钮或前往看板查看名次与得分。",
-		)
-		return sendActionCard(ids, "【成绩公布】"+comp.Name, markdown)
+		return sendNotice(ids, "【成绩公布】"+comp.Name, body, comp.ID)
 	}
 
 	ids, err := scoredDingTalkIDs(comp.ID)
 	if err != nil {
 		return err
 	}
-	markdown := joinMarkdown(
-		fmt.Sprintf("**%s** 的成绩已审核公布。", comp.Name),
-		"点击下方按钮或前往看板查看名次与得分。",
-	)
-	return sendActionCard(ids, "【成绩公布】"+comp.Name, markdown)
+	return sendNotice(ids, "【成绩公布】"+comp.Name, body, comp.ID)
 }
 
 // SendStudentCheckinReminder 对单个学生发送检录提醒
@@ -175,11 +182,14 @@ func SendStudentCheckinReminder(comp *types.Competition, student *types.Student)
 	if student.DingTalkID == "" || student.DingTalkID == "0" {
 		return errors.New("该学生未绑定钉钉，无法发送提醒")
 	}
-	markdown := joinMarkdown(
-		fmt.Sprintf("%s同学你好，你报名的 **%s** 即将开始检录。", student.FullName, comp.Name),
-		fmt.Sprintf("**比赛地点**：%s", venueOr(comp.Venue)),
-		fmt.Sprintf("**计划开始**：%s", formatStartTime(comp.StartTime)),
-		"请尽快前往检录处。",
+	body := joinBlocks(
+		fmt.Sprintf(
+			"%s同学，请前往检录\n地点：%s\n时间：%s",
+			student.FullName,
+			venueOr(comp.Venue),
+			formatStartTime(comp.StartTime),
+		),
+		"请快速前往检录处，别让比赛等你哦～",
 	)
-	return sendActionCard([]string{student.DingTalkID}, "【检录提醒】"+comp.Name, markdown)
+	return sendNotice([]string{student.DingTalkID}, "【检录提醒】"+comp.Name, body, comp.ID)
 }

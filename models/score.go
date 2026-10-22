@@ -18,7 +18,7 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 
 	// 检查比赛是否存在且状态正确
 	var competition types.Competition
-	if err := db.Select("status").First(&competition, competitionID).Error; err != nil {
+	if err := db.Select("status", "competition_type").First(&competition, competitionID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("比赛项目不存在")
 		}
@@ -28,6 +28,11 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 	// 仅进行中的比赛可以录入成绩（已完成的比赛需先退回进行中）
 	if competition.Status != types.StatusInProgress {
 		return errors.New("仅进行中的比赛可以录入成绩，请先将比赛置为进行中")
+	}
+
+	// 仅报名项目不录入成绩
+	if competition.CompetitionType == types.TypeRegistration {
+		return errors.New("该项目仅用于报名，无需录入成绩")
 	}
 
 	// 使用事务处理成绩录入
@@ -46,7 +51,8 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 		// 批量插入新成绩
 		var successCount int
 		for _, studentScore := range scores {
-			if comp.CompetitionType == types.TypeIndividual {
+			switch comp.CompetitionType {
+			case types.TypeIndividual:
 				// 个人比赛：检查学生是否已报名
 				if studentScore.StudentID == nil {
 					continue
@@ -73,7 +79,24 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 					return err
 				}
 				successCount++
-			} else {
+
+			case types.TypeSchool:
+				// 全校性比赛：按班级录入，无需报名记录
+				if studentScore.ClassID == nil {
+					continue
+				}
+				score := &types.Score{
+					CompetitionID: competitionID,
+					StudentID:     nil,
+					ClassID:       studentScore.ClassID,
+					Score:         studentScore.Score,
+				}
+				if err := tx.Create(score).Error; err != nil {
+					return err
+				}
+				successCount++
+
+			case types.TypeTeam:
 				// 团体比赛：按班级录入，检查该班级是否有学生报名
 				if studentScore.ClassID == nil {
 					continue
@@ -104,6 +127,14 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 					return err
 				}
 				successCount++
+
+			case types.TypeRegistration:
+				// 仅报名项目不应进入成绩录入
+				continue
+
+			default:
+				// 未知类型不处理
+				continue
 			}
 		}
 

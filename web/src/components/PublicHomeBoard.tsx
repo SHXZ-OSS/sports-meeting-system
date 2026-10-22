@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import type {
   ClassPointsSummary,
   Competition,
@@ -5,6 +7,8 @@ import type {
 } from "../types";
 import { getScoreboardRankingColor } from "../utils/competition";
 import "./PublicHomeBoard.css";
+
+const UPCOMING_WINDOW_MS = 60 * 60 * 1000;
 
 const FIELD_STATUS = [
   { key: "in_progress", label: "进行中", color: "#e66652" },
@@ -74,6 +78,30 @@ export default function PublicHomeBoard({
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const maxClassPoints = topClasses[0]?.total_points || 1;
   const maxStudentPoints = topStudents[0]?.total_points || 1;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const startTimeValue = (competition: Competition) =>
+    competition.start_time ? dayjs(competition.start_time).valueOf() : NaN;
+
+  const upcomingCompetitions = pendingCompetitions
+    .filter((competition) => {
+      if (competition.status !== "approved") {
+        return false;
+      }
+      const start = startTimeValue(competition);
+      return (
+        Number.isFinite(start) &&
+        start >= now &&
+        start <= now + UPCOMING_WINDOW_MS
+      );
+    })
+    .sort((left, right) => startTimeValue(left) - startTimeValue(right))
+    .slice(0, 3);
 
   return (
     <div className="ph-shell">
@@ -229,6 +257,38 @@ export default function PublicHomeBoard({
             <p className="ph-loading">正在加载赛况…</p>
           ) : (
             <div className="ph-event-groups">
+              {upcomingCompetitions.length > 0 && (
+                <section className="ph-event-group" aria-label="即将开始">
+                  <h3>
+                    <span
+                      className="ph-status-dot"
+                      style={{ background: "#d48806" }}
+                    />
+                    即将开始
+                  </h3>
+                  <ul className="ph-event-list">
+                    {upcomingCompetitions.map((competition) => (
+                      <li key={competition.id}>
+                        <button
+                          type="button"
+                          className="ph-event"
+                          onClick={() => onViewCompetition(competition)}
+                        >
+                          <h4>{competition.name}</h4>
+                          <p>
+                            {competition.start_time
+                              ? `${dayjs(competition.start_time).format(
+                                  "HH:mm",
+                                )} 开始`
+                              : "时间待定"}
+                            {competition.venue ? ` · ${competition.venue}` : ""}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               {FIELD_STATUS.map((group) => {
                 const events = pendingCompetitions
                   .filter((competition) => competition.status === group.key)

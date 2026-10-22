@@ -156,11 +156,13 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	registrationMgmt.POST("/register", handlers.RegisterForCompetitionForAdmin)                   // 为学生报名
 	registrationMgmt.DELETE("/unregister/:id", handlers.UnregisterFromCompetitionForAdmin)        // 取消学生报名
 	registrationMgmt.GET("/checklist", handlers.GetCompetitionChecklist)                          // 检查清单
+	registrationMgmt.PATCH("/:id/custom-values", handlers.UpdateRegistrationCustomValues)         // 修改报名自定义字段值
 
 	// 成绩与赛事进程管理（需要成绩与赛事进程权限）
 	progressMgmt := adminAPI.Group("/progress")
 	progressMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionScoreAndProgress))
 	progressMgmt.GET("/competitions", handlers.GetAllCompetitions)
+	progressMgmt.GET("/classes", handlers.GetAllClasses)
 	progressMgmt.GET("/:id/registrations", handlers.GetCompetitionRegistrations)
 	progressMgmt.POST("/remind", handlers.RemindStudent)
 	// 赛事进程状态流转：开始检录（钉钉通知已报名学生）、开始比赛、退回等，body.status 为目标状态
@@ -194,6 +196,8 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	websiteMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionWebsiteManagement))
 	websiteMgmt.GET("", handlers.GetSettings)
 	websiteMgmt.PUT("", handlers.UpdateSettings)
+	// 钉钉测试通知
+	websiteMgmt.POST("/dingtalk/test", handlers.SendDingTalkTest)
 	// 运动会届次管理
 	websiteMgmt.GET("/events", handlers.GetEvents)
 	websiteMgmt.POST("/events", handlers.CreateEvent)

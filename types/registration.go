@@ -13,6 +13,9 @@ type Registration struct {
 	ClassName     string    `json:"class_name,omitempty"   gorm:"-"` // 忽略该字段，通过join获取
 	CreatedAt     time.Time `json:"created_at"             gorm:"default:CURRENT_TIMESTAMP"`
 
+	// 报名自定义字段值
+	CustomValues []RegistrationCustomValue `json:"custom_values,omitempty" gorm:"foreignKey:RegistrationID"`
+
 	// 关联关系
 	Student     *Student    `json:"-" gorm:"foreignKey:StudentID"`
 	Class       *Class      `json:"-" gorm:"foreignKey:ClassID"`
