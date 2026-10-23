@@ -529,12 +529,21 @@ const CompetitionManagement: React.FC = () => {
               }}
             />
           )}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 500 }}>{record.name}</div>
             {record.description && (
-              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+              <Typography.Text
+                ellipsis={{ tooltip: record.description }}
+                style={{
+                  display: "block",
+                  maxWidth: 320,
+                  marginTop: 2,
+                  fontSize: 12,
+                  color: "#666",
+                }}
+              >
                 {record.description}
-              </div>
+              </Typography.Text>
             )}
             {record.venue && (
               <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
