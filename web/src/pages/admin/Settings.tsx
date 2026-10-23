@@ -671,7 +671,7 @@ const Settings: React.FC = () => {
               label="成绩公布提醒"
               name="dingtalk.notify_published"
               valuePropName="checked"
-              extra="对所有比赛生效：成绩审核通过后，钉钉通知有成绩的学生；团体赛通知有成绩班级的报名学生"
+              extra="对所有比赛生效：成绩审核通过后，钉钉通知有成绩的学生；团体赛通知有成绩班级的报名学生；全校性比赛通知有成绩班级的全部学生"
             >
               <Switch />
             </Form.Item>

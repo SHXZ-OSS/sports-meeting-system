@@ -225,6 +225,23 @@ func GetAllStudents(page, pageSize int, scopeClassID int, classID int) ([]*types
 	return students, int(total), nil
 }
 
+// GetStudentsByClassIDs 获取指定班级的全部学生（用于全校性比赛成绩公布通知）
+func GetStudentsByClassIDs(classIDs []int) ([]*types.Student, error) {
+	if len(classIDs) == 0 {
+		return nil, nil
+	}
+
+	db := database.GetDB()
+	var students []*types.Student
+	if err := db.Where("class_id IN ?", classIDs).
+		Order("class_id, id").
+		Find(&students).
+		Error; err != nil {
+		return nil, err
+	}
+	return students, nil
+}
+
 // UpdateStudent 更新学生信息
 func UpdateStudent(student *types.Student) error {
 	// 获取数据库连接
