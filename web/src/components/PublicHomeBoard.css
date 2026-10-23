@@ -59,6 +59,7 @@
   margin-inline: auto;
   padding: 0 var(--ph-pad-x) var(--ph-s5);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--ph-header-h) minmax(0, 1fr);
   color: var(--ph-text);
   font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
@@ -82,11 +83,13 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--ph-s5);
+  min-width: 0;
   border-bottom: 1px solid var(--ph-line);
 }
 .ph-brand {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
   gap: var(--ph-s3);
   min-width: 0;
   cursor: default;
@@ -112,6 +115,8 @@
   background: var(--ph-line-strong);
 }
 .ph-brand h1 {
+  flex: 1 1 0;
+  min-width: 0;
   margin: 0;
   color: var(--ph-text);
   font-size: var(--ph-fs-sm);
@@ -549,7 +554,6 @@
   }
   .ph-brand {
     gap: var(--ph-s2);
-    flex-wrap: wrap;
   }
   .ph-emblem {
     width: 28px;
