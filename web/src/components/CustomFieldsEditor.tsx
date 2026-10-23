@@ -46,7 +46,7 @@ const CustomFieldsEditor: React.FC<CustomFieldsEditorProps> = ({
   return (
     <div>
       <div style={{ fontSize: 12, color: "#999", marginBottom: 8 }}>
-        定义报名时需要填写的附加信息（如斗腕的体重）。字段一旦有报名数据，
+        定义报名时需要填写的附加信息。字段一旦有报名数据，
         名称、类型和必填设置将不能修改。
       </div>
 

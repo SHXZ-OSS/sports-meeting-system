@@ -28,13 +28,24 @@ const smoothstep = (value: number) => {
 export default function StadiumScene({
   eventName,
   shot = "ambient",
+  onPerformanceIssue,
+  onUnavailable,
 }: {
   eventName?: string;
   shot?: StadiumShot;
+  onPerformanceIssue?: () => void;
+  onUnavailable?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const shotRef = useRef(shot);
   const requestDrawRef = useRef<(() => void) | null>(null);
+  const performanceIssueRef = useRef(onPerformanceIssue);
+  const unavailableRef = useRef(onUnavailable);
+
+  useEffect(() => {
+    performanceIssueRef.current = onPerformanceIssue;
+    unavailableRef.current = onUnavailable;
+  }, [onPerformanceIssue, onUnavailable]);
 
   useEffect(() => {
     shotRef.current = shot;
@@ -57,6 +68,7 @@ export default function StadiumScene({
             powerPreference: "low-power",
           });
         } catch {
+          unavailableRef.current?.();
           return;
         }
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -86,9 +98,14 @@ export default function StadiumScene({
         });
         sun.shadow.normalBias = 0.08;
         scene.add(sun, sun.target);
-        const { stadium, cameraPoint, centerX, dispose } = buildStadium(
-          `上海市行知中学${eventName?.trim() || "运动会"}`,
-        );
+        const {
+          stadium,
+          cameraPoint,
+          centerX,
+          cameraPerimeter,
+          grandstandLength,
+          dispose,
+        } = buildStadium(`上海市行知中学${eventName?.trim() || "运动会"}`);
         scene.add(stadium);
         const camera = new THREE.PerspectiveCamera(
           SHOT_FOV.ambient,
@@ -96,8 +113,12 @@ export default function StadiumScene({
           0.1,
           500,
         );
-        const cameraSpeed = 12;
-        const startDistance = 35;
+        // 看台段慢、其余路段快；两端各留一段平滑过渡。
+        const GRANDSTAND_SPEED = 8;
+        const CRUISE_SPEED = 16;
+        const SPEED_BLEND = 14;
+        // 从看台最右侧（右侧直道 +z 端）开始环绕。
+        const startDistance = 0;
         const trackCenter = new THREE.Vector3(centerX, 0, 0);
         const trackPoint = new THREE.Vector3();
         const aheadPoint = new THREE.Vector3();
@@ -123,8 +144,22 @@ export default function StadiumScene({
         let transitionStartFogFar = SHOT_FOG.ambient.far;
         let hasPose = false;
 
-        function computeAmbientPose(seconds: number) {
-          const distance = startDistance + seconds * cameraSpeed;
+        function ambientSpeed(distance: number) {
+          const loop =
+            ((distance % cameraPerimeter) + cameraPerimeter) % cameraPerimeter;
+          // 0..grandstandLength 是右侧看台直道；回绕到起点前的一段折成负值。
+          const trackDistance =
+            loop >= cameraPerimeter - SPEED_BLEND
+              ? loop - cameraPerimeter
+              : loop;
+          const half = grandstandLength / 2;
+          const inside =
+            1 -
+            smoothstep((Math.abs(trackDistance - half) - half) / SPEED_BLEND);
+          return CRUISE_SPEED + (GRANDSTAND_SPEED - CRUISE_SPEED) * inside;
+        }
+
+        function computeAmbientPose(distance: number) {
           cameraPoint(distance, trackPoint);
           cameraPoint(distance + 28, aheadPoint);
           direction.subVectors(aheadPoint, trackPoint).normalize();
@@ -148,7 +183,7 @@ export default function StadiumScene({
             targetPosition.copy(overviewPosition);
             targetLook.copy(overviewLook);
           } else {
-            computeAmbientPose(elapsed);
+            computeAmbientPose(travel);
             targetPosition.copy(ambientPosition);
             targetLook.copy(ambientLook);
           }
@@ -206,14 +241,25 @@ export default function StadiumScene({
         }
 
         let frame = 0;
-        let elapsed = 0;
+        let travel = startDistance;
         let lastTick: number | undefined;
         let contextLost = false;
+        let contextLostTimer: number | undefined;
         let boostTarget = 0;
         let boost = 0;
         let holdTimer: number | undefined;
         let holdX = 0;
         let holdY = 0;
+        // 真实场景帧率兜底：预热后按窗口统计，持续掉帧就通知父组件降级。
+        const PERF_WARMUP_MS = 1500;
+        const PERF_WINDOW_MS = 2500;
+        const PERF_MIN_FPS = 25;
+        const PERF_MAX_SLOW_RATIO = 0.15;
+        let perfWarmupUntil = 0;
+        let perfWindowStart = 0;
+        let perfFrames = 0;
+        let perfSlowFrames = 0;
+        let perfReported = false;
         const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
         const releasePress = () => {
           if (holdTimer !== undefined) {
@@ -257,17 +303,52 @@ export default function StadiumScene({
           camera.updateProjectionMatrix();
           draw();
         }
+        function resetPerformanceWindow(now: number) {
+          if (perfReported) return;
+          perfWarmupUntil = now + PERF_WARMUP_MS;
+          perfWindowStart = 0;
+          perfFrames = 0;
+          perfSlowFrames = 0;
+        }
         function tick(time: number) {
           if (lastTick !== undefined) {
-            const delta = Math.min((time - lastTick) / 1000, 0.1);
+            const rawDelta = time - lastTick;
+            const delta = Math.min(rawDelta / 1000, 0.1);
+            if (!perfReported && !document.hidden && rawDelta > 0) {
+              if (time >= perfWarmupUntil) {
+                if (perfWindowStart === 0) {
+                  perfWindowStart = time;
+                  perfFrames = 0;
+                  perfSlowFrames = 0;
+                } else {
+                  perfFrames += 1;
+                  if (rawDelta > 50) perfSlowFrames += 1;
+                  const elapsed = time - perfWindowStart;
+                  if (elapsed >= PERF_WINDOW_MS) {
+                    const fps = (perfFrames / elapsed) * 1000;
+                    const slowRatio =
+                      perfFrames > 0 ? perfSlowFrames / perfFrames : 1;
+                    if (fps < PERF_MIN_FPS || slowRatio > PERF_MAX_SLOW_RATIO) {
+                      perfReported = true;
+                      performanceIssueRef.current?.();
+                    } else {
+                      perfWindowStart = time;
+                      perfFrames = 0;
+                      perfSlowFrames = 0;
+                    }
+                  }
+                }
+              }
+            }
             if (activeShot === "ambient" && transitionProgress >= 1) {
               boost += (boostTarget - boost) * Math.min(1, delta * 10);
-              elapsed += delta * (1 + boost * 4);
+              travel += delta * ambientSpeed(travel) * (1 + boost * 4);
             }
             applyShot(delta, false);
             renderer.render(scene, camera);
           } else {
             draw();
+            resetPerformanceWindow(time);
           }
           lastTick = time;
           frame = window.requestAnimationFrame(tick);
@@ -301,8 +382,20 @@ export default function StadiumScene({
           contextLost = true;
           window.cancelAnimationFrame(frame);
           renderer.domElement.style.opacity = "0";
+          if (contextLostTimer !== undefined) {
+            window.clearTimeout(contextLostTimer);
+          }
+          // 3 秒内没有恢复就按 WebGL 不可用处理，避免空等镜头。
+          contextLostTimer = window.setTimeout(() => {
+            contextLostTimer = undefined;
+            if (contextLost) unavailableRef.current?.();
+          }, 3000);
         };
         const onContextRestored = () => {
+          if (contextLostTimer !== undefined) {
+            window.clearTimeout(contextLostTimer);
+            contextLostTimer = undefined;
+          }
           contextLost = false;
           renderer.domElement.style.opacity = "1";
           resize();
@@ -318,6 +411,9 @@ export default function StadiumScene({
         syncMotion();
         cleanup = () => {
           window.cancelAnimationFrame(frame);
+          if (contextLostTimer !== undefined) {
+            window.clearTimeout(contextLostTimer);
+          }
           releasePress();
           requestDrawRef.current = null;
           observer.disconnect();
@@ -343,7 +439,8 @@ export default function StadiumScene({
         };
       })
       .catch(() => {
-        /* WebGL 不可用时保留看板原本的深色背景。 */
+        /* WebGL 不可用时降级为无 3D 看板。 */
+        if (!disposed) unavailableRef.current?.();
       });
     return () => {
       disposed = true;

@@ -93,7 +93,7 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
             type="secondary"
             style={{ marginTop: 8, marginBottom: 12 }}
           >
-            自动模式会根据设备性能决定是否开启；如果现场机器性能足够，也可以强制打开。
+            自动模式会根据设备性能和实际运行帧率决定是否开启；如果现场机器性能足够，也可以强制打开。
           </Paragraph>
           <Radio.Group
             value={settings.backgroundEffectsPreference}

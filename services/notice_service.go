@@ -137,14 +137,38 @@ func SendCompetitionChangeNotice(comp *types.Competition, oldStartTime, oldEndTi
 	return sendNotice(ids, "【比赛信息变更】"+comp.Name, body, comp.ID)
 }
 
-// SendScorePublishedNotice 成绩公布通知（个人赛只发有成绩记录的学生，团体赛只发有成绩的团体所在班级的报名学生）
+// SendScorePublishedNotice 成绩公布通知（个人赛只发有成绩记录的学生，团体赛只发有成绩的团体所在班级的报名学生，全校性比赛发有成绩班级的全部学生）
 func SendScorePublishedNotice(comp *types.Competition) error {
-	// 全校性比赛没有报名学生，仅报名项目没有成绩，均不发送成绩公布通知
-	if comp.CompetitionType == types.TypeSchool || comp.CompetitionType == types.TypeRegistration {
+	// 仅报名项目没有成绩，不发送成绩公布通知
+	if comp.CompetitionType == types.TypeRegistration {
 		return nil
 	}
 
-	body := "成绩已经发布，快去看看你的名次和得分吧！"
+	body := "比赛成绩已经发布，快去看看你的名次和得分吧！"
+
+	// 全校性比赛按班级录入成绩：通知有成绩班级的全部学生，而不是报名学生
+	if comp.CompetitionType == types.TypeSchool {
+		scoredClassIDs, err := models.GetCompetitionScoreClassIDs(comp.ID)
+		if err != nil {
+			return err
+		}
+		students, err := models.GetStudentsByClassIDs(scoredClassIDs)
+		if err != nil {
+			return err
+		}
+		ids := make([]string, 0, len(students))
+		for _, student := range students {
+			if student.DingTalkID != "" && student.DingTalkID != "0" {
+				ids = append(ids, student.DingTalkID)
+			}
+		}
+		return sendNotice(
+			ids,
+			"【成绩公布】"+comp.Name,
+			"比赛成绩已经发布，快去看看你们班的名次与得分吧！",
+			comp.ID,
+		)
+	}
 
 	if comp.CompetitionType == types.TypeTeam {
 		// 团体成绩行无 student_id，须以班级为桥梁：报名学生 ∩ 有成绩的班级

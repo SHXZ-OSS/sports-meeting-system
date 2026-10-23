@@ -10,28 +10,57 @@ export interface DevicePerformance {
     gpu?: string;
     devicePixelRatio: number;
     screenResolution: number; // 像素总数
-    gpuScore: number; // GPU 基准测试分数
+    gpuScore: number; // GPU 基准有效帧率（按实际绘制耗时折算）
   };
 }
 
 export type BackgroundEffectsPreference = "auto" | "enabled" | "disabled";
 
+interface GpuBenchmarkResult {
+  fps: number;
+  gpu?: string;
+}
+
 /**
  * GPU 性能基准测试
- * 通过实际渲染几何图形和执行计算来测试真实 GPU 性能
+ * 按真实渲染尺寸和 GPU 实际绘制耗时测，排除软件渲染和编译失败的假高分。
  */
-async function gpuBenchmark(): Promise<number> {
+async function gpuBenchmark(): Promise<GpuBenchmarkResult> {
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
-    canvas.width = 1920;
-    canvas.height = 1080;
-    const gl = canvas.getContext("webgl");
+    // 与 StadiumScene 的像素比上限保持一致，按真实视口尺寸测。
+    const scale = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.min(
+      3840,
+      Math.max(1, Math.round(window.innerWidth * scale)),
+    );
+    canvas.height = Math.min(
+      2160,
+      Math.max(1, Math.round(window.innerHeight * scale)),
+    );
+    const contextOptions: WebGLContextAttributes = {
+      antialias: true,
+      failIfMajorPerformanceCaveat: true,
+      powerPreference: "low-power",
+    };
+    const gl =
+      canvas.getContext("webgl2", contextOptions) ??
+      canvas.getContext("webgl", contextOptions);
 
-    if (!gl) return resolve(0);
+    if (!gl) return resolve({ fps: 0 });
+
+    const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const gpu = debugInfo
+      ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || "")
+      : "";
+    // 软件渲染（SwiftShader / llvmpipe / Basic Render）直接判为不可用。
+    if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) {
+      return resolve({ fps: 0, gpu });
+    }
 
     // 创建顶点着色器
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    if (!vertexShader) return resolve(0);
+    if (!vertexShader) return resolve({ fps: 0, gpu: gpu || undefined });
 
     gl.shaderSource(
       vertexShader,
@@ -43,18 +72,22 @@ async function gpuBenchmark(): Promise<number> {
     `,
     );
     gl.compileShader(vertexShader);
+    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+      return resolve({ fps: 0, gpu: gpu || undefined });
+    }
 
     // 创建片段着色器（带复杂计算）
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    if (!fragmentShader) return resolve(0);
+    if (!fragmentShader) return resolve({ fps: 0, gpu: gpu || undefined });
 
     gl.shaderSource(
       fragmentShader,
       `
       precision mediump float;
       uniform float time;
+      uniform vec2 u_resolution;
       void main() {
-        vec2 uv = gl_FragCoord.xy / vec2(1920.0, 1080.0);
+        vec2 uv = gl_FragCoord.xy / u_resolution;
         float color = 0.0;
         // 添加一些计算密集型操作
         for (int i = 0; i < 20; i++) {
@@ -65,14 +98,20 @@ async function gpuBenchmark(): Promise<number> {
     `,
     );
     gl.compileShader(fragmentShader);
+    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+      return resolve({ fps: 0, gpu: gpu || undefined });
+    }
 
     // 创建程序
     const program = gl.createProgram();
-    if (!program) return resolve(0);
+    if (!program) return resolve({ fps: 0, gpu: gpu || undefined });
 
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      return resolve({ fps: 0, gpu: gpu || undefined });
+    }
     gl.useProgram(program);
 
     // 创建缓冲区
@@ -82,30 +121,50 @@ async function gpuBenchmark(): Promise<number> {
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
     const position = gl.getAttribLocation(program, "position");
+    if (position < 0) return resolve({ fps: 0, gpu: gpu || undefined });
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
     const timeUniform = gl.getUniformLocation(program, "time");
+    const resolutionUniform = gl.getUniformLocation(program, "u_resolution");
+    if (timeUniform === null || resolutionUniform === null) {
+      return resolve({ fps: 0, gpu: gpu || undefined });
+    }
+    gl.uniform2f(resolutionUniform, canvas.width, canvas.height);
+
+    // 预热一帧，避免首次绘制/驱动编译污染后面的耗时均值。
+    gl.uniform1f(timeUniform, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.finish();
 
     const start = performance.now();
     let frames = 0;
+    let totalDrawMs = 0;
 
     function frame() {
       if (!gl) return;
 
-      // 执行实际的渲染操作
+      // 计时 GPU 实际绘制耗时，避免被屏幕刷新率（30Hz/60Hz）截断。
+      const drawStart = performance.now();
       gl.uniform1f(timeUniform, frames * 0.1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.finish(); // 等待 GPU 完成渲染
+      totalDrawMs += performance.now() - drawStart;
 
       frames++;
 
       if (performance.now() - start < 200) {
         requestAnimationFrame(frame);
       } else {
-        const elapsed = performance.now() - start;
-        const fps = (frames / elapsed) * 1000;
-        resolve(Math.round(fps)); // 返回 FPS
+        const avgDrawMs = frames > 0 ? totalDrawMs / frames : 0;
+        // 计时精度可能把极快的绘制记成 0ms，按最高档处理；上限 240 防止日志离谱。
+        const fps =
+          frames > 0
+            ? avgDrawMs > 0
+              ? Math.min(240, 1000 / avgDrawMs)
+              : 240
+            : 0;
+        resolve({ fps: Math.round(fps), gpu: gpu || undefined });
       }
     }
 
@@ -118,55 +177,35 @@ async function gpuBenchmark(): Promise<number> {
  */
 export async function detectDevicePerformance(): Promise<DevicePerformance> {
   // GPU 性能测试
-  const gpuScore = await gpuBenchmark();
+  const benchmark = await gpuBenchmark();
+  const gpuScore = benchmark.fps;
 
   const details = {
     cores: navigator.hardwareConcurrency || 2,
+    gpu: benchmark.gpu,
     devicePixelRatio: window.devicePixelRatio || 1,
     screenResolution: window.screen.width * window.screen.height,
     gpuScore,
   };
 
-  let score = 20; // 基础分
-
-  // CPU 核心数评分 (0-25分)
-  // 2核: +6, 4核: +12, 6核: +18, 8核: +24, 8核以上: +25
-  score += Math.min(25, Math.floor(details.cores / 2) * 6);
-
-  // GPU 性能评分 (0-50分) - 这是最重要的指标
-  // 现代独显通常能跑到 60+ FPS，集显通常 20-40 FPS
-  if (gpuScore >= 60)
-    score += 50; // 高性能独显
-  else if (gpuScore >= 40)
-    score += 40; // 中端独显/高性能集显
-  else if (gpuScore >= 25)
-    score += 28; // 普通集显
-  else if (gpuScore >= 15)
-    score += 18; // 低性能集显
-  else score += 8; // 极弱 GPU
-
-  // 屏幕分辨率影响 (0到-15分)
-  // 高分辨率会增加渲染负担
-  const megapixels = details.screenResolution / 1_000_000;
-  if (megapixels > 8)
-    score -= 15; // 4K 以上
-  else if (megapixels > 4)
-    score -= 10; // 2K-4K
-  else if (megapixels > 2.5) score -= 5; // 1440p
-
-  // 高 DPI 屏幕额外影响
-  if (details.devicePixelRatio >= 3) score -= 5;
-  else if (details.devicePixelRatio >= 2) score -= 3;
-
-  // 限制范围
-  score = Math.max(0, Math.min(100, score));
-
+  // GPU 是硬门槛：核数只用于排除双核弱机，不能把弱 GPU 抬过线。
+  // 分辨率/DPR 已经体现在基准的绘制缓冲区尺寸里，不再重复扣分。
   let level: "low" | "medium" | "high";
-  if (score >= 70)
-    level = "high"; // 高性能设备
-  else if (score >= 45)
-    level = "medium"; // 中等性能
-  else level = "low"; // 低性能
+  if (gpuScore >= 55 && details.cores >= 4) {
+    level = "high";
+  } else if (gpuScore >= 45 && details.cores >= 4) {
+    level = "medium";
+  } else {
+    level = "low";
+  }
+
+  // 分数只用于日志，和 level 保持一致的量级。
+  let score = Math.round((Math.min(gpuScore, 60) / 60) * 80);
+  score += Math.min(20, Math.floor(details.cores / 2) * 3);
+  score = Math.max(0, Math.min(100, score));
+  if (level === "low") score = Math.min(score, 35);
+  else if (level === "medium") score = Math.min(score, 65);
+  else score = Math.max(score, 70);
 
   console.log("设备性能检测结果:", { score, level, details });
 

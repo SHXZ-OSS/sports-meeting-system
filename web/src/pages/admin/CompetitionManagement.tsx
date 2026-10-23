@@ -529,12 +529,21 @@ const CompetitionManagement: React.FC = () => {
               }}
             />
           )}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 500 }}>{record.name}</div>
             {record.description && (
-              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+              <Typography.Text
+                ellipsis={{ tooltip: record.description }}
+                style={{
+                  display: "block",
+                  maxWidth: 320,
+                  marginTop: 2,
+                  fontSize: 12,
+                  color: "#666",
+                }}
+              >
                 {record.description}
-              </div>
+              </Typography.Text>
             )}
             {record.venue && (
               <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
@@ -1091,7 +1100,7 @@ const CompetitionManagement: React.FC = () => {
             <Form.Item
               label="报名自定义字段"
               name="custom_fields"
-              extra="报名时需要填写的附加信息（如斗腕的体重）；已有报名数据的字段不可修改或删除"
+              extra="报名时需要填写的附加信息；已有报名数据的字段不可修改或删除"
             >
               <CustomFieldsEditor />
             </Form.Item>

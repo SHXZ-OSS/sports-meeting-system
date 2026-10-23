@@ -68,6 +68,8 @@ type AnimationPhase = "reveal" | "overview" | "closing";
 const PublicScoreboard: React.FC = () => {
   // 背景特效控制
   const [enableBackgroundEffects, setEnableBackgroundEffects] = useState(false);
+  const [backgroundEffectsReady, setBackgroundEffectsReady] = useState(false);
+  const [stadiumTooSlow, setStadiumTooSlow] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [scoreboardSettings, setScoreboardSettings] =
     useState<ScoreboardSettings>(getScoreboardSettings);
@@ -80,6 +82,8 @@ const PublicScoreboard: React.FC = () => {
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSavedSettingsRef = useRef(false);
+  // 实际是否启用 3D：检测通过且运行时没有被判定为过慢。
+  const backgroundEffectsActive = enableBackgroundEffects && !stadiumTooSlow;
 
   const handleTitleClick = useCallback(() => {
     clickCountRef.current += 1;
@@ -121,18 +125,39 @@ const PublicScoreboard: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
+    const applyResult = (shouldEnable: boolean) => {
+      if (cancelled) return;
+      setEnableBackgroundEffects(shouldEnable);
+      setBackgroundEffectsReady(true);
+    };
+
     shouldEnableBackgroundEffects(
       scoreboardSettings.backgroundEffectsPreference,
-    ).then((shouldEnable) => {
-      if (!cancelled) {
-        setEnableBackgroundEffects(shouldEnable);
-      }
-    });
+    )
+      .then(applyResult)
+      .catch(() => applyResult(false));
 
     return () => {
       cancelled = true;
     };
   }, [scoreboardSettings.backgroundEffectsPreference]);
+
+  // 切换设置时允许重新尝试，避免运行时降级永久锁死。
+  useEffect(() => {
+    setStadiumTooSlow(false);
+  }, [scoreboardSettings.backgroundEffectsPreference]);
+
+  const handleStadiumPerformanceIssue = useCallback(() => {
+    // “总是开启”是显式覆盖，不自动降级。
+    if (scoreboardSettings.backgroundEffectsPreference === "enabled") return;
+    console.warn("体育场背景动画持续掉帧，已自动降级。");
+    setStadiumTooSlow(true);
+  }, [scoreboardSettings.backgroundEffectsPreference]);
+
+  const handleStadiumUnavailable = useCallback(() => {
+    console.warn("WebGL 不可用，已降级为无 3D 看板。");
+    setEnableBackgroundEffects(false);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -680,6 +705,8 @@ const PublicScoreboard: React.FC = () => {
 
   // 处理动画队列
   useEffect(() => {
+    // 等性能检测结束再决定走 3D 还是静态降级，避免中途切换。
+    if (!backgroundEffectsReady) return;
     if (!isProcessingAnimation && animationTaskQueue.length > 0) {
       const nextTask = animationTaskQueue[0];
       setIsProcessingAnimation(true);
@@ -700,7 +727,7 @@ const PublicScoreboard: React.FC = () => {
       // 从队列中移除当前任务
       setAnimationTaskQueue((prev) => prev.slice(1));
     }
-  }, [animationTaskQueue, isProcessingAnimation]);
+  }, [animationTaskQueue, isProcessingAnimation, backgroundEffectsReady]);
 
   // 结束动画（复用此函数处理动画结束逻辑）
   const endAnimation = () => {
@@ -1080,15 +1107,18 @@ const PublicScoreboard: React.FC = () => {
     return () => document.body.classList.remove("score-animation-active");
   }, [showAnimation, animationPhase]);
 
-  // 镜头到位并淡到纯黑后，再开始逐条动画。
+  // 有体育场时等镜头到位并淡到纯黑；没有体育场时立即开始逐条揭晓。
   useEffect(() => {
     if (!showAnimation) {
       setAnimationRevealed(false);
       return;
     }
-    const timer = setTimeout(() => setAnimationRevealed(true), 4400);
+    const timer = setTimeout(
+      () => setAnimationRevealed(true),
+      backgroundEffectsActive ? 4400 : 0,
+    );
     return () => clearTimeout(timer);
-  }, [showAnimation]);
+  }, [showAnimation, backgroundEffectsActive]);
 
   // 逐条展示：比赛名 → 每位选手的 名次 / 成绩 / 班级 / 姓名。
   useEffect(() => {
@@ -1213,7 +1243,7 @@ const PublicScoreboard: React.FC = () => {
       }}
     >
       {/* 背景动画：沿跑道环绕的体育场场景 */}
-      {enableBackgroundEffects && (
+      {backgroundEffectsActive && (
         <div
           style={{
             position: "fixed",
@@ -1222,7 +1252,13 @@ const PublicScoreboard: React.FC = () => {
             pointerEvents: "none",
           }}
         >
-          <StadiumScene eventName={eventName} shot={stadiumShot} />
+          <StadiumScene
+            key={scoreboardSettings.backgroundEffectsPreference}
+            eventName={eventName}
+            shot={stadiumShot}
+            onPerformanceIssue={handleStadiumPerformanceIssue}
+            onUnavailable={handleStadiumUnavailable}
+          />
         </div>
       )}
 
@@ -1260,7 +1296,9 @@ const PublicScoreboard: React.FC = () => {
         <div
           className={`score-animation${
             animationPhase !== "reveal" ? " is-overview" : ""
-          }${animationPhase === "closing" ? " is-closing" : ""}`}
+          }${animationPhase === "closing" ? " is-closing" : ""}${
+            backgroundEffectsActive ? "" : " is-static"
+          }`}
           onMouseDown={handleLongPressStart}
           onMouseUp={handleLongPressEnd}
           onMouseLeave={handleLongPressEnd}
@@ -1268,24 +1306,26 @@ const PublicScoreboard: React.FC = () => {
           onTouchEnd={handleLongPressEnd}
         >
           <div className="score-animation__blackout" aria-hidden="true" />
-          <div className="score-animation__rays" aria-hidden="true">
-            <LightRays
-              raysOrigin="top-center"
-              raysColor={lightRaysColor}
-              lightSpread={2.6}
-              rayLength={3.6}
-              saturation={1.5}
-              followMouse={false}
-              mouseInfluence={0.1}
-              fadeDistance={1.5}
-              noiseAmount={0.1}
-            />
-          </div>
+          {backgroundEffectsActive && (
+            <div className="score-animation__rays" aria-hidden="true">
+              <LightRays
+                raysOrigin="top-center"
+                raysColor={lightRaysColor}
+                lightSpread={2.6}
+                rayLength={3.6}
+                saturation={1.5}
+                followMouse={false}
+                mouseInfluence={0.1}
+                fadeDistance={1.5}
+                noiseAmount={0.1}
+              />
+            </div>
+          )}
           <FadeContent
             blur
             duration={900}
             easing="ease-out"
-            delay={4400}
+            delay={backgroundEffectsActive ? 4400 : 0}
             initialOpacity={0}
             className="score-animation__fade"
           >
