@@ -461,6 +461,8 @@ export function buildStadium(bannerText = "上海市行知中学运动会") {
     stadium,
     cameraPoint,
     centerX,
+    cameraPerimeter,
+    grandstandLength: segmentLength,
     dispose() {
       stadium.traverse((object) => {
         if (object instanceof THREE.InstancedMesh) object.dispose();

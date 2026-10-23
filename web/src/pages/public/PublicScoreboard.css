@@ -549,3 +549,15 @@ body.score-animation-active .ant-modal-wrap {
     animation: none;
   }
 }
+
+/* 无 3D 体育场时的降级揭晓：立即黑场，跳过镜头等待与光线动画。 */
+.score-animation.is-static .score-animation__blackout {
+  opacity: 1;
+  animation: none;
+}
+.score-animation.is-static.is-overview .score-animation__blackout {
+  animation: score-blackout-out 1.4s ease forwards;
+}
+.score-animation.is-static:not(.is-overview) .score-animation__hint {
+  animation-delay: 0.6s;
+}
