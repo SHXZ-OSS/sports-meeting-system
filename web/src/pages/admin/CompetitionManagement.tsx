@@ -1091,7 +1091,7 @@ const CompetitionManagement: React.FC = () => {
             <Form.Item
               label="报名自定义字段"
               name="custom_fields"
-              extra="报名时需要填写的附加信息（如斗腕的体重）；已有报名数据的字段不可修改或删除"
+              extra="报名时需要填写的附加信息；已有报名数据的字段不可修改或删除"
             >
               <CustomFieldsEditor />
             </Form.Item>
