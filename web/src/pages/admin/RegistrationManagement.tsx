@@ -1948,11 +1948,28 @@ const RegistrationManagement: React.FC = () => {
                         const isSelected = selectedStudents.includes(
                           student.id,
                         );
+                        const statusText = alreadyRegistered
+                          ? "已报名"
+                          : !genderMatch
+                            ? "性别不符"
+                            : "";
+                        const statusColor = alreadyRegistered
+                          ? "#52c41a"
+                          : "#ff4d4f";
                         return (
                           <List.Item style={{ marginBottom: 8 }}>
                             <Card
                               size="small"
-                              styles={{ body: { padding: "6px 10px" } }}
+                              styles={{
+                                body: {
+                                  padding: "6px 10px",
+                                  minHeight: 60,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "center",
+                                  gap: 2,
+                                },
+                              }}
                               style={{
                                 cursor: canSelect ? "pointer" : "not-allowed",
                                 opacity: canSelect ? 1 : 0.5,
@@ -1976,22 +1993,31 @@ const RegistrationManagement: React.FC = () => {
                                 );
                               }}
                             >
-                              <div style={{ fontWeight: 500, fontSize: 13 }}>
+                              <div
+                                title={student.full_name}
+                                style={{
+                                  fontWeight: 500,
+                                  fontSize: 13,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
                                 {student.full_name}
                               </div>
                               <div style={{ fontSize: 11, color: "#999" }}>
                                 {getGenderText(student.gender)}
                               </div>
-                              {alreadyRegistered && (
-                                <div style={{ fontSize: 11, color: "#52c41a" }}>
-                                  已报名
-                                </div>
-                              )}
-                              {!genderMatch && (
-                                <div style={{ fontSize: 11, color: "#ff4d4f" }}>
-                                  性别不符
-                                </div>
-                              )}
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  lineHeight: "16px",
+                                  minHeight: 16,
+                                  color: statusColor,
+                                }}
+                              >
+                                {statusText || "\u00A0"}
+                              </div>
                             </Card>
                           </List.Item>
                         );
