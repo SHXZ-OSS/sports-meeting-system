@@ -1,4 +1,5 @@
 import { Class, Competition, Registration, Student } from "../types";
+import { chineseSort } from "./sort";
 
 export interface RandomFillAssignment {
   competitionId: number;
@@ -695,7 +696,7 @@ function assemblePlan(
       }
 
       const sortedAssignments = [...demand.assignments].sort((a, b) =>
-        a.studentName.localeCompare(b.studentName, "zh-CN"),
+        chineseSort(a.studentName, b.studentName),
       );
       result.assignments = sortedAssignments.map((assignment) => ({
         competitionId: demand.competition.id,
