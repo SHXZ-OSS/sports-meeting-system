@@ -64,7 +64,7 @@ import BatchResults, { BatchResult } from "../../components/BatchResults";
 import BatchProgress from "../../components/BatchProgress";
 import RandomDrawModal from "../../components/RandomDrawModal";
 import RandomFillRegistrationModal from "../../components/RandomFillRegistrationModal";
-import { chineseSort } from "../../utils/sort";
+import { chineseSort, compareClassThenName } from "../../utils/sort";
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -288,9 +288,7 @@ const RegistrationManagement: React.FC = () => {
     });
     handleResp(response, (data) => {
       setStudents(
-        [...data].sort((a, b) =>
-          a.full_name.localeCompare(b.full_name, "zh-CN"),
-        ),
+        [...data].sort((a, b) => chineseSort(a.full_name, b.full_name)),
       );
     });
   };
@@ -752,12 +750,15 @@ const RegistrationManagement: React.FC = () => {
           );
         }
 
-        // 按班级和姓名排序
-        registrations.sort((a, b) => {
-          const classCompare = chineseSort(a.class_name, b.class_name);
-          if (classCompare !== 0) return classCompare;
-          return a.student_name.localeCompare(b.student_name, "zh-CN");
-        });
+        // 按班级、姓名排序（与报名弹窗、检录/录入名单保持一致）
+        registrations.sort((a, b) =>
+          compareClassThenName(
+            a.class_name,
+            a.student_name,
+            b.class_name,
+            b.student_name,
+          ),
+        );
 
         return {
           name: comp.name,
@@ -811,11 +812,13 @@ const RegistrationManagement: React.FC = () => {
 
         // 对报名数据排序后再添加，每行4个人
         const sortedRegistrations = [...competition.registrations].sort(
-          (a, b) => {
-            const classCompare = chineseSort(a.class_name, b.class_name);
-            if (classCompare !== 0) return classCompare;
-            return a.student_name.localeCompare(b.student_name, "zh-CN");
-          },
+          (a, b) =>
+            compareClassThenName(
+              a.class_name,
+              a.student_name,
+              b.class_name,
+              b.student_name,
+            ),
         );
 
         for (let i = 0; i < sortedRegistrations.length; i += 4) {
@@ -1133,11 +1136,14 @@ const RegistrationManagement: React.FC = () => {
     );
 
     // 添加学生数据（按班级和姓名排序，包括没有报名项目的学生）
-    const sortedStudents = [...allStudents].sort((a, b) => {
-      const classCompare = chineseSort(a.class_name, b.class_name);
-      if (classCompare !== 0) return classCompare;
-      return a.full_name.localeCompare(b.full_name, "zh-CN");
-    });
+    const sortedStudents = [...allStudents].sort((a, b) =>
+      compareClassThenName(
+        a.class_name,
+        a.full_name,
+        b.class_name,
+        b.full_name,
+      ),
+    );
 
     sortedStudents.forEach((student) => {
       const row: any[] = [student.class_name, student.full_name];
@@ -1546,17 +1552,14 @@ const RegistrationManagement: React.FC = () => {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[...registrations]
-                  .sort((a, b) => {
-                    const classCompare = chineseSort(
+                  .sort((a, b) =>
+                    compareClassThenName(
                       a.class_name,
+                      a.student_name,
                       b.class_name,
-                    );
-                    if (classCompare !== 0) return classCompare;
-                    return a.student_name.localeCompare(
                       b.student_name,
-                      "zh-CN",
-                    );
-                  })
+                    ),
+                  )
                   .filter(
                     (r) =>
                       !registrationClassFilter ||

@@ -52,7 +52,7 @@ import {
   getCustomFieldValue,
 } from "../../utils/customFields";
 import { useIsMobile } from "../../utils/mobile";
-import { chineseSort } from "../../utils/sort";
+import { chineseSort, compareClassThenName } from "../../utils/sort";
 import { adminRegistrationAPI } from "../../api/admin/registration";
 import CertificateExport from "../../components/CertificateExport";
 
@@ -461,12 +461,15 @@ const Progress: React.FC = () => {
             );
           });
 
-          // 按班级和姓名排序报名数据
-          registrations.sort((a, b) => {
-            const classCompare = chineseSort(a.class_name, b.class_name);
-            if (classCompare !== 0) return classCompare;
-            return a.student_name.localeCompare(b.student_name, "zh-CN");
-          });
+          // 按班级、姓名排序报名数据（与 Excel 导出、检录/录入名单一致）
+          registrations.sort((a, b) =>
+            compareClassThenName(
+              a.class_name,
+              a.student_name,
+              b.class_name,
+              b.student_name,
+            ),
+          );
 
           // 创建成绩映射表（用于快速查找）
           const scoreMap = new Map<number, Score>();
@@ -785,7 +788,9 @@ const Progress: React.FC = () => {
   };
 
   const handleRemindStudent = async (studentId: number) => {
-    if (!selectedCompetition) return;
+    if (!selectedCompetition || selectedCompetition.status !== "checking_in") {
+      return;
+    }
     setRemindingId(studentId);
     try {
       const response = await adminProgressAPI.remindStudent(
@@ -1103,17 +1108,14 @@ const Progress: React.FC = () => {
                     style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   >
                     {[...registrations]
-                      .sort((a, b) => {
-                        const classCompare = chineseSort(
+                      .sort((a, b) =>
+                        compareClassThenName(
                           a.class_name,
+                          a.student_name,
                           b.class_name,
-                        );
-                        if (classCompare !== 0) return classCompare;
-                        return a.student_name.localeCompare(
                           b.student_name,
-                          "zh-CN",
-                        );
-                      })
+                        ),
+                      )
                       .map((reg) => (
                         <div
                           key={reg.id}
@@ -1150,14 +1152,18 @@ const Progress: React.FC = () => {
                               },
                             )}
                           </Space>
-                          <Button
-                            size="small"
-                            icon={<NotificationOutlined />}
-                            loading={remindingId === reg.student_id}
-                            onClick={() => handleRemindStudent(reg.student_id)}
-                          >
-                            提醒
-                          </Button>
+                          {selectedCompetition.status === "checking_in" && (
+                            <Button
+                              size="small"
+                              icon={<NotificationOutlined />}
+                              loading={remindingId === reg.student_id}
+                              onClick={() =>
+                                handleRemindStudent(reg.student_id)
+                              }
+                            >
+                              提醒
+                            </Button>
+                          )}
                         </div>
                       ))}
                   </div>
@@ -1256,11 +1262,14 @@ const Progress: React.FC = () => {
               }));
           } else {
             rows = [...registrations]
-              .sort((a, b) => {
-                const classCompare = chineseSort(a.class_name, b.class_name);
-                if (classCompare !== 0) return classCompare;
-                return a.student_name.localeCompare(b.student_name, "zh-CN");
-              })
+              .sort((a, b) =>
+                compareClassThenName(
+                  a.class_name,
+                  a.student_name,
+                  b.class_name,
+                  b.student_name,
+                ),
+              )
               .map((registration) => ({
                 key: `student-${registration.id}`,
                 student_id: registration.student_id,

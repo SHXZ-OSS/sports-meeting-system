@@ -445,6 +445,18 @@ func RemindStudent(c *gin.Context) {
 		return
 	}
 
+	competition, err := models.GetCompetitionByID(req.CompetitionID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return
+	}
+
+	// 仅在检录中的比赛允许发送提醒，避免开始检录前误提醒
+	if competition.Status != types.StatusCheckingIn {
+		utils.ResponseError(c, http.StatusBadRequest, "当前比赛不在检录中，无法发送检录提醒")
+		return
+	}
+
 	// 校验学生确实报名了该比赛，防止向任意学生发消息
 	registrations, err := models.GetCompetitionRegistrations(req.CompetitionID, 0)
 	if err != nil {
@@ -460,12 +472,6 @@ func RemindStudent(c *gin.Context) {
 	}
 	if student == nil {
 		utils.ResponseError(c, http.StatusNotFound, "该学生未报名此比赛")
-		return
-	}
-
-	competition, err := models.GetCompetitionByID(req.CompetitionID)
-	if err != nil {
-		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
 		return
 	}
 

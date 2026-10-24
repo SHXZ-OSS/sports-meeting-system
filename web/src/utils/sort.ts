@@ -95,3 +95,14 @@ export const chineseSort = (a: string, b: string): number => {
 
   return 0;
 };
+
+/** 按班级、再按姓名拼音排序（报名列表、Excel 导出、检录/录入名单共用） */
+export const compareClassThenName = (
+  classA: string,
+  nameA: string,
+  classB: string,
+  nameB: string,
+): number => {
+  const classCompare = chineseSort(classA, classB);
+  return classCompare !== 0 ? classCompare : chineseSort(nameA, nameB);
+};
