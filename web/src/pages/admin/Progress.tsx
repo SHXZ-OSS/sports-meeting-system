@@ -499,9 +499,14 @@ const Progress: React.FC = () => {
           const isClassCompetition = isClassScoredType(
             competition.competition_type,
           );
+          // 全校性比赛没有学生报名，不导出自定义字段
+          const customFields = isSchoolWide
+            ? []
+            : (competition.custom_fields ?? []);
 
-          // 根据比赛类型决定合并列数
-          const headerColCount = isClassCompetition ? 5 : 6;
+          // 根据比赛类型和自定义字段数量决定合并列数
+          const headerColCount =
+            (isClassCompetition ? 5 : 6) + customFields.length;
 
           // 添加比赛名称作为标题
           const titleRow = [competition.name];
@@ -513,9 +518,24 @@ const Progress: React.FC = () => {
 
           // 添加表头（团体/全校性比赛不显示"姓名"列）
           if (isClassCompetition) {
-            sheetData.push(["序号", "班级", "成绩", "名次", "得分"]);
+            sheetData.push([
+              "序号",
+              "班级",
+              ...customFields.map((field) => field.name),
+              "成绩",
+              "名次",
+              "得分",
+            ]);
           } else {
-            sheetData.push(["序号", "班级", "姓名", "成绩", "名次", "得分"]);
+            sheetData.push([
+              "序号",
+              "班级",
+              "姓名",
+              ...customFields.map((field) => field.name),
+              "成绩",
+              "名次",
+              "得分",
+            ]);
           }
 
           // 处理数据行
@@ -553,9 +573,24 @@ const Progress: React.FC = () => {
             uniqueClasses.forEach((reg, index) => {
               // 团体赛的成绩是按 class_id 存储的
               const score = scores.find((s) => s.class_id === reg.class_id);
+              const classRegistrations = registrations.filter(
+                (registration) => registration.class_id === reg.class_id,
+              );
+              const customValues = customFields.map((field) => {
+                const values = classRegistrations
+                  .map((registration) =>
+                    formatCustomFieldValue(
+                      field,
+                      getCustomFieldValue(registration.custom_values, field.id),
+                    ),
+                  )
+                  .filter((value) => value !== "");
+                return Array.from(new Set(values)).join("、");
+              });
               sheetData.push([
                 index + 1,
                 reg.class_name,
+                ...customValues,
                 score ? `${score.score} ${competition.unit}` : "",
                 score && score.ranking ? score.ranking : "",
                 score && score.point !== undefined && score.point !== null
@@ -573,6 +608,12 @@ const Progress: React.FC = () => {
                 index + 1,
                 reg.class_name,
                 reg.student_name,
+                ...customFields.map((field) =>
+                  formatCustomFieldValue(
+                    field,
+                    getCustomFieldValue(reg.custom_values, field.id),
+                  ),
+                ),
                 score ? `${score.score} ${competition.unit}` : "",
                 score && score.ranking ? score.ranking : "",
                 score && score.point !== undefined && score.point !== null
@@ -587,8 +628,8 @@ const Progress: React.FC = () => {
             data: sheetData,
             merges: merges,
             colWidths: isClassCompetition
-              ? [5, 10, 10, 5, 5]
-              : [5, 10, 10, 10, 5, 5],
+              ? [5, 10, ...customFields.map(() => 10), 10, 5, 5]
+              : [5, 10, 10, ...customFields.map(() => 10), 10, 5, 5],
           };
         },
       );
