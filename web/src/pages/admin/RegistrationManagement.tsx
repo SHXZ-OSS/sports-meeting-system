@@ -595,6 +595,33 @@ const RegistrationManagement: React.FC = () => {
     setCustomRegisterValues({});
   };
 
+  // 重置新增报名弹窗状态
+  const resetAddRegistration = () => {
+    setAddRegistrationVisible(false);
+    setSelectedClass(null);
+    setStudents([]);
+    setSelectedStudents([]);
+    setCustomRegisterVisible(false);
+    setCustomRegisterStudent(null);
+    setCustomRegisterValues({});
+  };
+
+  // 关闭新增报名弹窗前确认，避免误点遮罩或 ESC 丢失已选学生
+  const closeAddRegistration = () => {
+    if (selectedStudents.length === 0) {
+      resetAddRegistration();
+      return;
+    }
+    Modal.confirm({
+      title: "放弃本次报名选择？",
+      content: `已选择 ${selectedStudents.length} 名学生，关闭后不会保存。`,
+      okText: "放弃选择",
+      cancelText: "继续选择",
+      okButtonProps: { danger: true },
+      onOk: resetAddRegistration,
+    });
+  };
+
   // 处理班级选择
   const handleClassSelect = async (classId: number) => {
     setSelectedClass(classId);
@@ -1687,15 +1714,7 @@ const RegistrationManagement: React.FC = () => {
       <Modal
         title="新增报名"
         open={addRegistrationVisible}
-        onCancel={() => {
-          setAddRegistrationVisible(false);
-          setSelectedClass(null);
-          setStudents([]);
-          setSelectedStudents([]);
-          setCustomRegisterVisible(false);
-          setCustomRegisterStudent(null);
-          setCustomRegisterValues({});
-        }}
+        onCancel={closeAddRegistration}
         footer={null}
         width={700}
         zIndex={1002}
@@ -1948,11 +1967,28 @@ const RegistrationManagement: React.FC = () => {
                         const isSelected = selectedStudents.includes(
                           student.id,
                         );
+                        const statusText = alreadyRegistered
+                          ? "已报名"
+                          : !genderMatch
+                            ? "性别不符"
+                            : "";
+                        const statusColor = alreadyRegistered
+                          ? "#52c41a"
+                          : "#ff4d4f";
                         return (
                           <List.Item style={{ marginBottom: 8 }}>
                             <Card
                               size="small"
-                              styles={{ body: { padding: "6px 10px" } }}
+                              styles={{
+                                body: {
+                                  padding: "6px 10px",
+                                  minHeight: 60,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "center",
+                                  gap: 2,
+                                },
+                              }}
                               style={{
                                 cursor: canSelect ? "pointer" : "not-allowed",
                                 opacity: canSelect ? 1 : 0.5,
@@ -1976,22 +2012,31 @@ const RegistrationManagement: React.FC = () => {
                                 );
                               }}
                             >
-                              <div style={{ fontWeight: 500, fontSize: 13 }}>
+                              <div
+                                title={student.full_name}
+                                style={{
+                                  fontWeight: 500,
+                                  fontSize: 13,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
                                 {student.full_name}
                               </div>
                               <div style={{ fontSize: 11, color: "#999" }}>
                                 {getGenderText(student.gender)}
                               </div>
-                              {alreadyRegistered && (
-                                <div style={{ fontSize: 11, color: "#52c41a" }}>
-                                  已报名
-                                </div>
-                              )}
-                              {!genderMatch && (
-                                <div style={{ fontSize: 11, color: "#ff4d4f" }}>
-                                  性别不符
-                                </div>
-                              )}
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  lineHeight: "16px",
+                                  minHeight: 16,
+                                  color: statusColor,
+                                }}
+                              >
+                                {statusText || "\u00A0"}
+                              </div>
                             </Card>
                           </List.Item>
                         );
@@ -2216,6 +2261,7 @@ const RegistrationManagement: React.FC = () => {
         current={batchProgress.current}
         total={batchProgress.total}
         title="批量报名进行中"
+        zIndex={1003}
       />
 
       {/* 导出报名模态框 */}

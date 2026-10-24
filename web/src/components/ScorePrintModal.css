@@ -1,0 +1,290 @@
+.score-print-preview {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 12px;
+}
+
+.score-print-sheet {
+  --ink: #102a46;
+  --muted: #6b8098;
+  --line: #e2e8f0;
+  --line-strong: #c9d3df;
+  display: flex;
+  flex-direction: column;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 16mm 16mm 12mm;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-family:
+    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans CN",
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(16, 42, 70, 0.16);
+}
+
+.score-print-masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.score-print-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.score-print-logo {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.score-print-site {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.score-print-event {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.score-print-printed-at {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.score-print-heading {
+  padding: 24px 0 18px;
+}
+
+.score-print-kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+
+.score-print-title {
+  margin: 8px 0 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.score-print-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 120px;
+  padding-left: 20px;
+  text-align: center;
+  border-left: 1px solid var(--line);
+}
+
+.score-print-qr .ant-qrcode {
+  margin: 0;
+}
+
+.score-print-qr-label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.score-print-qr-url {
+  width: 100%;
+  font-size: 7.5px;
+  line-height: 1.4;
+  text-align: center;
+  color: #8a93a6;
+  word-break: break-all;
+}
+
+.score-print-table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.score-print-table thead {
+  display: table-header-group;
+}
+
+.score-print-table th {
+  padding: 0 8px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.score-print-table td {
+  padding: 9px 8px;
+  line-height: 1.5;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+
+.score-print-table tbody tr:nth-child(even) {
+  background: #fbfcfe;
+}
+
+.score-print-table tbody tr:last-child td {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.score-print-table th:first-child,
+.score-print-table td:first-child {
+  width: 52px;
+  text-align: center;
+}
+
+.score-print-table th:nth-child(2) {
+  width: 120px;
+}
+
+.score-print-table th:nth-last-child(2),
+.score-print-table td:nth-last-child(2),
+.score-print-table th:last-child,
+.score-print-table td:last-child {
+  text-align: right;
+}
+
+.score-print-table .is-name {
+  font-weight: 600;
+}
+
+.score-print-table .is-score {
+  font-weight: 600;
+}
+
+.score-print-table .is-point {
+  color: var(--muted);
+}
+
+.score-print-rank {
+  font-weight: 600;
+}
+
+.score-print-rank.rank-1 {
+  font-weight: 800;
+}
+
+.score-print-rank.rank-2,
+.score-print-rank.rank-3 {
+  font-weight: 700;
+}
+
+.score-print-empty {
+  padding: 32px 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.score-print-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 24px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.score-print-signoff {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.score-print-signoff-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.score-print-signoff-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.score-print-signoff-value {
+  min-height: 16px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+/* 打印专用副本：挂在 body 下，避免被 Modal 的 transform/遮罩裁剪 */
+.score-print-portal {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 16mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body > *:not(.score-print-portal) {
+    display: none !important;
+  }
+
+  .score-print-portal {
+    display: block !important;
+  }
+
+  .score-print-portal .score-print-sheet {
+    width: 100% !important;
+    min-height: 269mm !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .score-print-portal .score-print-masthead,
+  .score-print-portal .score-print-heading {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .score-print-portal .score-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

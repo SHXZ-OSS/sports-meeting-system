@@ -26,6 +26,7 @@ import {
   PlayCircleOutlined,
   RollbackOutlined,
   CheckOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import { adminProgressAPI, adminReviewAPI } from "../../api/admin/progress";
 import { useAuth } from "../../contexts/AuthContext";
@@ -55,6 +56,7 @@ import { useIsMobile } from "../../utils/mobile";
 import { chineseSort, compareClassThenName } from "../../utils/sort";
 import { adminRegistrationAPI } from "../../api/admin/registration";
 import CertificateExport from "../../components/CertificateExport";
+import ScorePrintModal from "../../components/ScorePrintModal";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -106,6 +108,7 @@ const Progress: React.FC = () => {
   });
   const [exportLoading, setExportLoading] = useState(false);
   const [certificateModalVisible, setCertificateModalVisible] = useState(false);
+  const [scorePrintVisible, setScorePrintVisible] = useState(false);
   const [allCompletedScores, setAllCompletedScores] = useState<Score[]>([]);
   const [scoreTablePage, setScoreTablePage] = useState(1);
   const [scoreTablePageSize, setScoreTablePageSize] = useState(30);
@@ -1024,6 +1027,15 @@ const Progress: React.FC = () => {
                       </Button>
                     </Popconfirm>
                   )}
+                {selectedCompetition.status === "completed" &&
+                  scores?.length > 0 && (
+                    <Button
+                      icon={<PrinterOutlined />}
+                      onClick={() => setScorePrintVisible(true)}
+                    >
+                      打印成绩
+                    </Button>
+                  )}
                 {["in_progress", "pending_score_review", "completed"].includes(
                   selectedCompetition.status,
                 ) &&
@@ -1364,6 +1376,16 @@ const Progress: React.FC = () => {
           );
         })()}
       </Modal>
+
+      {/* 成绩打印模态框 */}
+      {selectedCompetition && (
+        <ScorePrintModal
+          open={scorePrintVisible}
+          onClose={() => setScorePrintVisible(false)}
+          competition={selectedCompetition}
+          scores={scores}
+        />
+      )}
 
       {/* 奖状导出模态框 */}
       <CertificateExport
