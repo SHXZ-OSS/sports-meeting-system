@@ -595,6 +595,33 @@ const RegistrationManagement: React.FC = () => {
     setCustomRegisterValues({});
   };
 
+  // 重置新增报名弹窗状态
+  const resetAddRegistration = () => {
+    setAddRegistrationVisible(false);
+    setSelectedClass(null);
+    setStudents([]);
+    setSelectedStudents([]);
+    setCustomRegisterVisible(false);
+    setCustomRegisterStudent(null);
+    setCustomRegisterValues({});
+  };
+
+  // 关闭新增报名弹窗前确认，避免误点遮罩或 ESC 丢失已选学生
+  const closeAddRegistration = () => {
+    if (selectedStudents.length === 0) {
+      resetAddRegistration();
+      return;
+    }
+    Modal.confirm({
+      title: "放弃本次报名选择？",
+      content: `已选择 ${selectedStudents.length} 名学生，关闭后不会保存。`,
+      okText: "放弃选择",
+      cancelText: "继续选择",
+      okButtonProps: { danger: true },
+      onOk: resetAddRegistration,
+    });
+  };
+
   // 处理班级选择
   const handleClassSelect = async (classId: number) => {
     setSelectedClass(classId);
@@ -1687,15 +1714,7 @@ const RegistrationManagement: React.FC = () => {
       <Modal
         title="新增报名"
         open={addRegistrationVisible}
-        onCancel={() => {
-          setAddRegistrationVisible(false);
-          setSelectedClass(null);
-          setStudents([]);
-          setSelectedStudents([]);
-          setCustomRegisterVisible(false);
-          setCustomRegisterStudent(null);
-          setCustomRegisterValues({});
-        }}
+        onCancel={closeAddRegistration}
         footer={null}
         width={700}
         zIndex={1002}
