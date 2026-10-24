@@ -511,7 +511,7 @@ function StudentScoresDialog({
         <p className="sd-empty">该学生暂无成绩数据</p>
       ) : (
         <>
-          <ul className="sd-entries">
+          <ul className="sd-entries sd-entries--personal">
             {entries.map((entry) => {
               const unit = entry.score
                 ? modal.competitionUnits[entry.competitionId] ||
@@ -550,7 +550,7 @@ function StudentScoresDialog({
               );
             })}
           </ul>
-          <div className="sd-summary">
+          <div className="sd-summary sd-summary--personal">
             <div className="sd-summary-total">
               <span>比赛得分</span>
               <span>{formatPoints(totalPoints)} 分</span>

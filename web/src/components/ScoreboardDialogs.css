@@ -599,6 +599,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 个人成绩：最后一项后不补浅色分隔线，保留行下边距，汇总横线上方不重复留白 */
+.sd-summary--personal {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sd-summary--personal .sd-summary-total {
+  margin-top: 0;
+}
+
+.sd-entries--personal .sd-entry:last-child {
+  padding-bottom: 14px;
+}
+
 /* 状态 */
 .sd-status {
   display: inline-flex;
