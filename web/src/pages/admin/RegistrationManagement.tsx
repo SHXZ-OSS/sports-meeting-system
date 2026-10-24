@@ -26,6 +26,7 @@ import {
   FileExcelOutlined,
   TrophyOutlined,
   EditOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import html2canvas from "html2canvas-pro";
 import { adminRegistrationAPI } from "../../api/admin/registration";
@@ -62,6 +63,7 @@ import { isTimeInRange } from "../../utils/windows";
 import BatchResults, { BatchResult } from "../../components/BatchResults";
 import BatchProgress from "../../components/BatchProgress";
 import RandomDrawModal from "../../components/RandomDrawModal";
+import RandomFillRegistrationModal from "../../components/RandomFillRegistrationModal";
 import { chineseSort } from "../../utils/sort";
 
 const { Title } = Typography;
@@ -146,6 +148,7 @@ const RegistrationManagement: React.FC = () => {
   const checklistTableRef = useRef<HTMLDivElement>(null);
   const [exportingImage, setExportingImage] = useState(false);
   const [randomDrawVisible, setRandomDrawVisible] = useState(false);
+  const [randomFillVisible, setRandomFillVisible] = useState(false);
   const [registrationClassFilter, setRegistrationClassFilter] = useState<
     string | null
   >(null);
@@ -259,6 +262,12 @@ const RegistrationManagement: React.FC = () => {
     handleResp(data, (data) => {
       setClasses([...data].sort((a, b) => chineseSort(a.name, b.name)));
     });
+  };
+
+  // 打开随机补足报名弹窗（先刷新班级列表，班级账号只会拿到自己班级）
+  const openRandomFill = async () => {
+    await fetchClasses();
+    setRandomFillVisible(true);
   };
 
   const fetchExportCompetitions = async () => {
@@ -1326,6 +1335,16 @@ const RegistrationManagement: React.FC = () => {
             >
               报名检查
             </Button>
+            {canModifyRegistration && (
+              <Button
+                icon={<SwapOutlined />}
+                onClick={openRandomFill}
+                size="large"
+                style={{ width: "100%" }}
+              >
+                随机报名
+              </Button>
+            )}
             <Button
               icon={<FileExcelOutlined />}
               onClick={async () => {
@@ -1384,6 +1403,11 @@ const RegistrationManagement: React.FC = () => {
               >
                 报名检查
               </Button>
+              {canModifyRegistration && (
+                <Button icon={<SwapOutlined />} onClick={openRandomFill}>
+                  随机报名
+                </Button>
+              )}
               <Button
                 icon={<FileExcelOutlined />}
                 onClick={async () => {
@@ -2429,6 +2453,19 @@ const RegistrationManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* 随机补足报名弹窗 */}
+      <RandomFillRegistrationModal
+        open={randomFillVisible}
+        classes={classes}
+        onClose={() => setRandomFillVisible(false)}
+        onCompleted={() => {
+          fetchCompetitions();
+          if (currentCompetition) {
+            fetchRegistrations(currentCompetition.id);
+          }
+        }}
+      />
 
       {/* 随机抽选模态框 */}
       <RandomDrawModal
