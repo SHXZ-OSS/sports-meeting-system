@@ -8,6 +8,7 @@ interface BatchProgressProps {
   current: number;
   total: number;
   title?: string;
+  zIndex?: number;
 }
 
 const BatchProgress: React.FC<BatchProgressProps> = ({
@@ -15,6 +16,7 @@ const BatchProgress: React.FC<BatchProgressProps> = ({
   current,
   total,
   title = "批量操作进行中",
+  zIndex = 1000,
 }) => {
   const percent = total > 0 ? Math.round((current / total) * 100) : 0;
 
@@ -32,6 +34,7 @@ const BatchProgress: React.FC<BatchProgressProps> = ({
       maskClosable={false}
       centered
       width={400}
+      zIndex={zIndex}
     >
       <div style={{ padding: "20px 0" }}>
         <Progress

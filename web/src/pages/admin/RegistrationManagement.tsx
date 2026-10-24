@@ -2216,6 +2216,7 @@ const RegistrationManagement: React.FC = () => {
         current={batchProgress.current}
         total={batchProgress.total}
         title="批量报名进行中"
+        zIndex={1003}
       />
 
       {/* 导出报名模态框 */}

@@ -67,9 +67,6 @@ const App: React.FC = () => {
             Form: {
               labelColor: "#262626",
             },
-            Modal: {
-              headerBg: "#fafafa",
-            },
             Typography: {
               colorTextHeading: "#262626",
             },
