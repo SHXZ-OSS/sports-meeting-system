@@ -186,10 +186,7 @@ const StudentManagement: React.FC = () => {
         dingtalk_id: values.dingtalk_id || "",
         username: values.username?.trim() || "",
       });
-      handleRespWithNotifySuccess(response, (data) => {
-        message.success(
-          `学生创建成功，用户名：${data?.student.username}（通过钉钉 / 统一认证登录）`,
-        );
+      handleRespWithNotifySuccess(response, () => {
         closeModal();
         refreshStudents();
         fetchClasses(); // 可能创建了新班级
