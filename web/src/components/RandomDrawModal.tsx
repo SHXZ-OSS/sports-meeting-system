@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Modal, Select, Button, Space, message } from "antd";
+import { Modal, Select, Button, Space, Radio, Typography, message } from "antd";
 import {
   DownloadOutlined,
   ReloadOutlined,
@@ -17,10 +17,38 @@ import {
 import { Competition, Registration } from "../types";
 
 const { Option } = Select;
+const { Text } = Typography;
+
+// 签位名称：轮空用灰色虚线徽标区分，空签位显示"待定"
+const SeedName = ({ name }: { name?: string }) => {
+  if (!name) {
+    return <span style={{ color: "#999" }}>待定</span>;
+  }
+  if (name === "轮空") {
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          padding: "0 10px",
+          border: "1px dashed #bfbfbf",
+          borderRadius: 999,
+          backgroundColor: "#f5f5f5",
+          color: "#999",
+          fontSize: "0.65em",
+          fontWeight: "normal",
+          letterSpacing: 2,
+          lineHeight: 1.8,
+        }}
+      >
+        轮空
+      </span>
+    );
+  }
+  return <>{name}</>;
+};
 
 // 自定义种子渲染组件
 const CustomSeed = ({ seed, breakpoint }: IRenderSeedProps) => {
-  const colorFor = (name?: string) => (name ? "#000" : "#999");
   return (
     <Seed
       mobileBreakpoint={breakpoint}
@@ -30,11 +58,11 @@ const CustomSeed = ({ seed, breakpoint }: IRenderSeedProps) => {
     >
       <SeedItem>
         <div>
-          <SeedTeam style={{ color: colorFor(seed.teams[0]?.name) }}>
-            {seed.teams[0]?.name || "待定"}
+          <SeedTeam>
+            <SeedName name={seed.teams[0]?.name} />
           </SeedTeam>
-          <SeedTeam style={{ color: colorFor(seed.teams[1]?.name) }}>
-            {seed.teams[1]?.name || "待定"}
+          <SeedTeam>
+            <SeedName name={seed.teams[1]?.name} />
           </SeedTeam>
         </div>
       </SeedItem>
@@ -49,6 +77,9 @@ interface RandomDrawModalProps {
   onFetchRegistrations: (competitionId: number) => Promise<Registration[]>;
 }
 
+// 抽选单位：按学生（每名学生一个签位）或按班级（每个报名班级一个签位，仅团体赛）
+type DrawMode = "student" | "class";
+
 const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
   visible,
   onCancel,
@@ -58,6 +89,7 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
   const [selectedCompetitions, setSelectedCompetitions] = useState<number[]>(
     [],
   );
+  const [drawMode, setDrawMode] = useState<DrawMode>("student");
   const [currentCompetitionIndex, setCurrentCompetitionIndex] = useState(0);
   const [bracketData, setBracketData] = useState<IRoundProps[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -191,6 +223,71 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
     return rounds;
   };
 
+  // 是否为团体赛（集体项目）
+  const isTeamCompetition = (competitionId: number) =>
+    competitions.find((comp) => comp.id === competitionId)?.competition_type ===
+    "team";
+
+  // 选中的比赛里是否包含团体赛，决定是否展示抽选单位
+  const hasTeamCompetition = selectedCompetitions.some(isTeamCompetition);
+
+  // 生成签位：按学生为每人一个签位；按班级仅对团体赛生效，每个报名班级一个签位
+  const buildParticipants = (
+    competitionId: number,
+    registrations: Registration[],
+    mode: DrawMode,
+  ): string[] => {
+    if (mode === "class" && isTeamCompetition(competitionId)) {
+      const seen = new Set<number>();
+      const participants: string[] = [];
+      registrations.forEach((registration) => {
+        if (seen.has(registration.class_id)) return;
+        seen.add(registration.class_id);
+        participants.push(registration.class_name);
+      });
+      return participants;
+    }
+
+    return registrations.map(
+      (registration) =>
+        `${registration.class_name} ${registration.student_name}`,
+    );
+  };
+
+  // 拉取报名数据并按指定抽选单位生成对阵表
+  const loadAndDraw = async (
+    index: number,
+    mode: DrawMode,
+  ): Promise<boolean> => {
+    const competitionId = selectedCompetitions[index];
+    if (!competitionId) return false;
+
+    setLoading(true);
+    try {
+      const registrations = await onFetchRegistrations(competitionId);
+
+      if (!registrations || registrations.length === 0) {
+        message.warning("该比赛没有报名数据");
+        return false;
+      }
+
+      const participants = buildParticipants(
+        competitionId,
+        registrations,
+        mode,
+      );
+
+      setBracketData(generateBracket(participants));
+      setCurrentCompetitionIndex(index);
+      return true;
+    } catch (error) {
+      message.error("抽选失败：" + (error as Error).message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 执行随机抽选
   const handleRandomDraw = async () => {
     if (selectedCompetitions.length === 0) {
@@ -198,33 +295,8 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      // 获取第一个比赛的报名数据
-      const competitionId = selectedCompetitions[0];
-      const registrations = await onFetchRegistrations(competitionId);
-
-      if (!registrations || registrations.length === 0) {
-        message.warning("该比赛没有报名数据");
-        setLoading(false);
-        return;
-      }
-
-      // 提取参赛者姓名
-      const participants = registrations.map(
-        (reg) => `${reg.class_name} ${reg.student_name}`,
-      );
-
-      // 生成对阵表
-      const bracket = generateBracket(participants);
-      setBracketData(bracket);
-      setCurrentCompetitionIndex(0);
-
+    if (await loadAndDraw(0, drawMode)) {
       message.success("抽选完成！");
-    } catch (error) {
-      message.error("抽选失败：" + (error as Error).message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -232,28 +304,15 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
   const handleSwitchCompetition = async (index: number) => {
     if (index < 0 || index >= selectedCompetitions.length) return;
 
-    setLoading(true);
-    try {
-      const competitionId = selectedCompetitions[index];
-      const registrations = await onFetchRegistrations(competitionId);
+    await loadAndDraw(index, drawMode);
+  };
 
-      if (!registrations || registrations.length === 0) {
-        message.warning("该比赛没有报名数据");
-        setLoading(false);
-        return;
-      }
-
-      const participants = registrations.map(
-        (reg) => `${reg.class_name} ${reg.student_name}`,
-      );
-
-      const bracket = generateBracket(participants);
-      setBracketData(bracket);
-      setCurrentCompetitionIndex(index);
-    } catch (error) {
-      message.error("切换失败：" + (error as Error).message);
-    } finally {
-      setLoading(false);
+  // 切换抽选单位：当前展示的是团体赛对阵表时按新单位重新抽选
+  const handleDrawModeChange = async (mode: DrawMode) => {
+    setDrawMode(mode);
+    const competitionId = selectedCompetitions[currentCompetitionIndex];
+    if (bracketData && competitionId && isTeamCompetition(competitionId)) {
+      await loadAndDraw(currentCompetitionIndex, mode);
     }
   };
 
@@ -323,6 +382,7 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
   // 关闭模态框时重置状态
   const handleClose = () => {
     setSelectedCompetitions([]);
+    setDrawMode("student");
     setBracketData(null);
     setCurrentCompetitionIndex(0);
     onCancel();
@@ -378,6 +438,29 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
                 ))}
             </Select>
           </div>
+
+          {hasTeamCompetition && (
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <strong>抽选单位</strong>
+              </div>
+              <Radio.Group
+                value={drawMode}
+                onChange={(event) =>
+                  handleDrawModeChange(event.target.value as DrawMode)
+                }
+                disabled={loading}
+              >
+                <Radio value="student">按学生（每名报名学生一个签位）</Radio>
+                <Radio value="class">按班级（每个报名班级一个签位）</Radio>
+              </Radio.Group>
+              <div style={{ marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  按班级抽选仅对团体赛生效；个人赛始终按学生抽选。
+                </Text>
+              </div>
+            </div>
+          )}
 
           <Space>
             <Button

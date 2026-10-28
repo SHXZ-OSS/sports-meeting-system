@@ -105,7 +105,13 @@ export default function StadiumScene({
           cameraPerimeter,
           grandstandLength,
           dispose,
-        } = buildStadium(`上海市行知中学${eventName?.trim() || "运动会"}`);
+        } = buildStadium(
+          `上海市行知中学${eventName?.trim() || "运动会"}`,
+          () => {
+            // 校徽异步加载后补绘，减少动态效果时也能完整显示。
+            if (!disposed) requestDrawRef.current?.();
+          },
+        );
         scene.add(stadium);
         const camera = new THREE.PerspectiveCamera(
           SHOT_FOV.ambient,
