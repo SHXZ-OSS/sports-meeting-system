@@ -575,7 +575,16 @@ func UpdateCompetition(c *gin.Context) {
 		}
 		return old != nil && !old.Equal(*cur)
 	}
-	changed := timeChanged(oldStartTime, competition.StartTime) ||
+	startTimeChanged := timeChanged(oldStartTime, competition.StartTime)
+
+	// 开始时间变化后重置检录预告状态，按新时间重新提醒
+	if startTimeChanged {
+		if err := models.ResetCheckinReminderSent(competition.ID); err != nil {
+			logger.L.Warn(fmt.Sprintf("重置检录预告状态失败 competition=%d: %v", competition.ID, err))
+		}
+	}
+
+	changed := startTimeChanged ||
 		timeChanged(oldEndTime, competition.EndTime) ||
 		oldVenue != competition.Venue
 	if changed && config.Get().DingTalk.NotifyChanges {
@@ -769,8 +778,8 @@ func UpdateCompetitionProgressStatus(c *gin.Context) {
 		}
 	}
 
-	// 开始检录必发通知
-	if req.Status == types.StatusCheckingIn {
+	// 开始检录通知（可在系统设置中关闭）
+	if req.Status == types.StatusCheckingIn && config.Get().DingTalk.NotifyCheckinStart {
 		if err := services.SendCheckinNotice(competition); err != nil {
 			logger.L.Warn(fmt.Sprintf("发送检录通知失败 competition=%d: %v", competition.ID, err))
 		}

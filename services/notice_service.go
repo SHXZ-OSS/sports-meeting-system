@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -12,7 +13,8 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/utils"
 )
 
-// 比赛相关钉钉通知：全部由管理员的显式动作触发（开始检录/修改比赛信息/成绩公布/单人提醒），无定时任务
+// 比赛相关钉钉通知：除检录前定时提醒由后台扫描触发外，其余均由管理员的显式动作触发
+// （开始检录/修改比赛信息/成绩公布/单人提醒），每一项都可在系统设置中开关
 
 // registeredDingTalkIDs 获取比赛全部已报名学生的钉钉ID（跳过未绑定的）
 func registeredDingTalkIDs(competitionID int) ([]string, error) {
@@ -105,10 +107,29 @@ func SendCheckinNotice(comp *types.Competition) error {
 		return err
 	}
 	body := joinBlocks(
-		fmt.Sprintf("地点：%s\n时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),
-		"已报名的同学请尽快到检录处集合，祝比赛顺利！",
+		fmt.Sprintf("「%s」现在开始检录", comp.Name),
+		fmt.Sprintf("地点：%s\n比赛时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),
+		"请已报名的同学抓紧时间，祝比赛顺利！",
 	)
 	return sendNotice(ids, "【检录通知】"+comp.Name, body, comp.ID)
+}
+
+// SendPreCheckinNotice 检录前定时提醒，广播给全部已报名学生
+func SendPreCheckinNotice(comp *types.Competition) error {
+	if comp.StartTime == nil {
+		return nil
+	}
+	ids, err := registeredDingTalkIDs(comp.ID)
+	if err != nil {
+		return err
+	}
+	remaining := max(int(math.Ceil(time.Until(*comp.StartTime).Minutes())), 0)
+	body := joinBlocks(
+		fmt.Sprintf("「%s」将在约 %d 分钟后开始。", comp.Name, remaining),
+		fmt.Sprintf("地点：%s\n比赛时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),
+		"请提前到检录处集合，等候检录。",
+	)
+	return sendNotice(ids, "【检录预告】"+comp.Name, body, comp.ID)
 }
 
 // SendCompetitionChangeNotice 比赛时间（开始/结束）或地点变更通知
@@ -207,13 +228,9 @@ func SendStudentCheckinReminder(comp *types.Competition, student *types.Student)
 		return errors.New("该学生未绑定钉钉，无法发送提醒")
 	}
 	body := joinBlocks(
-		fmt.Sprintf(
-			"%s同学，请前往检录\n地点：%s\n时间：%s",
-			student.FullName,
-			venueOr(comp.Venue),
-			formatStartTime(comp.StartTime),
-		),
-		"请快速前往检录处，别让比赛等你哦～",
+		fmt.Sprintf("%s同学，你报名的「%s」正在检录。", student.FullName, comp.Name),
+		fmt.Sprintf("地点：%s\n比赛时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),
+		"请尽快到检录处报到，别让比赛等你哦～",
 	)
 	return sendNotice([]string{student.DingTalkID}, "【检录提醒】"+comp.Name, body, comp.ID)
 }

@@ -70,6 +70,7 @@ func buildInitialData(cfg *config.Config) gin.H {
 			"allow_student_registration": cfg.Competition.AllowStudentRegistration,
 			"allow_student_submission":   cfg.Competition.AllowStudentSubmission,
 			"oidc_enabled":               oidcLoginReady(cfg),
+			"notify_manual_remind":       cfg.DingTalk.NotifyManualRemind,
 			"submission_start_time":      cfg.Competition.SubmissionStartTime,
 			"submission_end_time":        cfg.Competition.SubmissionEndTime,
 			"voting_start_time":          cfg.Competition.VotingStartTime,

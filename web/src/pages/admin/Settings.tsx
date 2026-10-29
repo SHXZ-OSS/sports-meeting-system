@@ -78,6 +78,10 @@ const Settings: React.FC = () => {
   const [form] = Form.useForm();
   const [eventForm] = Form.useForm();
   const isMobile = useIsMobile();
+  const checkinAheadEnabled = Form.useWatch(
+    "dingtalk.notify_checkin_ahead",
+    form,
+  );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testUserID, setTestUserID] = useState("");
@@ -105,6 +109,14 @@ const Settings: React.FC = () => {
           "dingtalk.corp_id": data?.dingtalk.corp_id,
           "dingtalk.notify_changes": data?.dingtalk.notify_changes,
           "dingtalk.notify_published": data?.dingtalk.notify_published,
+          "dingtalk.notify_checkin_start":
+            data?.dingtalk.notify_checkin_start !== false,
+          "dingtalk.notify_checkin_ahead":
+            data?.dingtalk.notify_checkin_ahead !== false,
+          "dingtalk.checkin_ahead_minutes":
+            data?.dingtalk.checkin_ahead_minutes || 15,
+          "dingtalk.notify_manual_remind":
+            data?.dingtalk.notify_manual_remind !== false,
 
           // 网站设置
           "website.name": data?.website.name,
@@ -196,6 +208,10 @@ const Settings: React.FC = () => {
         corp_id: values["dingtalk.corp_id"] || "",
         notify_changes: values["dingtalk.notify_changes"],
         notify_published: values["dingtalk.notify_published"],
+        notify_checkin_start: values["dingtalk.notify_checkin_start"],
+        notify_checkin_ahead: values["dingtalk.notify_checkin_ahead"],
+        checkin_ahead_minutes: values["dingtalk.checkin_ahead_minutes"] ?? 15,
+        notify_manual_remind: values["dingtalk.notify_manual_remind"],
       },
       website: {
         name: values["website.name"] || "",
@@ -672,6 +688,53 @@ const Settings: React.FC = () => {
               name="dingtalk.notify_published"
               valuePropName="checked"
               extra="对所有比赛生效：成绩审核通过后，钉钉通知有成绩的学生；团体赛通知有成绩班级的报名学生；全校性比赛通知有成绩班级的全部学生"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label="开始检录提醒"
+              name="dingtalk.notify_checkin_start"
+              valuePropName="checked"
+              extra="对所有比赛生效：将比赛状态流转为「检录中」时，钉钉通知全部已报名学生"
+            >
+              <Switch />
+            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="检录前定时提醒"
+                  name="dingtalk.notify_checkin_ahead"
+                  valuePropName="checked"
+                  extra="对所有比赛生效：已审核通过的比赛在开始前自动提醒已报名学生到检录处集合"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="提前提醒时间"
+                  name="dingtalk.checkin_ahead_minutes"
+                  extra={
+                    checkinAheadEnabled
+                      ? "比赛开始前多少分钟发送检录预告，范围为 1—1440 分钟"
+                      : "检录前定时提醒已关闭，此项不生效"
+                  }
+                >
+                  <InputNumber
+                    min={1}
+                    max={1440}
+                    disabled={!checkinAheadEnabled}
+                    addonAfter="分钟"
+                    style={{ width: "100%" }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item
+              label="手动发送提醒"
+              name="dingtalk.notify_manual_remind"
+              valuePropName="checked"
+              extra="开启后可在「赛事进程」页对检录中的单个学生发送钉钉提醒；关闭后提醒按钮隐藏，接口也会拒绝发送"
             >
               <Switch />
             </Form.Item>

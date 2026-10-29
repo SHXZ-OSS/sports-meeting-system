@@ -734,3 +734,44 @@ func UpdateCompetitionStatus(id int, status types.CompetitionStatus) error {
 
 	return db.Model(&types.Competition{}).Where("id = ?", id).Update("status", status).Error
 }
+
+// GetCompetitionsDueCheckinReminder 获取进入检录提醒时间窗且尚未提醒过的比赛
+// 仅当前届次、已审核通过、有开始时间且需要检录的比赛参与提醒
+func GetCompetitionsDueCheckinReminder(now time.Time, ahead time.Duration) ([]*types.Competition, error) {
+	db := database.GetDB()
+
+	var competitions []*types.Competition
+	err := db.Model(&types.Competition{}).
+		Where("event_id = ?", config.Get().CurrentEventID).
+		Where("status = ?", types.StatusApproved).
+		Where("competition_type NOT IN ?", []types.CompetitionType{types.TypeRegistration, types.TypeSchool}).
+		Where("start_time IS NOT NULL").
+		Where("start_time > ?", now).
+		Where("start_time <= ?", now.Add(ahead)).
+		Where("checkin_reminder_sent_at IS NULL").
+		Order("start_time ASC").
+		Find(&competitions).Error
+	if err != nil {
+		return nil, err
+	}
+	return competitions, nil
+}
+
+// ClaimCheckinReminder 原子领取检录前定时提醒的发送权，返回是否领取成功
+// 先占位再发送，避免多个实例同时扫描时重复推送
+func ClaimCheckinReminder(id int, claimedAt time.Time) (bool, error) {
+	result := database.GetDB().Model(&types.Competition{}).
+		Where("id = ? AND checkin_reminder_sent_at IS NULL", id).
+		Update("checkin_reminder_sent_at", claimedAt)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
+// ResetCheckinReminderSent 重置检录前定时提醒状态（开始时间变化后按新时间重新提醒）
+func ResetCheckinReminderSent(id int) error {
+	return database.GetDB().Model(&types.Competition{}).
+		Where("id = ?", id).
+		Update("checkin_reminder_sent_at", nil).Error
+}

@@ -22,6 +22,8 @@ type WebsiteInfoResponse struct {
 	AllowStudentSubmission   bool `json:"allow_student_submission"`
 	// OIDC 登录开关，前端据此展示登录按钮
 	OIDCEnabled bool `json:"oidc_enabled"`
+	// 手动检录提醒开关，前端据此隐藏赛事进程页的「提醒」按钮
+	NotifyManualRemind bool `json:"notify_manual_remind"`
 	// 各阶段时间窗口（空 = 不限制），前端据此隐藏报名/投票等操作入口
 	SubmissionStartTime   string `json:"submission_start_time"`
 	SubmissionEndTime     string `json:"submission_end_time"`
@@ -64,6 +66,7 @@ func GetWebsiteInfo(c *gin.Context) {
 		AllowStudentRegistration: cfg.Competition.AllowStudentRegistration,
 		AllowStudentSubmission:   cfg.Competition.AllowStudentSubmission,
 		OIDCEnabled:              oidcLoginReady(cfg),
+		NotifyManualRemind:       cfg.DingTalk.NotifyManualRemind,
 		SubmissionStartTime:      cfg.Competition.SubmissionStartTime,
 		SubmissionEndTime:        cfg.Competition.SubmissionEndTime,
 		VotingStartTime:          cfg.Competition.VotingStartTime,
