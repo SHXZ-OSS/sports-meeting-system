@@ -445,6 +445,12 @@ func RemindStudent(c *gin.Context) {
 		return
 	}
 
+	// 手动检录提醒可在系统设置中整体关闭
+	if !config.Get().DingTalk.NotifyManualRemind {
+		utils.ResponseError(c, http.StatusBadRequest, "手动发送检录提醒已在系统设置中关闭")
+		return
+	}
+
 	competition, err := models.GetCompetitionByID(req.CompetitionID)
 	if err != nil {
 		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")

@@ -24,12 +24,16 @@ type SendDingTalkTestRequest struct {
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	DingTalk struct {
-		AppKey          string `json:"app_key"`
-		AppSecret       string `json:"app_secret"`
-		AgentID         string `json:"agent_id"`
-		CorpID          string `json:"corp_id"`
-		NotifyChanges   *bool  `json:"notify_changes"`
-		NotifyPublished *bool  `json:"notify_published"`
+		AppKey              string `json:"app_key"`
+		AppSecret           string `json:"app_secret"`
+		AgentID             string `json:"agent_id"`
+		CorpID              string `json:"corp_id"`
+		NotifyChanges       *bool  `json:"notify_changes"`
+		NotifyPublished     *bool  `json:"notify_published"`
+		NotifyCheckinStart  *bool  `json:"notify_checkin_start"`
+		NotifyCheckinAhead  *bool  `json:"notify_checkin_ahead"`
+		CheckinAheadMinutes *int   `json:"checkin_ahead_minutes"`
+		NotifyManualRemind  *bool  `json:"notify_manual_remind"`
 	} `json:"dingtalk"`
 	Website struct {
 		Name   string `json:"name"`
@@ -72,12 +76,16 @@ func GetSettings(c *gin.Context) {
 	// 构建响应
 	settings := map[string]any{
 		"dingtalk": map[string]any{
-			"app_key":          cfg.DingTalk.AppKey,
-			"app_secret":       cfg.DingTalk.AppSecret,
-			"agent_id":         cfg.DingTalk.AgentID,
-			"corp_id":          cfg.DingTalk.CorpID,
-			"notify_changes":   cfg.DingTalk.NotifyChanges,
-			"notify_published": cfg.DingTalk.NotifyPublished,
+			"app_key":               cfg.DingTalk.AppKey,
+			"app_secret":            cfg.DingTalk.AppSecret,
+			"agent_id":              cfg.DingTalk.AgentID,
+			"corp_id":               cfg.DingTalk.CorpID,
+			"notify_changes":        cfg.DingTalk.NotifyChanges,
+			"notify_published":      cfg.DingTalk.NotifyPublished,
+			"notify_checkin_start":  cfg.DingTalk.NotifyCheckinStart,
+			"notify_checkin_ahead":  cfg.DingTalk.NotifyCheckinAhead,
+			"checkin_ahead_minutes": cfg.DingTalk.CheckinAheadMinutes,
+			"notify_manual_remind":  cfg.DingTalk.NotifyManualRemind,
 		},
 		"website": map[string]any{
 			"name":     cfg.Website.Name,
@@ -139,6 +147,21 @@ func UpdateSettings(c *gin.Context) {
 	}
 	if req.DingTalk.NotifyPublished != nil {
 		cfg.DingTalk.NotifyPublished = *req.DingTalk.NotifyPublished
+	}
+	if req.DingTalk.NotifyCheckinStart != nil {
+		cfg.DingTalk.NotifyCheckinStart = *req.DingTalk.NotifyCheckinStart
+	}
+	if req.DingTalk.NotifyCheckinAhead != nil {
+		cfg.DingTalk.NotifyCheckinAhead = *req.DingTalk.NotifyCheckinAhead
+	}
+	if req.DingTalk.CheckinAheadMinutes != nil {
+		// 提前提醒至少 1 分钟，最多 24 小时
+		minutes := *req.DingTalk.CheckinAheadMinutes
+		minutes = max(1, min(minutes, 1440))
+		cfg.DingTalk.CheckinAheadMinutes = minutes
+	}
+	if req.DingTalk.NotifyManualRemind != nil {
+		cfg.DingTalk.NotifyManualRemind = *req.DingTalk.NotifyManualRemind
 	}
 
 	cfg.Website.Name = req.Website.Name

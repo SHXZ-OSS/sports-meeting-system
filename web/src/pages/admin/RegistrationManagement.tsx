@@ -136,7 +136,7 @@ const RegistrationManagement: React.FC = () => {
     "成绩" | "最优成绩" | "平均成绩"
   >("成绩");
   const [exportTestCount, setExportTestCount] = useState<number>(0);
-  const [exportCompCount, setExportCompCount] = useState<number>(1);
+  const [exportCompCount, setExportCompCount] = useState<number>(0);
   const [exportLaneCount, setExportLaneCount] = useState<number>(8);
   const [exportClassIds, setExportClassIds] = useState<number[]>([]);
   const [exportCompetitionIds, setExportCompetitionIds] = useState<number[]>(
@@ -889,8 +889,9 @@ const RegistrationManagement: React.FC = () => {
     } else if (exportStyle === "full") {
       // 完整模式：每个比赛一个 Sheet，一行一个学生
       const hasTest = exportTestCount > 0;
+      const hasComp = exportCompCount > 0;
       const testGroupCols = hasTest ? exportTestCount + 2 : 0; // 第1次...第n次 + scoreType + 名次
-      const compGroupCols = exportCompCount + 2;
+      const compGroupCols = hasComp ? exportCompCount + 2 : 0;
       const totalCols = 3 + testGroupCols + compGroupCols;
 
       const sheets = filteredCompetitions.map((competition) => {
@@ -914,8 +915,10 @@ const RegistrationManagement: React.FC = () => {
           for (let i = 1; i <= exportTestCount; i++) headerRow.push(`第${i}次`);
           headerRow.push(exportScoreType, "名次");
         }
-        for (let i = 1; i <= exportCompCount; i++) headerRow.push(`第${i}次`);
-        headerRow.push(exportScoreType, "名次");
+        if (hasComp) {
+          for (let i = 1; i <= exportCompCount; i++) headerRow.push(`第${i}次`);
+          headerRow.push(exportScoreType, "名次");
+        }
         sheetData.push(headerRow);
 
         // 数据行
@@ -939,7 +942,9 @@ const RegistrationManagement: React.FC = () => {
         if (hasTest) {
           colWidths.push(...Array(exportTestCount).fill(8), 12, 5);
         }
-        colWidths.push(...Array(exportCompCount).fill(8), 12, 5);
+        if (hasComp) {
+          colWidths.push(...Array(exportCompCount).fill(8), 12, 5);
+        }
 
         return {
           name: competition.name,
@@ -2403,13 +2408,18 @@ const RegistrationManagement: React.FC = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ marginBottom: 8 }}>
                         <strong>比赛次数</strong>
+                        <span
+                          style={{ color: "#888", fontSize: 12, marginLeft: 4 }}
+                        >
+                          （0=不显示比赛区）
+                        </span>
                       </div>
                       <InputNumber
                         style={{ width: "100%" }}
-                        min={1}
+                        min={0}
                         max={20}
                         value={exportCompCount}
-                        onChange={(v) => setExportCompCount(v ?? 1)}
+                        onChange={(v) => setExportCompCount(v ?? 0)}
                       />
                     </div>
                   </div>
@@ -2474,10 +2484,12 @@ const RegistrationManagement: React.FC = () => {
                         名次
                       </li>
                     )}
-                    <li>
-                      比赛区：{exportCompCount}次成绩列 + {exportScoreType} +
-                      名次
-                    </li>
+                    {exportCompCount > 0 && (
+                      <li>
+                        比赛区：{exportCompCount}次成绩列 + {exportScoreType} +
+                        名次
+                      </li>
+                    )}
                   </>
                 ) : (
                   <>

@@ -16,6 +16,7 @@ import (
 	"github.com/SHXZ-OSS/sports-meeting-system/api/routes"
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/database"
+	"github.com/SHXZ-OSS/sports-meeting-system/services"
 )
 
 //go:embed all:web/dist
@@ -56,6 +57,10 @@ func main() {
 	// 设置路由
 	router := routes.SetupRouter(staticFS)
 
+	// 启动检录前定时提醒的后台扫描
+	schedulerCtx, stopScheduler := context.WithCancel(context.Background())
+	services.StartCheckinReminderScheduler(schedulerCtx)
+
 	// 创建HTTP服务器
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Get().Server.Port),
@@ -75,6 +80,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
+
+	// 停止检录前定时提醒扫描后再关闭数据库
+	stopScheduler()
 
 	// 关闭数据库连接
 	if err := database.Close(); err != nil {

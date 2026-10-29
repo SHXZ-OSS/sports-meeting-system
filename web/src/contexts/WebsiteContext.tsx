@@ -24,6 +24,7 @@ const defaultWebsiteInfo: WebsiteInfo = {
   allow_student_registration: true,
   allow_student_submission: true,
   oidc_enabled: false,
+  notify_manual_remind: true,
   // 时间窗口留空 = 不限制
   submission_start_time: "",
   submission_end_time: "",

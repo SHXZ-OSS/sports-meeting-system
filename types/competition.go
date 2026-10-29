@@ -70,6 +70,7 @@ type Competition struct {
 	ScoreCreatedAt          *time.Time        `json:"score_created_at,omitempty"`
 	StartTime               *time.Time        `json:"start_time,omitempty"`                                // 比赛开始时间
 	EndTime                 *time.Time        `json:"end_time,omitempty"`                                  // 比赛结束时间
+	CheckinReminderSentAt   *time.Time        `json:"checkin_reminder_sent_at,omitempty"`                  // 检录前定时提醒的发送时间，非空表示已提醒
 	AllowConcurrent         bool              `json:"allow_concurrent"               gorm:"default:false"` // 允许兼项
 
 	// 报名自定义字段

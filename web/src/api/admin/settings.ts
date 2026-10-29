@@ -9,6 +9,10 @@ export interface SystemSettings {
     corp_id: string;
     notify_changes: boolean;
     notify_published: boolean;
+    notify_checkin_start: boolean;
+    notify_checkin_ahead: boolean;
+    checkin_ahead_minutes: number;
+    notify_manual_remind: boolean;
   };
   website: {
     name: string;
@@ -52,6 +56,10 @@ export interface UpdateSettingsRequest {
     corp_id?: string;
     notify_changes?: boolean;
     notify_published?: boolean;
+    notify_checkin_start?: boolean;
+    notify_checkin_ahead?: boolean;
+    checkin_ahead_minutes?: number;
+    notify_manual_remind?: boolean;
   };
   website?: {
     name?: string;

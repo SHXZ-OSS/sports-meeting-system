@@ -172,6 +172,7 @@ export interface WebsiteInfo {
   allow_student_registration?: boolean; // 是否允许学生本人报名；关闭后仅管理员与班级账号可报名
   allow_student_submission?: boolean; // 是否允许学生本人提交推荐项目；关闭后仅管理员与班级账号可提交
   oidc_enabled?: boolean; // 是否启用 OIDC 登录（如接入慧云）
+  notify_manual_remind?: boolean; // 是否允许手动发送检录提醒；关闭后隐藏赛事进程页的提醒按钮
   // 各阶段时间窗口（空 = 不限制），前端据此隐藏报名/投票等操作入口
   submission_start_time?: string;
   submission_end_time?: string;

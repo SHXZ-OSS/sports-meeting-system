@@ -22,12 +22,16 @@ type Config struct {
 		Path string `json:"path"`
 	} `json:"database"`
 	DingTalk struct {
-		AppKey          string `json:"app_key"`
-		AppSecret       string `json:"app_secret"`
-		AgentID         string `json:"agent_id"`
-		CorpID          string `json:"corp_id"`
-		NotifyChanges   bool   `json:"notify_changes"`   // 比赛时间或地点变更时通知
-		NotifyPublished bool   `json:"notify_published"` // 成绩审核公布时通知
+		AppKey              string `json:"app_key"`
+		AppSecret           string `json:"app_secret"`
+		AgentID             string `json:"agent_id"`
+		CorpID              string `json:"corp_id"`
+		NotifyChanges       bool   `json:"notify_changes"`        // 比赛时间或地点变更时通知
+		NotifyPublished     bool   `json:"notify_published"`      // 成绩审核公布时通知
+		NotifyCheckinStart  bool   `json:"notify_checkin_start"`  // 开始检录时通知已报名学生
+		NotifyCheckinAhead  bool   `json:"notify_checkin_ahead"`  // 检录前定时提醒已报名学生
+		CheckinAheadMinutes int    `json:"checkin_ahead_minutes"` // 检录前提前提醒的分钟数
+		NotifyManualRemind  bool   `json:"notify_manual_remind"`  // 允许手动发送检录提醒
 	} `json:"dingtalk"`
 	Oidc struct {
 		Enabled      bool   `json:"enabled"`       // 是否启用 OIDC 登录（如接入慧云 xzzx-sis）
@@ -90,6 +94,10 @@ func Load() error {
 		config.Competition.AllowStudentSubmission = true
 		config.DingTalk.NotifyChanges = true
 		config.DingTalk.NotifyPublished = true
+		config.DingTalk.NotifyCheckinStart = true
+		config.DingTalk.NotifyCheckinAhead = true
+		config.DingTalk.CheckinAheadMinutes = 15
+		config.DingTalk.NotifyManualRemind = true
 		config.Oidc.Enabled = false
 		config.Oidc.Scopes = "openid profile"
 		config.Dashboard.Enabled = true // 默认启用看板功能

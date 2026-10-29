@@ -30,6 +30,7 @@ import {
 } from "@ant-design/icons";
 import { adminProgressAPI, adminReviewAPI } from "../../api/admin/progress";
 import { useAuth } from "../../contexts/AuthContext";
+import { useWebsite } from "../../contexts/WebsiteContext";
 import { PERMISSIONS } from "../../types";
 import {
   Class,
@@ -97,6 +98,9 @@ const Progress: React.FC = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [remindingId, setRemindingId] = useState<number | null>(null);
+  // 手动提醒开关来自全局站点配置，关闭时隐藏「提醒」按钮
+  const { notify_manual_remind } = useWebsite();
+  const manualRemindEnabled = notify_manual_remind !== false;
   const { hasPermission } = useAuth();
 
   // 页面内按权限显隐：录入/流转需「成绩与赛事进程」，审核需「成绩审核」
@@ -1164,18 +1168,19 @@ const Progress: React.FC = () => {
                               },
                             )}
                           </Space>
-                          {selectedCompetition.status === "checking_in" && (
-                            <Button
-                              size="small"
-                              icon={<NotificationOutlined />}
-                              loading={remindingId === reg.student_id}
-                              onClick={() =>
-                                handleRemindStudent(reg.student_id)
-                              }
-                            >
-                              提醒
-                            </Button>
-                          )}
+                          {selectedCompetition.status === "checking_in" &&
+                            manualRemindEnabled && (
+                              <Button
+                                size="small"
+                                icon={<NotificationOutlined />}
+                                loading={remindingId === reg.student_id}
+                                onClick={() =>
+                                  handleRemindStudent(reg.student_id)
+                                }
+                              >
+                                提醒
+                              </Button>
+                            )}
                         </div>
                       ))}
                   </div>
