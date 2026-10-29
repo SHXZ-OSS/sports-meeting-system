@@ -352,9 +352,11 @@ const Settings: React.FC = () => {
     try {
       const values = await eventForm.validateFields();
       const response = await adminSettingsAPI.updateEvent(id, values);
-      handleRespWithNotifySuccess(response, () => {
+      handleRespWithNotifySuccess(response, async () => {
         setEditingEventKey(null);
         fetchEvents();
+        // 届次改名后刷新全局站点信息，避免打印等页面继续显示旧名称
+        await refreshWebsiteInfo();
       });
     } catch (error) {
       console.error("Form validation failed:", error);
@@ -421,8 +423,10 @@ const Settings: React.FC = () => {
 
   const handleSwitchEvent = async (id: number) => {
     const response = await adminSettingsAPI.switchEvent(id);
-    handleRespWithNotifySuccess(response, () => {
+    handleRespWithNotifySuccess(response, async () => {
       fetchEvents();
+      // 切换届次后刷新全局站点信息，避免打印等页面继续显示上一个届次名
+      await refreshWebsiteInfo();
     });
   };
 
