@@ -123,10 +123,7 @@ func SendPreCheckinNotice(comp *types.Competition) error {
 	if err != nil {
 		return err
 	}
-	remaining := int(math.Ceil(time.Until(*comp.StartTime).Minutes()))
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(int(math.Ceil(time.Until(*comp.StartTime).Minutes())), 0)
 	body := joinBlocks(
 		fmt.Sprintf("「%s」将在约 %d 分钟后开始。", comp.Name, remaining),
 		fmt.Sprintf("地点：%s\n比赛时间：%s", venueOr(comp.Venue), formatStartTime(comp.StartTime)),

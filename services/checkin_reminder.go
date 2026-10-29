@@ -44,10 +44,7 @@ func scanDueCheckinReminders() {
 		return
 	}
 
-	aheadMinutes := cfg.DingTalk.CheckinAheadMinutes
-	if aheadMinutes < 1 {
-		aheadMinutes = 1
-	}
+	aheadMinutes := max(cfg.DingTalk.CheckinAheadMinutes, 1)
 
 	competitions, err := models.GetCompetitionsDueCheckinReminder(
 		time.Now(),
