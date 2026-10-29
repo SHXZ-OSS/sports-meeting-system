@@ -589,37 +589,15 @@
   }
 }
 
-/* 横屏手机：矮屏优先把横向空间让给标题，账号入口收成图标按钮。 */
-@media (orientation: landscape) and (max-height: 520px) {
-  .ph-shell {
-    --ph-pad-x: 16px;
-    --ph-header-h: 52px;
-  }
-  .ph-header {
-    gap: var(--ph-s3);
-  }
-  .ph-brand {
-    gap: var(--ph-s2);
-  }
-  .ph-emblem {
-    width: 28px;
-    height: 28px;
-  }
-  .ph-divider {
-    height: 16px;
-  }
-  .ph-login {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    justify-content: center;
-    gap: 0;
-  }
-  .ph-login svg {
-    width: 16px;
-    height: 16px;
-  }
-  .ph-login-label {
-    display: none;
-  }
+/* 窄屏手机（useIsMobile 判定）：账号入口收成图标按钮，把宽度让给届次标题。 */
+.ph-login--compact {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+.ph-login--compact svg {
+  width: 16px;
+  height: 16px;
 }

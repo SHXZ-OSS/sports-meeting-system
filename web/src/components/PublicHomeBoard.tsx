@@ -6,6 +6,7 @@ import type {
   StudentPointsSummary,
 } from "../types";
 import { getScoreboardRankingColor } from "../utils/competition";
+import { useIsMobile } from "../utils/mobile";
 import "./PublicHomeBoard.css";
 
 const UPCOMING_WINDOW_MS = 60 * 60 * 1000;
@@ -78,6 +79,7 @@ export default function PublicHomeBoard({
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const maxClassPoints = topClasses[0]?.total_points || 1;
   const maxStudentPoints = topStudents[0]?.total_points || 1;
+  const isMobile = useIsMobile();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function PublicHomeBoard({
         <div className="ph-side">
           <button
             type="button"
-            className="ph-login"
+            className={`ph-login${isMobile ? " ph-login--compact" : ""}`}
             onClick={onAccountClick}
             title={isLoggedIn ? "进入系统" : "登录"}
             aria-label={isLoggedIn ? "进入系统" : "登录"}
@@ -127,9 +129,11 @@ export default function PublicHomeBoard({
                 <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
               )}
             </svg>
-            <span className="ph-login-label">
-              {isLoggedIn ? "进入系统" : "登录"}
-            </span>
+            {!isMobile && (
+              <span className="ph-login-label">
+                {isLoggedIn ? "进入系统" : "登录"}
+              </span>
+            )}
           </button>
         </div>
       </header>
