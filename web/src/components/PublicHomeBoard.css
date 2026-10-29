@@ -588,3 +588,16 @@
     gap: var(--ph-s5);
   }
 }
+
+/* 窄屏手机（useIsMobile 判定）：账号入口收成图标按钮，把宽度让给届次标题。 */
+.ph-login--compact {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+.ph-login--compact svg {
+  width: 16px;
+  height: 16px;
+}

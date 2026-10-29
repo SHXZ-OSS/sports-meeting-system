@@ -103,6 +103,7 @@ export default function StadiumScene({
           cameraPoint,
           centerX,
           cameraPerimeter,
+          cameraMaxX,
           grandstandLength,
           dispose,
         } = buildStadium(
@@ -172,9 +173,21 @@ export default function StadiumScene({
           inward
             .set(trackCenter.x - trackPoint.x, 0, trackCenter.z - trackPoint.z)
             .normalize();
+          // 转弯时后撤方向会甩向看台，收缩后撤距离把镜头留在跑道内侧，避免穿过座位。
+          let backDistance = 24;
+          if (direction.x < 0) {
+            const projectedX =
+              trackPoint.x + 16 * inward.x - backDistance * direction.x;
+            if (projectedX > cameraMaxX) {
+              backDistance = Math.max(
+                0,
+                (cameraMaxX - trackPoint.x - 16 * inward.x) / -direction.x,
+              );
+            }
+          }
           ambientPosition
             .copy(trackPoint)
-            .addScaledVector(direction, -24)
+            .addScaledVector(direction, -backDistance)
             .addScaledVector(inward, 16);
           ambientPosition.y = 4;
           ambientLook.copy(aheadPoint).addScaledVector(inward, -2);

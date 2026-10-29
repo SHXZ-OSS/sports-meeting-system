@@ -667,6 +667,8 @@ export function buildStadium(
     cameraPoint,
     centerX,
     cameraPerimeter,
+    // 镜头在转弯处不得越过看台前沿，留出 5 米余量避免穿过栏杆和第一排座位。
+    cameraMaxX: wallFront - 5,
     grandstandLength: segmentLength,
     dispose() {
       stadium.traverse((object) => {
