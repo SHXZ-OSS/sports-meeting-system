@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
+	"github.com/SHXZ-OSS/sports-meeting-system/models"
 )
 
 // ServeIndexHTML 读取嵌入的 index.html，替换站点标题并注入初始数据后返回。
@@ -63,7 +64,7 @@ func buildInitialData(cfg *config.Config) gin.H {
 	return gin.H{
 		"website_info": gin.H{
 			"name":                       cfg.Website.Name,
-			"event_name":                 currentEventName(cfg),
+			"event_name":                 models.GetCurrentEventName(),
 			"dingtalk_corp_id":           cfg.DingTalk.CorpID,
 			"domain":                     cfg.Website.Domain,
 			"logo_url":                   logoURL(cfg),
