@@ -37,18 +37,6 @@ func oidcLoginReady(cfg *config.Config) bool {
 		cfg.Oidc.AuthorizeURL != "" && cfg.Oidc.TokenURL != "" && cfg.Oidc.UserinfoURL != ""
 }
 
-// currentEventName 返回当前选中运动会届次的名称；未配置或查询失败时返回空串。
-func currentEventName(cfg *config.Config) string {
-	if cfg.CurrentEventID == 0 {
-		return ""
-	}
-	event, err := models.GetEventByID(cfg.CurrentEventID)
-	if err != nil || event == nil {
-		return ""
-	}
-	return event.Name
-}
-
 // GetWebsiteInfo 获取网站信息（公共API）
 func GetWebsiteInfo(c *gin.Context) {
 	// 获取配置
@@ -57,7 +45,7 @@ func GetWebsiteInfo(c *gin.Context) {
 	// 构建响应
 	resp := WebsiteInfoResponse{
 		Name:                     cfg.Website.Name,
-		EventName:                currentEventName(cfg),
+		EventName:                models.GetCurrentEventName(),
 		DingTalkCorpID:           cfg.DingTalk.CorpID,
 		Domain:                   cfg.Website.Domain,
 		LogoURL:                  logoURL(cfg),
