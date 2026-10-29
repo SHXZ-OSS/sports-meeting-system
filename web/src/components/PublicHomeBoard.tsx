@@ -117,7 +117,8 @@ export default function PublicHomeBoard({
             type="button"
             className="ph-login"
             onClick={onAccountClick}
-            title={isLoggedIn ? "进入系统" : undefined}
+            title={isLoggedIn ? "进入系统" : "登录"}
+            aria-label={isLoggedIn ? "进入系统" : "登录"}
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
               {isLoggedIn ? (
@@ -126,7 +127,9 @@ export default function PublicHomeBoard({
                 <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
               )}
             </svg>
-            {isLoggedIn ? "进入系统" : "登录"}
+            <span className="ph-login-label">
+              {isLoggedIn ? "进入系统" : "登录"}
+            </span>
           </button>
         </div>
       </header>
