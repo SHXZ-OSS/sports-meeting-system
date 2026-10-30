@@ -16,8 +16,7 @@ interface ScorePrintModalProps {
   scores: Score[];
 }
 
-const formatScore = (value: number) =>
-  String(Number(value.toFixed(2))).replace(/\.?0+$/, "");
+const formatScore = (value: number) => String(Number(value.toFixed(2)));
 
 const formatTimestamp = (value?: string) =>
   value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—";
