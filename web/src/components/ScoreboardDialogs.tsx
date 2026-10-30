@@ -55,8 +55,7 @@ const STATUS_LABEL: Record<string, string> = {
   pending_approval: "待审核",
 };
 
-const formatScore = (score: number) =>
-  String(Number(score.toFixed(2))).replace(/\.?0+$/, "");
+const formatScore = (score: number) => String(Number(score.toFixed(2)));
 
 const formatPoints = (points: number) =>
   String(Number(points.toFixed(1))).replace(/\.0$/, "");
