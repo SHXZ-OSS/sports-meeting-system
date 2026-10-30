@@ -105,6 +105,18 @@ const PublicScoreboard: React.FC = () => {
     }, 2000);
   }, []);
 
+  // 是否存在公开的对阵图（有才显示入口）
+  const [hasBrackets, setHasBrackets] = useState(false);
+  useEffect(() => {
+    publicAPI
+      .getBrackets()
+      .then((resp) =>
+        handleRespWithoutNotify(resp, (data) =>
+          setHasBrackets(data.length > 0),
+        ),
+      );
+  }, []);
+
   useEffect(() => {
     return () => {
       if (clickTimerRef.current) {
@@ -1279,6 +1291,7 @@ const PublicScoreboard: React.FC = () => {
         onTitleClick={handleTitleClick}
         isLoggedIn={isAuthenticated}
         onAccountClick={handleAccountClick}
+        onOpenBrackets={hasBrackets ? () => navigate("/brackets") : undefined}
       />
 
       <ScoreboardSettingsModal

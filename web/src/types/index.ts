@@ -215,6 +215,7 @@ export const PERMISSIONS = {
   SCORE_AND_PROGRESS: 16,
   SCORE_REVIEW: 32,
   REGISTRATION_MANAGEMENT: 64,
+  BRACKET_MANAGEMENT: 128,
 } as const;
 
 // 后端在 index.html 中注入的初始数据（SPA 服务端注入）
@@ -226,4 +227,106 @@ declare global {
       website_info: Partial<WebsiteInfo> | null;
     };
   }
+}
+
+// ==== 对阵图 ====
+
+export type BracketFormat =
+  | "single_elimination"
+  | "double_elimination"
+  | "round_robin"
+  | "group_knockout";
+
+export type BracketParticipantType = "class" | "student";
+
+export type BracketStage =
+  "group" | "main" | "losers" | "grand_final" | "third_place";
+
+export type BracketMatchStatus =
+  "pending" | "scheduled" | "completed" | "bye" | "void";
+
+export type BracketSlotSource =
+  "none" | "participant" | "winner" | "loser" | "group_rank";
+
+export interface Bracket {
+  id: number;
+  event_id: number;
+  competition_id?: number;
+  competition_name?: string;
+  name: string;
+  description: string;
+  format: BracketFormat;
+  participant_type: BracketParticipantType;
+  group_count: number;
+  advance_per_group: number;
+  third_place_match: boolean;
+  points_win: number;
+  points_draw: number;
+  points_loss: number;
+  published: boolean;
+  participant_count: number;
+  match_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BracketParticipant {
+  id: number;
+  bracket_id: number;
+  class_id?: number;
+  student_id?: number;
+  seed: number;
+  group_index: number;
+  name: string;
+  class_name?: string;
+}
+
+export interface BracketMatch {
+  id: number;
+  bracket_id: number;
+  stage: BracketStage;
+  group_index: number;
+  round: number;
+  position: number;
+  seq: number;
+  slot1_source: BracketSlotSource;
+  slot1_ref: number;
+  slot2_source: BracketSlotSource;
+  slot2_ref: number;
+  participant1_id: number | null;
+  participant2_id: number | null;
+  score1: number | null;
+  score2: number | null;
+  winner_id: number | null;
+  is_draw: boolean;
+  completed: boolean;
+  status: BracketMatchStatus;
+  scheduled_at?: string;
+  venue: string;
+  note: string;
+}
+
+export interface BracketStandingRow {
+  participant_id: number;
+  rank: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  points: number;
+  score_for: number;
+  score_against: number;
+  score_diff: number;
+}
+
+export interface BracketGroupStanding {
+  group_index: number;
+  rows: BracketStandingRow[];
+}
+
+export interface BracketDetail {
+  bracket: Bracket;
+  participants: BracketParticipant[];
+  matches: BracketMatch[];
+  standings: BracketGroupStanding[];
 }

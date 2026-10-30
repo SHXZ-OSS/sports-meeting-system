@@ -130,6 +130,7 @@
 .ph-side {
   display: flex;
   align-items: center;
+  gap: var(--ph-s2);
   flex: 0 0 auto;
 }
 .ph-login {

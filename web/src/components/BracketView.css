@@ -1,0 +1,277 @@
+.bracket-view {
+  --bracket-card-width: 220px;
+  --bracket-gap: 32px;
+  --bracket-line: #bfbfbf;
+  --bracket-win: #f6ffed;
+  --bracket-win-border: #52c41a;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.bracket-section h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.bracket-champion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #ad6800;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ==== 淘汰赛树 ==== */
+
+.bracket-tree-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.bracket-tree {
+  display: flex;
+  gap: var(--bracket-gap);
+  min-width: max-content;
+}
+
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  width: var(--bracket-card-width);
+}
+
+.bracket-round-title {
+  color: #8c8c8c;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.bracket-round-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+}
+
+/* 每个格子平分本轮高度，后一轮格子数减半，卡片自然对齐到上一轮两场之间 */
+.bracket-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 6px 0;
+}
+
+/* 连接线：向右伸出半个间距，奇偶格子分别向下/向上画竖线到中点 */
+.bracket-round:not(:last-child) .bracket-cell:not(.is-losers)::after {
+  content: "";
+  position: absolute;
+  right: calc(var(--bracket-gap) / -2);
+  width: calc(var(--bracket-gap) / 2);
+  height: 50%;
+  border-right: 1px solid var(--bracket-line);
+}
+
+.bracket-round:not(:last-child)
+  .bracket-cell:not(.is-losers):nth-child(odd)::after {
+  top: 50%;
+  border-top: 1px solid var(--bracket-line);
+}
+
+.bracket-round:not(:last-child)
+  .bracket-cell:not(.is-losers):nth-child(even)::after {
+  bottom: 50%;
+  border-bottom: 1px solid var(--bracket-line);
+}
+
+.bracket-round:not(:first-child) .bracket-cell:not(.is-losers)::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--bracket-gap) / -2);
+  top: 50%;
+  width: calc(var(--bracket-gap) / 2);
+  border-top: 1px solid var(--bracket-line);
+}
+
+/* 败者组相邻两轮场数可能相同，只画水平引线 */
+.bracket-round:not(:last-child) .bracket-cell.is-losers::after {
+  content: "";
+  position: absolute;
+  right: calc(var(--bracket-gap) * -1);
+  top: 50%;
+  width: var(--bracket-gap);
+  border-top: 1px dashed var(--bracket-line);
+}
+
+.bracket-cell.is-void::after,
+.bracket-cell.is-void::before {
+  display: none;
+}
+
+/* ==== 比赛卡片 ==== */
+
+.bracket-match {
+  width: 100%;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+  font-size: 13px;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+.bracket-match.is-clickable {
+  cursor: pointer;
+}
+
+.bracket-match.is-clickable:hover,
+.bracket-match.is-clickable:focus-visible {
+  border-color: #1677ff;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2);
+  outline: none;
+}
+
+.bracket-match.status-scheduled {
+  border-color: #91caff;
+}
+
+.bracket-match.status-bye {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
+.bracket-match-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 8px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  color: #8c8c8c;
+  font-size: 11px;
+}
+
+.bracket-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracket-side {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  min-height: 30px;
+}
+
+.bracket-side + .bracket-side {
+  border-top: 1px solid #f0f0f0;
+}
+
+.bracket-side.is-winner {
+  background: var(--bracket-win);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--bracket-win-border);
+}
+
+.bracket-side.is-loser {
+  color: #8c8c8c;
+}
+
+.bracket-side-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bracket-seed {
+  flex: none;
+  min-width: 18px;
+  color: #bfbfbf;
+  font-size: 11px;
+  text-align: right;
+}
+
+.bracket-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracket-sub {
+  flex: none;
+  margin-left: 4px;
+  color: #8c8c8c;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.bracket-placeholder {
+  color: #bfbfbf;
+  font-style: italic;
+}
+
+.bracket-score {
+  flex: none;
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bracket-bye-tag {
+  margin: 0;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.bracket-single-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bracket-single-row .bracket-match {
+  width: var(--bracket-card-width);
+}
+
+/* ==== 小组赛 ==== */
+
+.bracket-group-rounds {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.bracket-group-round {
+  flex: none;
+  width: var(--bracket-card-width);
+}
+
+.bracket-group-round-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 576px) {
+  .bracket-view {
+    --bracket-card-width: 180px;
+    --bracket-gap: 20px;
+  }
+}

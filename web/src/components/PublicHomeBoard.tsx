@@ -56,6 +56,8 @@ interface PublicHomeBoardProps {
   onTitleClick: () => void;
   isLoggedIn: boolean;
   onAccountClick: () => void;
+  // 有公开对阵图时展示入口
+  onOpenBrackets?: () => void;
 }
 
 export default function PublicHomeBoard({
@@ -74,6 +76,7 @@ export default function PublicHomeBoard({
   onTitleClick,
   isLoggedIn,
   onAccountClick,
+  onOpenBrackets,
 }: PublicHomeBoardProps) {
   const totalCount = completedCount + pendingCount;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -115,6 +118,20 @@ export default function PublicHomeBoard({
           <h1>{eventName?.trim() || "运动会"}</h1>
         </div>
         <div className="ph-side">
+          {onOpenBrackets && (
+            <button
+              type="button"
+              className={`ph-login${isMobile ? " ph-login--compact" : ""}`}
+              onClick={onOpenBrackets}
+              aria-label="对阵图"
+              title={isMobile ? "对阵图" : undefined}
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3 4h4v4H3zM3 12h4v4H3zM7 6h3v8H7M10 10h3M13 8h4v4h-4z" />
+              </svg>
+              {!isMobile && "对阵图"}
+            </button>
+          )}
           <button
             type="button"
             className={`ph-login${isMobile ? " ph-login--compact" : ""}`}

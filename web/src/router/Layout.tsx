@@ -32,6 +32,7 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   PlusCircleOutlined,
+  ApartmentOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../contexts/AuthContext";
 import { useWebsite } from "../contexts/WebsiteContext";
@@ -67,6 +68,10 @@ const PointsManagement = React.lazy(
   () => import("../pages/admin/PointsManagement"),
 );
 const Settings = React.lazy(() => import("../pages/admin/Settings"));
+const BracketManagement = React.lazy(
+  () => import("../pages/admin/BracketManagement"),
+);
+const BracketDetail = React.lazy(() => import("../pages/admin/BracketDetail"));
 
 // Student 懒加载组件
 const StudentDashboard = React.lazy(() => import("../pages/student/Dashboard"));
@@ -126,6 +131,15 @@ const PAGE_TITLES: Record<string, PageTitleConfig> = {
   "/admin/points": {
     title: "得分管理",
     permission: PERMISSIONS.PROJECT_MANAGEMENT,
+  },
+  "/admin/brackets": {
+    title: "对阵图管理",
+    permission: PERMISSIONS.BRACKET_MANAGEMENT,
+  },
+  "/admin/brackets/:id": {
+    title: "对阵图",
+    permission: PERMISSIONS.BRACKET_MANAGEMENT,
+    dynamic: true,
   },
   "/admin/settings": {
     title: "系统设置",
@@ -266,6 +280,11 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
         icon: <TrophyOutlined />,
         label: navLink("/admin/points", "得分管理"),
       },
+      hasPermission(PERMISSIONS.BRACKET_MANAGEMENT) && {
+        key: "/admin/brackets",
+        icon: <ApartmentOutlined />,
+        label: navLink("/admin/brackets", "对阵图管理"),
+      },
       hasPermission(PERMISSIONS.WEBSITE_MANAGEMENT) && {
         key: "/admin/settings",
         icon: <SettingOutlined />,
@@ -335,6 +354,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
     // 子页面 → 父菜单项 key 的显式映射，新增子路由页面时在此登记
     const subPageMap: Array<{ prefix: string; key: string }> = [
       // { prefix: "/admin/students/", key: "/admin/students" },
+      { prefix: "/admin/brackets/", key: "/admin/brackets" },
     ];
     for (const { prefix, key } of subPageMap) {
       if (pathname === prefix || pathname.startsWith(prefix)) {
@@ -414,6 +434,12 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           )}
           {hasPermission(PERMISSIONS.PROJECT_MANAGEMENT) && (
             <Route path="/points" element={<PointsManagement />} />
+          )}
+          {hasPermission(PERMISSIONS.BRACKET_MANAGEMENT) && (
+            <>
+              <Route path="/brackets" element={<BracketManagement />} />
+              <Route path="/brackets/:id" element={<BracketDetail />} />
+            </>
           )}
           {hasPermission(PERMISSIONS.WEBSITE_MANAGEMENT) && (
             <Route path="/settings" element={<Settings />} />
