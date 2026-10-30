@@ -672,7 +672,7 @@ const RegistrationManagement: React.FC = () => {
       const element = checklistTableRef.current;
 
       const canvas = await html2canvas(element, {
-        backgroundColor: "#ffffff",
+        backgroundColor: "#111a2c", // 与 --sm-panel-solid 一致，保证深色卡片导出后可读
         scale: 1.5,
         windowWidth: 840, // 800 + 2*20(padding)
         logging: false,
@@ -1269,7 +1269,7 @@ const RegistrationManagement: React.FC = () => {
         <div
           style={{
             fontSize: 12,
-            color: "#999",
+            color: "var(--sm-text-muted)",
             marginBottom: 10,
           }}
         >
@@ -1300,7 +1300,7 @@ const RegistrationManagement: React.FC = () => {
             marginTop: "auto",
           }}
         >
-          <span style={{ fontSize: 12, color: "#888" }}>
+          <span style={{ fontSize: 12, color: "var(--sm-text-muted)" }}>
             {limitText} · 已报名 {competition.registration_count ?? 0} 人
           </span>
           <Button
@@ -1575,7 +1575,7 @@ const RegistrationManagement: React.FC = () => {
               <div
                 style={{
                   textAlign: "center",
-                  color: "#999",
+                  color: "var(--sm-text-muted)",
                   padding: "24px 0",
                 }}
               >
@@ -1621,15 +1621,30 @@ const RegistrationManagement: React.FC = () => {
                           <span style={{ fontWeight: 500, minWidth: 60 }}>
                             {reg.student_name}
                           </span>
-                          <span style={{ fontSize: 12, color: "#666" }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "var(--sm-text-secondary)",
+                            }}
+                          >
                             {reg.class_name}
                           </span>
                           {currentCompetition?.gender === 3 && (
-                            <span style={{ fontSize: 12, color: "#666" }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "var(--sm-text-secondary)",
+                              }}
+                            >
                               {getGenderText(reg.student_gender)}
                             </span>
                           )}
-                          <span style={{ fontSize: 12, color: "#bbb" }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "var(--sm-text-muted)",
+                            }}
+                          >
                             {isMobile
                               ? dayjs(reg.created_at).format("MM-DD HH:mm")
                               : new Date(reg.created_at).toLocaleString()}
@@ -1643,7 +1658,10 @@ const RegistrationManagement: React.FC = () => {
                               return (
                                 <span
                                   key={field.id}
-                                  style={{ fontSize: 12, color: "#666" }}
+                                  style={{
+                                    fontSize: 12,
+                                    color: "var(--sm-text-secondary)",
+                                  }}
                                 >
                                   {field.name}：
                                   {formatCustomFieldValue(field, value) ||
@@ -1730,11 +1748,11 @@ const RegistrationManagement: React.FC = () => {
               style={{
                 marginBottom: 12,
                 padding: "8px 12px",
-                background: "#fffbe6",
-                border: "1px solid #ffe58f",
+                background: "rgba(245, 166, 35, 0.14)",
+                border: "1px solid rgba(245, 166, 35, 0.4)",
                 borderRadius: 6,
                 fontSize: 12,
-                color: "#ad6800",
+                color: "var(--sm-gold)",
               }}
             >
               该项目需要填写：
@@ -1769,7 +1787,7 @@ const RegistrationManagement: React.FC = () => {
                 <Space>
                   <strong>选择学生</strong>
                   {selectedStudents.length > 0 && (
-                    <span style={{ color: "#666" }}>
+                    <span style={{ color: "var(--sm-text-secondary)" }}>
                       已选择 {selectedStudents.length} 名学生
                     </span>
                   )}
@@ -1879,7 +1897,7 @@ const RegistrationManagement: React.FC = () => {
                       style={{
                         marginBottom: 12,
                         padding: "8px 12px",
-                        backgroundColor: "#f5f5f5",
+                        backgroundColor: "var(--sm-panel-raised)",
                         borderRadius: 4,
                         display: "flex",
                         flexWrap: "wrap",
@@ -1892,7 +1910,12 @@ const RegistrationManagement: React.FC = () => {
                         >
                           {statusText}
                         </span>
-                        <span style={{ marginLeft: 8, color: "#666" }}>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            color: "var(--sm-text-secondary)",
+                          }}
+                        >
                           总计 {totalAfterSelection}人/{limitText}
                         </span>
                       </span>
@@ -1906,7 +1929,12 @@ const RegistrationManagement: React.FC = () => {
                           >
                             女
                           </span>
-                          <span style={{ marginLeft: 4, color: "#666" }}>
+                          <span
+                            style={{
+                              marginLeft: 4,
+                              color: "var(--sm-text-secondary)",
+                            }}
+                          >
                             {femaleTotal}人/
                             {genderLimitText(
                               currentCompetition.min_female_per_class,
@@ -1925,7 +1953,12 @@ const RegistrationManagement: React.FC = () => {
                           >
                             男
                           </span>
-                          <span style={{ marginLeft: 4, color: "#666" }}>
+                          <span
+                            style={{
+                              marginLeft: 4,
+                              color: "var(--sm-text-secondary)",
+                            }}
+                          >
                             {maleTotal}人/
                             {genderLimitText(
                               currentCompetition.min_male_per_class,
@@ -1942,7 +1975,7 @@ const RegistrationManagement: React.FC = () => {
                 <div
                   style={{
                     textAlign: "center",
-                    color: "#666",
+                    color: "var(--sm-text-secondary)",
                     padding: "16px 0",
                   }}
                 >
@@ -1998,9 +2031,11 @@ const RegistrationManagement: React.FC = () => {
                                 cursor: canSelect ? "pointer" : "not-allowed",
                                 opacity: canSelect ? 1 : 0.5,
                                 border: isSelected
-                                  ? "1px solid #1677ff"
+                                  ? "1px solid var(--sm-accent)"
                                   : undefined,
-                                background: isSelected ? "#e6f4ff" : undefined,
+                                background: isSelected
+                                  ? "rgba(33, 184, 201, 0.14)"
+                                  : undefined,
                               }}
                               onClick={() => {
                                 if (!canSelect) return;
@@ -2029,7 +2064,12 @@ const RegistrationManagement: React.FC = () => {
                               >
                                 {student.full_name}
                               </div>
-                              <div style={{ fontSize: 11, color: "#999" }}>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--sm-text-muted)",
+                                }}
+                              >
                                 {getGenderText(student.gender)}
                               </div>
                               <div
@@ -2141,7 +2181,15 @@ const RegistrationManagement: React.FC = () => {
         ]}
         width={800}
       >
-        <div ref={checklistTableRef} style={{ padding: "20px" }}>
+        <div
+          ref={checklistTableRef}
+          style={{
+            padding: "20px",
+            background: "var(--sm-panel-solid)",
+            color: "var(--sm-text)",
+            borderRadius: 8,
+          }}
+        >
           <div
             style={{
               marginBottom: 16,
@@ -2242,7 +2290,7 @@ const RegistrationManagement: React.FC = () => {
                                   alignItems: "center",
                                   gap: 12,
                                   fontSize: 14,
-                                  color: "#555",
+                                  color: "var(--sm-text-secondary)",
                                 }}
                               >
                                 {statusTag(item.status)}
@@ -2392,7 +2440,11 @@ const RegistrationManagement: React.FC = () => {
                       <div style={{ marginBottom: 8 }}>
                         <strong>测试次数</strong>
                         <span
-                          style={{ color: "#888", fontSize: 12, marginLeft: 4 }}
+                          style={{
+                            color: "var(--sm-text-muted)",
+                            fontSize: 12,
+                            marginLeft: 4,
+                          }}
                         >
                           （0=不显示测试区）
                         </span>
@@ -2409,7 +2461,11 @@ const RegistrationManagement: React.FC = () => {
                       <div style={{ marginBottom: 8 }}>
                         <strong>比赛次数</strong>
                         <span
-                          style={{ color: "#888", fontSize: 12, marginLeft: 4 }}
+                          style={{
+                            color: "var(--sm-text-muted)",
+                            fontSize: 12,
+                            marginLeft: 4,
+                          }}
                         >
                           （0=不显示比赛区）
                         </span>
@@ -2464,7 +2520,7 @@ const RegistrationManagement: React.FC = () => {
               </Select>
             )}
           </div>
-          <div style={{ color: "#666", fontSize: 14 }}>
+          <div style={{ color: "var(--sm-text-secondary)", fontSize: 14 }}>
             <p>导出说明：</p>
             {exportMode === "competition" ? (
               <ul style={{ paddingLeft: 20, margin: 0 }}>

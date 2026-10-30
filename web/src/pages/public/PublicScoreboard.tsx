@@ -21,11 +21,7 @@ import type { ScoreboardVoiceOption } from "../../components/ScoreboardSettingsM
 import { publicAPI } from "../../api/public";
 import { Competition, PointDetail, Score, Registration } from "../../types";
 import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
-import {
-  getRankingColor,
-  getScoreboardRankingColor,
-  isClassScoredType,
-} from "../../utils/competition";
+import { getRankingColor, isClassScoredType } from "../../utils/competition";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
 import { shouldEnableBackgroundEffects } from "../../utils/performance";
@@ -62,6 +58,12 @@ const hasAuthCallback = (search: string) => {
 const OVERVIEW_SECONDS = 10;
 // 总览最多展示前 8 名，保证一屏可读。
 const OVERVIEW_MAX_ROWS = 8;
+// 成绩总览为深色底，名次沿用金银铜含义但使用更亮的色值
+const OVERVIEW_RANKING_COLORS: Record<number, string> = {
+  1: "#f5a623",
+  2: "#b8c4d1",
+  3: "#d98e5c",
+};
 
 type AnimationPhase = "reveal" | "overview" | "closing";
 
@@ -1250,7 +1252,7 @@ const PublicScoreboard: React.FC = () => {
       className="public-scoreboard"
       style={{
         minHeight: "100vh",
-        background: "#f7fbff",
+        background: "var(--sm-bg-deep)",
         overflow: "hidden",
       }}
     >
@@ -1473,7 +1475,8 @@ const PublicScoreboard: React.FC = () => {
                 >
                   {overviewRows.map((score, index) => {
                     const color =
-                      getScoreboardRankingColor(score.ranking) ?? "#7186a0";
+                      OVERVIEW_RANKING_COLORS[score.ranking ?? 0] ??
+                      "var(--sm-text-muted)";
                     return (
                       <div
                         className="score-overview__row"

@@ -362,7 +362,13 @@ const RandomFillRegistrationModal: React.FC<
             }
             status="active"
           />
-          <div style={{ textAlign: "center", color: "#666", fontSize: 12 }}>
+          <div
+            style={{
+              textAlign: "center",
+              color: "var(--sm-text-secondary)",
+              fontSize: 12,
+            }}
+          >
             正在报名 {progress.current} / {progress.total}
           </div>
         </div>
@@ -417,7 +423,7 @@ const RandomFillRegistrationModal: React.FC<
         <div
           style={{
             textAlign: "center",
-            color: "#666",
+            color: "var(--sm-text-secondary)",
             padding: "32px 0",
           }}
         >

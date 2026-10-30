@@ -1115,7 +1115,11 @@ const Progress: React.FC = () => {
               <Card type="inner" title="报名名单" style={{ marginTop: 16 }}>
                 {registrations.length === 0 ? (
                   <div
-                    style={{ color: "#999", textAlign: "center", padding: 12 }}
+                    style={{
+                      color: "var(--sm-text-muted)",
+                      textAlign: "center",
+                      padding: 12,
+                    }}
                   >
                     暂无报名学生
                   </div>
@@ -1146,7 +1150,12 @@ const Progress: React.FC = () => {
                             <span style={{ fontWeight: 500 }}>
                               {reg.student_name}
                             </span>
-                            <span style={{ fontSize: 12, color: "#666" }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "var(--sm-text-secondary)",
+                              }}
+                            >
                               {reg.class_name}
                             </span>
                             {(selectedCompetition.custom_fields ?? []).map(
@@ -1158,7 +1167,10 @@ const Progress: React.FC = () => {
                                 return (
                                   <span
                                     key={field.id}
-                                    style={{ fontSize: 12, color: "#666" }}
+                                    style={{
+                                      fontSize: 12,
+                                      color: "var(--sm-text-secondary)",
+                                    }}
                                   >
                                     {field.name}：
                                     {formatCustomFieldValue(field, value) ||
@@ -1313,7 +1325,7 @@ const Progress: React.FC = () => {
                 style={{
                   marginBottom: "16px",
                   padding: "12px",
-                  background: "#fafafa",
+                  background: "var(--sm-panel-raised)",
                   borderRadius: "6px",
                   textAlign: "center",
                   fontWeight: 500,

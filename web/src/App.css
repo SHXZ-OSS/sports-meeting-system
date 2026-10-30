@@ -1,11 +1,6 @@
-/* 卡片视觉增强（antd token 未覆盖的阴影效果） */
-.ant-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
-}
+/* 全站主题见 theme/global.css；此处仅保留公开看板与移动端的局部覆盖 */
 
-/* 公开看板深色卡片：App.tsx 全局浅色 token（Card.headerBg / colorBgContainer）
-   会渗入组件内部背景，内联样式压不住，须用 !important 覆盖 */
+/* 公开看板深色卡片：叠在 3D 看台上需更高透明度，内联样式压不住，须用 !important 覆盖 */
 .public-scoreboard .ant-card {
   background: rgba(0, 0, 0, 0.6) !important;
   border: none !important;
@@ -23,64 +18,6 @@
 .public-scoreboard .ant-card-body {
   background: transparent !important;
   color: #fff !important;
-}
-
-/* 悬停效果卡片 */
-.hover-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.hover-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
-}
-
-/* 成绩排名样式 */
-.score-ranking.top-3 {
-  background: linear-gradient(90deg, #fff7e6 0%, #fff2cc 100%);
-  border-left: 4px solid #faad14;
-}
-
-/* 统计数值样式（Statistic 无对应 token） */
-.ant-statistic-content-value {
-  color: #262626;
-  font-weight: 600;
-}
-
-/* 表单/描述列表标签加粗（token 仅支持颜色，见 App.tsx 的 theme.components） */
-.ant-form-item-label > label {
-  font-weight: 600;
-}
-
-.ant-descriptions-item-label {
-  font-weight: 600;
-}
-
-/* 标签样式优化 */
-.ant-tag {
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-/* 自定义滚动条 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f0f0f0;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #bfbfbf;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #999;
 }
 
 /* 移动端优化 */

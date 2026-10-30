@@ -518,7 +518,9 @@ const RandomDrawModal: React.FC<RandomDrawModalProps> = ({
           <div
             ref={bracketRef}
             style={{
+              // 对阵表会导出为 PNG，保持白底深字以便打印与分享
               backgroundColor: "#ffffff",
+              color: "#1f2937",
               padding: "20px",
               borderRadius: "8px",
               overflow: "visible",

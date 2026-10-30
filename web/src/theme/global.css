@@ -1,0 +1,245 @@
+/*
+ * 全站深色赛事风格（参考 RM Schedule）
+ * 颜色变量与 theme/tokens.ts 的 palette 保持一致
+ */
+:root {
+  color-scheme: dark;
+  --sm-bg: #0b1220;
+  --sm-bg-deep: #060a14;
+  --sm-panel: rgba(17, 26, 44, 0.78);
+  --sm-panel-solid: #111a2c;
+  --sm-panel-raised: #18243b;
+  --sm-panel-hover: #1f2d48;
+  --sm-line: rgba(148, 178, 214, 0.16);
+  --sm-line-strong: rgba(148, 178, 214, 0.32);
+  --sm-text: #e8eef7;
+  --sm-text-secondary: #a3b1c6;
+  --sm-text-muted: #6f7f97;
+  --sm-accent: #21b8c9;
+  --sm-accent-deep: #137b8c;
+  --sm-gold: #f5a623;
+  --sm-gold-deep: #c77a12;
+  --sm-red: #e5484d;
+  --sm-blue: #3e8bff;
+  --sm-win: #3ecf8e;
+  --sm-lose: #5b6678;
+  /* 展示字体须覆盖全部常用汉字（标题含用户录入的项目名），Noto Sans SC Black 为 OFL 授权 */
+  --sm-display-font:
+    "Noto Sans SC", "Source Han Sans CN", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  /* 标题横幅：左侧青蓝实色向右渐隐，右端斜切 */
+  --sm-banner: linear-gradient(
+    100deg,
+    rgba(33, 184, 201, 0.95) 0%,
+    rgba(19, 123, 140, 0.85) 55%,
+    rgba(19, 123, 140, 0) 100%
+  );
+  --sm-banner-gold: linear-gradient(
+    100deg,
+    rgba(245, 166, 35, 0.95) 0%,
+    rgba(199, 122, 18, 0.85) 55%,
+    rgba(199, 122, 18, 0) 100%
+  );
+}
+
+html,
+body {
+  background: var(--sm-bg-deep);
+  color: var(--sm-text);
+}
+
+/* 后台与学生端页面背景：深蓝底 + 顶部青色光晕 + 细网格，营造场馆氛围 */
+.sm-app-bg {
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(33, 184, 201, 0.18),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 100%,
+      rgba(62, 139, 255, 0.1),
+      transparent 70%
+    ),
+    linear-gradient(rgba(148, 178, 214, 0.04) 1px, transparent 1px) 0 0 / 40px
+      40px,
+    linear-gradient(90deg, rgba(148, 178, 214, 0.04) 1px, transparent 1px) 0 0 /
+      40px 40px,
+    var(--sm-bg-deep);
+  background-attachment: fixed;
+}
+
+/* 毛玻璃面板（顶栏、侧边栏） */
+.sm-glass {
+  background: rgba(10, 16, 30, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ==== 标题 ==== */
+
+.sm-display {
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+/* 页面主标题（后台每页的 Title level=2）：展示字体 + 左侧斜切色块 */
+.sm-app-bg h2.ant-typography {
+  position: relative;
+  padding-left: 18px;
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.sm-app-bg h2.ant-typography::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  width: 8px;
+  height: 70%;
+  background: var(--sm-accent);
+  transform: skewX(-18deg);
+  box-shadow: 0 0 12px rgba(33, 184, 201, 0.6);
+}
+
+/* 横幅标题：卡片标题、对阵轮次标题等 */
+.sm-banner {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 2px 48px 2px 16px;
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  background: var(--sm-banner);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+
+.sm-banner--gold {
+  background: var(--sm-banner-gold);
+}
+
+/* ==== antd 组件补充（token 覆盖不到的部分） ==== */
+
+.ant-card {
+  border: 1px solid var(--sm-line);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* 卡片标题做成横幅样式 */
+.ant-card .ant-card-head {
+  border-bottom: 1px solid var(--sm-line);
+}
+
+.ant-card .ant-card-head-title {
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.05em;
+}
+
+.ant-card .ant-card-head-title::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 0.95em;
+  margin-right: 10px;
+  vertical-align: -0.1em;
+  background: var(--sm-accent);
+  transform: skewX(-18deg);
+}
+
+.ant-table-thead > tr > th {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ant-form-item-label > label,
+.ant-descriptions-item-label {
+  font-weight: 600;
+}
+
+.ant-tag {
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.ant-statistic-content-value {
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.ant-btn-primary:not(:disabled) {
+  background: linear-gradient(100deg, var(--sm-accent), var(--sm-accent-deep));
+  border: none;
+}
+
+.ant-btn-primary:not(:disabled):hover {
+  background: linear-gradient(100deg, #3fd0df, var(--sm-accent));
+}
+
+.ant-menu-inline .ant-menu-item-selected {
+  box-shadow: inset 3px 0 0 var(--sm-accent);
+}
+
+/* 悬停效果卡片 */
+.hover-card {
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.hover-card:hover {
+  border-color: var(--sm-accent);
+  box-shadow: 0 8px 28px rgba(33, 184, 201, 0.18);
+  transform: translateY(-2px);
+}
+
+/* 成绩前三名高亮行 */
+.score-ranking.top-3 {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 166, 35, 0.22) 0%,
+    rgba(245, 166, 35, 0) 100%
+  );
+  border-left: 4px solid var(--sm-gold);
+}
+
+/* ==== 滚动条 ==== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sm-line-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sm-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-card,
+  .hover-card:hover {
+    transition: none;
+    transform: none;
+  }
+}

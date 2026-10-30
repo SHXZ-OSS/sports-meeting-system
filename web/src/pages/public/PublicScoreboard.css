@@ -40,7 +40,7 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: center;
   padding: clamp(16px, 4vw, 56px);
   overflow: hidden;
-  color: #fff;
+  color: var(--sm-text);
   font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -58,7 +58,7 @@ body.score-animation-active .ant-modal-wrap {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: #000;
+  background: var(--sm-bg-deep);
   opacity: 0;
   pointer-events: none;
   transition: opacity 1.2s ease;
@@ -77,9 +77,10 @@ body.score-animation-active .ant-modal-wrap {
   text-align: center;
 }
 .score-reveal__title {
+  font-family: var(--sm-display-font);
   font-size: clamp(28px, 3.4vw, 50px);
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-weight: 900;
+  letter-spacing: 0.06em;
   line-height: 1.1;
   text-shadow:
     0 2px 28px rgba(0, 0, 0, 0.6),
@@ -93,10 +94,11 @@ body.score-animation-active .ant-modal-wrap {
   width: min(100%, 820px);
   margin: clamp(22px, 3vw, 38px) auto 0;
   padding: clamp(20px, 2.6vw, 34px) clamp(24px, 3.6vw, 48px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: clamp(14px, 1.6vw, 20px);
-  background: rgba(255, 255, 255, 0.035);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--sm-line-strong);
+  border-top: 2px solid var(--sm-accent);
+  border-radius: 4px;
+  background: var(--sm-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
   text-align: left;
 }
 .score-card__row {
@@ -108,7 +110,7 @@ body.score-animation-active .ant-modal-wrap {
 .score-card__row--secondary {
   margin-top: clamp(14px, 2vw, 20px);
   padding-top: clamp(12px, 1.6vw, 18px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--sm-line);
 }
 .score-card__row--single {
   grid-template-columns: minmax(0, 1fr);
@@ -122,7 +124,7 @@ body.score-animation-active .ant-modal-wrap {
 .score-card__label {
   display: block;
   margin-bottom: clamp(4px, 0.7vw, 8px);
-  color: rgba(255, 255, 255, 0.46);
+  color: var(--sm-text-secondary);
   font-size: clamp(10px, 0.8vw, 12px);
   font-weight: 500;
   letter-spacing: 0.16em;
@@ -170,7 +172,7 @@ body.score-animation-active .ant-modal-wrap {
   left: 50%;
   z-index: 4;
   transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--sm-text-secondary);
   font-size: 11px;
   letter-spacing: 0.1em;
   white-space: nowrap;
@@ -217,7 +219,7 @@ body.score-animation-active .ant-modal-wrap {
   z-index: 5;
   display: flex;
   overflow: hidden;
-  color: #10284a;
+  color: var(--sm-text);
   text-shadow: none;
 }
 .score-overview,
@@ -232,9 +234,9 @@ body.score-animation-active .ant-modal-wrap {
   pointer-events: none;
   background: linear-gradient(
     115deg,
-    rgba(251, 253, 255, 0.94) 40%,
-    rgba(245, 251, 255, 0.72) 72%,
-    rgba(245, 251, 255, 0.3) 100%
+    rgba(6, 10, 20, 0.94) 40%,
+    rgba(11, 18, 32, 0.8) 72%,
+    rgba(11, 18, 32, 0.45) 100%
   );
   opacity: 0;
   animation: score-overview-veil-in 0.9s ease 0.3s forwards;
@@ -258,21 +260,22 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: center;
   gap: 16px;
   margin-bottom: 14px;
-  color: #258fe7;
+  color: var(--sm-accent);
   font-size: clamp(12px, 0.9vw, 15px);
   letter-spacing: 0.24em;
 }
 .score-overview__kicker span {
   width: 42px;
   height: 1px;
-  background: #9dcaf2;
+  background: var(--sm-accent);
 }
 .score-overview__content h2 {
   margin: 0;
-  color: #10284a;
+  color: #fff;
+  font-family: var(--sm-display-font);
   font-size: clamp(30px, 3.5vw, 52px);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 900;
+  letter-spacing: 0.06em;
   line-height: 1.15;
   text-align: center;
 }
@@ -286,7 +289,7 @@ body.score-animation-active .ant-modal-wrap {
   align-items: center;
   gap: clamp(12px, 1.6vw, 20px);
   padding: clamp(9px, 1.3vh, 15px) clamp(6px, 1.4vw, 14px);
-  border-bottom: 1px dashed rgba(97, 131, 171, 0.22);
+  border-bottom: 1px solid var(--sm-line);
   opacity: 0;
   animation: score-overview-row-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(0.6s + var(--row-index, 0) * 0.06s);
@@ -314,19 +317,19 @@ body.score-animation-active .ant-modal-wrap {
 }
 .score-overview__name strong {
   overflow: hidden;
-  color: #10284a;
+  color: var(--sm-text);
   font-size: clamp(19px, 1.8vw, 28px);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .score-overview__name small {
-  color: #5d748c;
+  color: var(--sm-text-secondary);
   font-size: clamp(12px, 1vw, 15px);
   white-space: nowrap;
 }
 .score-overview__result {
-  color: #10284a;
+  color: var(--sm-text);
   font-size: clamp(20px, 1.85vw, 30px);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -335,7 +338,7 @@ body.score-animation-active .ant-modal-wrap {
 }
 .score-overview__unit {
   margin-left: 3px;
-  color: #5d748c;
+  color: var(--sm-text-secondary);
   font-size: 0.62em;
   font-weight: 500;
 }
@@ -345,7 +348,7 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: space-between;
   gap: 16px;
   margin-top: clamp(14px, 2.2vh, 24px);
-  color: #5d748c;
+  color: var(--sm-text-secondary);
   font-size: clamp(11px, 0.9vw, 13px);
 }
 .score-overview__footer > div {
@@ -357,17 +360,17 @@ body.score-animation-active .ant-modal-wrap {
   padding: 8px;
   border: 0;
   background: none;
-  color: #356282;
+  color: var(--sm-accent);
   font: inherit;
   cursor: pointer;
 }
 .score-overview__footer button:hover {
-  color: #1f7fe8;
+  color: #5fd3e0;
 }
 .score-overview__timer {
   height: 2px;
   margin-top: 10px;
-  background: #66b3ef;
+  background: var(--sm-accent);
   transform-origin: left;
   transition:
     transform 1s linear,
@@ -443,7 +446,7 @@ body.score-animation-active .ant-modal-wrap {
     flex: 0 0 auto;
     margin-top: 8px;
     padding-top: 10px;
-    border-top: 1px solid rgba(97, 131, 171, 0.16);
+    border-top: 1px solid var(--sm-line);
     gap: 8px;
     font-size: 12px;
   }

@@ -75,7 +75,7 @@ const PublicBrackets: React.FC = () => {
   }, [fetchDetail]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f7fa" }}>
+    <div className="sm-app-bg" style={{ minHeight: "100vh" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "16px" }}>
         <div
           style={{
@@ -125,7 +125,11 @@ const PublicBrackets: React.FC = () => {
             <Empty description="暂无公开的对阵图" />
           ) : (
             <>
-              <Title level={3} style={{ marginTop: 0 }}>
+              <Title
+                level={3}
+                className="sm-display"
+                style={{ marginTop: 0, letterSpacing: "0.06em" }}
+              >
                 {detail.bracket.name}
               </Title>
               <div style={{ marginBottom: 16 }}>

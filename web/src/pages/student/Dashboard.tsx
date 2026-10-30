@@ -93,11 +93,11 @@ const StudentDashboard: React.FC = () => {
       <Card style={{ marginBottom: isMobile ? 12 : 24 }}>
         <Title
           level={3}
-          style={{ color: "#1f2937", marginBottom: 4, marginTop: 0 }}
+          style={{ color: "var(--sm-text)", marginBottom: 4, marginTop: 0 }}
         >
           你好，{user?.full_name}同学！
         </Title>
-        <Text style={{ color: "#6b7280", fontSize: 16 }}>
+        <Text style={{ color: "var(--sm-text-secondary)", fontSize: 16 }}>
           在这里提交推荐项目、管理你的比赛报名、查看你的成绩
         </Text>
       </Card>
@@ -108,7 +108,8 @@ const StudentDashboard: React.FC = () => {
           size="small"
           style={{
             marginBottom: 16,
-            background: "#fffbe6",
+            background: "rgba(245, 166, 35, 0.14)",
+            borderColor: "rgba(245, 166, 35, 0.4)",
           }}
           styles={{ body: { padding: "12px 16px" } }}
         >
@@ -135,7 +136,9 @@ const StudentDashboard: React.FC = () => {
             {checkingIn.map((comp) => (
               <div key={comp.id}>
                 <Text strong>{comp.name}</Text>
-                <div style={{ fontSize: 13, color: "#6b7280" }}>
+                <div
+                  style={{ fontSize: 13, color: "var(--sm-text-secondary)" }}
+                >
                   {comp.venue && <>地点：{comp.venue}</>}
                   {comp.venue && comp.start_time && " · "}
                   {comp.start_time && (
@@ -165,7 +168,7 @@ const StudentDashboard: React.FC = () => {
               title="我的报名"
               value={registrations?.length}
               prefix={<FileTextOutlined style={{ color: "#4C80F8" }} />}
-              valueStyle={{ color: "#1f2937" }}
+              valueStyle={{ color: "var(--sm-text)" }}
               suffix="项"
             />
           </Card>
@@ -179,7 +182,7 @@ const StudentDashboard: React.FC = () => {
               title="已完成比赛"
               value={scores?.length}
               prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
-              valueStyle={{ color: "#1f2937" }}
+              valueStyle={{ color: "var(--sm-text)" }}
               suffix="场"
             />
           </Card>
@@ -190,7 +193,7 @@ const StudentDashboard: React.FC = () => {
               title="当前排名"
               value={pointsSummary?.rank || "-"}
               prefix={<CrownOutlined style={{ color: "#faad14" }} />}
-              valueStyle={{ color: "#1f2937" }}
+              valueStyle={{ color: "var(--sm-text)" }}
               suffix={pointsSummary?.rank ? "名" : ""}
             />
           </Card>
@@ -201,7 +204,7 @@ const StudentDashboard: React.FC = () => {
               title="总得分"
               value={pointsSummary?.total_points?.toFixed(1) || "0"}
               prefix={<FireOutlined style={{ color: "#f5222d" }} />}
-              valueStyle={{ color: "#1f2937" }}
+              valueStyle={{ color: "var(--sm-text)" }}
               suffix="分"
             />
           </Card>
@@ -276,7 +279,7 @@ const StudentDashboard: React.FC = () => {
             style={{
               textAlign: "center",
               padding: "20px 0",
-              color: "#999",
+              color: "var(--sm-text-muted)",
             }}
           >
             <TrophyOutlined style={{ fontSize: "32px", marginBottom: "8px" }} />

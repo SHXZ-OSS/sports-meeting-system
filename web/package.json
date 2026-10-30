@@ -33,6 +33,7 @@
   "dependencies": {
     "@ant-design/cssinjs": "^2.1.2",
     "@ant-design/icons": "^6.3.4",
+    "@fontsource/noto-sans-sc": "5.3.1",
     "@zip.js/zip.js": "^2.22.0",
     "antd": "^6.6.5",
     "axios": "^1.20.0",

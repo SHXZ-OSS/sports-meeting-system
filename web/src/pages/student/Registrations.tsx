@@ -21,14 +21,14 @@ const { Title } = Typography;
 
 // 时间轴圆点颜色：与状态语义对应
 const STATUS_DOT_COLORS: Record<string, string> = {
-  approved: "#bfbfbf", // 已报名未开始，暂无动作
+  approved: "var(--sm-text-muted)", // 已报名未开始，暂无动作
   checking_in: "#faad14", // 检录中，需要行动
   in_progress: "#1677ff", // 进行中
   pending_score_review: "#faad14", // 待审核成绩
   completed: "#52c41a", // 已完成
 };
 const statusDotColor = (status: Competition["status"]) =>
-  STATUS_DOT_COLORS[status] || "#d9d9d9";
+  STATUS_DOT_COLORS[status] || "var(--sm-line-strong)";
 
 const StudentRegistrations: React.FC = () => {
   const navigate = useNavigate();
@@ -116,7 +116,9 @@ const StudentRegistrations: React.FC = () => {
                   style={{
                     fontSize: 16,
                     fontWeight: 700,
-                    color: comp.start_time ? "#1f2937" : "#bbb",
+                    color: comp.start_time
+                      ? "var(--sm-text)"
+                      : "var(--sm-text-muted)",
                     lineHeight: "16px",
                   }}
                 >
@@ -125,7 +127,13 @@ const StudentRegistrations: React.FC = () => {
                     : "待定"}
                 </div>
                 {comp.end_time && (
-                  <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--sm-text-muted)",
+                      marginTop: 4,
+                    }}
+                  >
                     {dayjs(comp.end_time).format("HH:mm")}
                   </div>
                 )}
@@ -155,7 +163,7 @@ const StudentRegistrations: React.FC = () => {
                     style={{
                       width: 2,
                       flex: 1,
-                      background: "#e8eaed",
+                      background: "var(--sm-line)",
                       marginTop: 4,
                     }}
                   />
@@ -166,7 +174,13 @@ const StudentRegistrations: React.FC = () => {
               <div style={{ flex: 1, minWidth: 0, paddingBottom: 20 }}>
                 <div style={{ fontWeight: 600 }}>{comp.name}</div>
                 {comp.venue && (
-                  <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--sm-text-muted)",
+                      marginTop: 2,
+                    }}
+                  >
                     {comp.venue}
                   </div>
                 )}

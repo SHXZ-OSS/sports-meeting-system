@@ -742,7 +742,12 @@ const UserManagement: React.FC = () => {
                     <Checkbox value={perm.value}>
                       <strong>{perm.label}</strong>
                       <br />
-                      <span style={{ color: "#666", fontSize: "12px" }}>
+                      <span
+                        style={{
+                          color: "var(--sm-text-secondary)",
+                          fontSize: "12px",
+                        }}
+                      >
                         {perm.description}
                       </span>
                     </Checkbox>
@@ -788,12 +793,12 @@ const UserManagement: React.FC = () => {
               style={{
                 marginBottom: 16,
                 padding: "12px",
-                backgroundColor: "#e6f4ff",
-                border: "1px solid #91caff",
+                backgroundColor: "rgba(62, 139, 255, 0.12)",
+                border: "1px solid rgba(62, 139, 255, 0.4)",
                 borderRadius: "4px",
               }}
             >
-              <div style={{ color: "#1677ff" }}>
+              <div style={{ color: "var(--sm-blue)" }}>
                 已选择班级账号模式：权限自动限定为「学生与班级管理」和「报名管理」，数据仅限所选班级。
               </div>
             </div>

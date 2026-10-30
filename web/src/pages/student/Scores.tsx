@@ -121,7 +121,7 @@ const StudentScores: React.FC = () => {
                 valueStyle={{
                   color: getBestRanking(scores)
                     ? getRankingColor(getBestRanking(scores) ?? undefined)
-                    : "#666",
+                    : "var(--sm-text-secondary)",
                 }}
               />
             </Card>
@@ -197,7 +197,9 @@ const StudentScores: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: "#999" }}>成绩</div>
+                  <div style={{ fontSize: 11, color: "var(--sm-text-muted)" }}>
+                    成绩
+                  </div>
                 </div>
               </div>
             </Card>

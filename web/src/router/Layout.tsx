@@ -468,17 +468,15 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
   const roleText = userType === "admin" ? "管理员" : "学生";
 
   return (
-    <AntLayout style={{ minHeight: "100vh" }}>
+    <AntLayout className="sm-app-bg" style={{ minHeight: "100vh" }}>
       <Header
+        className="sm-glass"
         style={{
           position: "fixed",
           top: 0,
           width: "100%",
           zIndex: 1000,
           padding: "0 16px",
-          background: "rgba(255, 255, 255, 0.8)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
           boxShadow: "none",
           display: "flex",
           alignItems: "center",
@@ -494,11 +492,19 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
             right: 0,
             bottom: 0,
             height: 1,
-            background: "rgba(226, 232, 240, 0.8)",
+            background:
+              "linear-gradient(90deg, var(--sm-accent), var(--sm-line) 40%)",
             transition: "left 0.2s",
           }}
         />
-        <div style={{ display: "flex", alignItems: "center", flex: 1 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           <Button
             type="text"
             icon={
@@ -510,7 +516,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
             }
             onClick={handleMenuToggle}
             aria-label={collapsed || isMobile ? "展开菜单" : "收起菜单"}
-            style={{ marginRight: 16, color: "#666" }}
+            style={{ marginRight: 16, color: "var(--sm-text-secondary)" }}
           />
 
           <div
@@ -523,7 +529,12 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
                 goHome();
               }
             }}
-            style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+              minWidth: 0,
+            }}
           >
             {logo_url && (
               <img
@@ -538,16 +549,16 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
             )}
             <Title
               level={4}
+              className="sm-display"
               style={{
                 margin: 0,
                 whiteSpace: "nowrap",
-                fontSize: isMobile ? "16px" : "20px",
+                fontSize: isMobile ? "17px" : "22px",
                 textAlign: "left",
-                color: "#1f2937",
-                fontWeight: 700,
-                letterSpacing: "-0.5px",
-                display: "flex",
-                alignItems: "center",
+                color: "var(--sm-text)",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {websiteName}
@@ -604,12 +615,10 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
             trigger={null}
             width={256}
             collapsedWidth={64}
-            theme="light"
+            theme="dark"
+            className="sm-glass"
             style={{
-              background: "rgba(255, 255, 255, 0.8)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              borderRight: "1px solid rgba(226, 232, 240, 0.8)",
+              borderRight: "1px solid var(--sm-line)",
               boxShadow: "none",
               height: "calc(100vh - 64px)",
               overflow: "auto",
@@ -633,7 +642,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           style={{
             marginLeft: siderWidth,
             transition: "margin-left 0.2s",
-            background: "#F7F8F9",
+            background: "transparent",
             minHeight: "calc(100vh - 64px)",
             display: "flex",
             flexDirection: "column",
@@ -642,7 +651,7 @@ const Layout: React.FC<LayoutProps> = ({ userType }) => {
           <Content
             style={{
               padding: isMobile ? "16px" : "24px",
-              background: "#F7F8F9",
+              background: "transparent",
               flex: 1,
             }}
           >

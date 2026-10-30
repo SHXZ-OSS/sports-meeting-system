@@ -1,32 +1,48 @@
+/* 对阵图：深色赛事风格（颜色变量见 theme/global.css） */
 .bracket-view {
-  --bracket-card-width: 220px;
-  --bracket-gap: 32px;
-  --bracket-line: #bfbfbf;
-  --bracket-win: #f6ffed;
-  --bracket-win-border: #52c41a;
+  --bracket-card-width: 230px;
+  --bracket-gap: 36px;
+  --bracket-line: var(--sm-line-strong);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
+  color: var(--sm-text);
 }
 
+/* 阶段标题：斜切渐变横幅 */
 .bracket-section h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin: 0 0 14px;
+  padding: 2px 56px 2px 16px;
+  font-family: var(--sm-display-font);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  background: var(--sm-banner);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
 }
 
 .bracket-champion {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   align-self: flex-start;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
-  color: #ad6800;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 6px 56px 6px 18px;
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: #1a1204;
+  background: var(--sm-banner-gold);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
+}
+
+.bracket-champion .bracket-sub {
+  color: rgba(26, 18, 4, 0.75);
 }
 
 /* ==== 淘汰赛树 ==== */
@@ -48,11 +64,24 @@
   width: var(--bracket-card-width);
 }
 
+/* 轮次标题：短横幅 */
 .bracket-round-title {
-  color: #8c8c8c;
-  font-size: 13px;
-  text-align: center;
-  margin-bottom: 8px;
+  align-self: stretch;
+  margin-bottom: 10px;
+  padding: 3px 24px 3px 10px;
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(
+    100deg,
+    rgba(33, 184, 201, 0.55) 0%,
+    rgba(33, 184, 201, 0.12) 80%,
+    transparent 100%
+  );
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
 
 .bracket-round-body {
@@ -121,9 +150,9 @@
 
 .bracket-match {
   width: 100%;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--sm-line);
+  border-left: 3px solid var(--sm-accent-deep);
+  background: rgba(10, 16, 30, 0.82);
   overflow: hidden;
   font-size: 13px;
   transition:
@@ -137,18 +166,26 @@
 
 .bracket-match.is-clickable:hover,
 .bracket-match.is-clickable:focus-visible {
-  border-color: #1677ff;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2);
+  border-color: var(--sm-accent);
+  box-shadow:
+    0 0 0 1px var(--sm-accent),
+    0 6px 20px rgba(33, 184, 201, 0.25);
   outline: none;
 }
 
 .bracket-match.status-scheduled {
-  border-color: #91caff;
+  border-left-color: var(--sm-accent);
+}
+
+.bracket-match.status-completed {
+  border-left-color: var(--sm-gold);
 }
 
 .bracket-match.status-bye {
-  opacity: 0.75;
+  opacity: 0.6;
   border-style: dashed;
+  border-left-style: solid;
+  border-left-color: var(--sm-lose);
 }
 
 .bracket-match-head {
@@ -156,10 +193,11 @@
   justify-content: space-between;
   gap: 8px;
   padding: 2px 8px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-  color: #8c8c8c;
+  background: rgba(148, 178, 214, 0.06);
+  border-bottom: 1px solid var(--sm-line);
+  color: var(--sm-text-muted);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .bracket-meta {
@@ -168,27 +206,33 @@
   white-space: nowrap;
 }
 
+/* 一行参赛方：左侧名称，右侧比分徽标 */
 .bracket-side {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 8px;
-  min-height: 30px;
+  min-height: 32px;
+  padding-left: 8px;
+  color: var(--sm-text-secondary);
 }
 
 .bracket-side + .bracket-side {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--sm-line);
 }
 
 .bracket-side.is-winner {
-  background: var(--bracket-win);
+  color: #fff;
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--bracket-win-border);
+  background: linear-gradient(
+    90deg,
+    rgba(33, 184, 201, 0.18) 0%,
+    rgba(33, 184, 201, 0) 85%
+  );
 }
 
 .bracket-side.is-loser {
-  color: #8c8c8c;
+  color: var(--sm-text-muted);
 }
 
 .bracket-side-label {
@@ -198,12 +242,16 @@
   min-width: 0;
 }
 
+/* 种子号：小方块 */
 .bracket-seed {
   flex: none;
   min-width: 18px;
-  color: #bfbfbf;
+  padding: 0 3px;
   font-size: 11px;
-  text-align: right;
+  line-height: 16px;
+  text-align: center;
+  color: var(--sm-text-muted);
+  background: rgba(148, 178, 214, 0.1);
 }
 
 .bracket-name {
@@ -215,21 +263,39 @@
 .bracket-sub {
   flex: none;
   margin-left: 4px;
-  color: #8c8c8c;
+  color: var(--sm-text-muted);
   font-size: 11px;
   font-weight: normal;
 }
 
 .bracket-placeholder {
-  color: #bfbfbf;
+  color: var(--sm-text-muted);
   font-style: italic;
 }
 
+/* 比分徽标：灰底，胜者为青色 */
 .bracket-score {
   flex: none;
-  min-width: 24px;
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 6px;
+  font-family: var(--sm-display-font);
+  font-weight: 900;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
+  color: var(--sm-text-secondary);
+  background: rgba(91, 102, 120, 0.35);
+}
+
+.bracket-side.is-winner .bracket-score {
+  color: #04161a;
+  background: var(--sm-accent);
+}
+
+.bracket-match.status-bye .bracket-score {
+  background: transparent;
 }
 
 .bracket-bye-tag {
@@ -271,7 +337,13 @@
 
 @media (max-width: 576px) {
   .bracket-view {
-    --bracket-card-width: 180px;
-    --bracket-gap: 20px;
+    --bracket-card-width: 190px;
+    --bracket-gap: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-match {
+    transition: none;
   }
 }

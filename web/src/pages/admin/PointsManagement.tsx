@@ -923,7 +923,13 @@ const PointsManagement: React.FC = () => {
           </Space>
         }
       >
-        <div style={{ marginBottom: 12, color: "#666", fontSize: 13 }}>
+        <div
+          style={{
+            marginBottom: 12,
+            color: "var(--sm-text-secondary)",
+            fontSize: 13,
+          }}
+        >
           按缺额人数扣分：每人扣 N 分，班级扣除“缺额人数 × 每人扣分”。
           已扣分的班级会自动跳过，未满项目会写入扣分原因。
         </div>

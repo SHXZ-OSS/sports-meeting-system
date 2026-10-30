@@ -539,19 +539,31 @@ const CompetitionManagement: React.FC = () => {
                   maxWidth: 320,
                   marginTop: 2,
                   fontSize: 12,
-                  color: "#666",
+                  color: "var(--sm-text-secondary)",
                 }}
               >
                 {record.description}
               </Typography.Text>
             )}
             {record.venue && (
-              <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--sm-text-secondary)",
+                  marginTop: 2,
+                }}
+              >
                 地点：{record.venue}
               </div>
             )}
             {record.start_time && record.end_time && (
-              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--sm-text-muted)",
+                  marginTop: 2,
+                }}
+              >
                 {dayjs(record.start_time).format("MM-DD HH:mm")} -{" "}
                 {dayjs(record.end_time).format("HH:mm")}
               </div>
@@ -969,12 +981,24 @@ const CompetitionManagement: React.FC = () => {
           </Form.Item>
 
           {competitionTypeValue === "school" && (
-            <div style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--sm-text-muted)",
+                marginBottom: 12,
+              }}
+            >
               全校性比赛不开放报名，赛事进程页直接按班级录入成绩。
             </div>
           )}
           {competitionTypeValue === "registration" && (
-            <div style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--sm-text-muted)",
+                marginBottom: 12,
+              }}
+            >
               仅报名项目不录入成绩、不产生积分，单位与排名设置会被忽略。
             </div>
           )}

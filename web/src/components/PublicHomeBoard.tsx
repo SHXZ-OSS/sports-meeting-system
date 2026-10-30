@@ -5,7 +5,6 @@ import type {
   Competition,
   StudentPointsSummary,
 } from "../types";
-import { getScoreboardRankingColor } from "../utils/competition";
 import { useIsMobile } from "../utils/mobile";
 import "./PublicHomeBoard.css";
 
@@ -25,16 +24,17 @@ const getBarPercent = (points: number, maxPoints: number) => {
   return Math.max(4, Math.min(100, (points / maxPoints) * 100));
 };
 
-const getRankColor = (rank: number) =>
-  getScoreboardRankingColor(rank) ?? "var(--ph-blue)";
+// 名次分档：冠军金色、亚季军奖牌色、其余中性色，具体颜色由 CSS 决定
+const getRankTier = (rank: number) => {
+  if (rank === 1) return "gold";
+  if (rank === 2) return "silver";
+  if (rank === 3) return "bronze";
+  return "rest";
+};
 
 function RankBadge({ rank }: { rank: number }) {
   return (
-    <span
-      className="ph-rank-badge"
-      style={{ background: getRankColor(rank) }}
-      aria-hidden="true"
-    >
+    <span className="ph-rank-badge" aria-hidden="true">
       {rank}
     </span>
   );
@@ -169,9 +169,12 @@ export default function PublicHomeBoard({
               <ol className="ph-rank-list" aria-label="班级分数榜前十名">
                 {topClasses.slice(0, 10).map((entry, index) => {
                   const rank = entry.rank || index + 1;
-                  const color = getRankColor(rank);
                   return (
-                    <li className="ph-rank-row" key={entry.class_id}>
+                    <li
+                      className="ph-rank-row"
+                      key={entry.class_id}
+                      data-tier={getRankTier(rank)}
+                    >
                       <RankBadge rank={rank} />
                       <div className="ph-rank-body">
                         <div className="ph-rank-line">
@@ -184,7 +187,7 @@ export default function PublicHomeBoard({
                           >
                             {entry.class_name}
                           </button>
-                          <span className="ph-points" style={{ color }}>
+                          <span className="ph-points">
                             {formatPoints(entry.total_points)}
                             <span className="ph-points-unit">分</span>
                           </span>
@@ -196,7 +199,6 @@ export default function PublicHomeBoard({
                                 entry.total_points,
                                 maxClassPoints,
                               )}%`,
-                              background: color,
                             }}
                           />
                         </div>
@@ -222,9 +224,12 @@ export default function PublicHomeBoard({
               <ol className="ph-rank-list" aria-label="个人分数榜前十名">
                 {topStudents.slice(0, 10).map((entry, index) => {
                   const rank = entry.rank || index + 1;
-                  const color = getRankColor(rank);
                   return (
-                    <li className="ph-rank-row" key={entry.student_id}>
+                    <li
+                      className="ph-rank-row"
+                      key={entry.student_id}
+                      data-tier={getRankTier(rank)}
+                    >
                       <RankBadge rank={rank} />
                       <div className="ph-rank-body">
                         <div className="ph-rank-line">
@@ -245,7 +250,7 @@ export default function PublicHomeBoard({
                               {entry.class_name}
                             </span>
                           </span>
-                          <span className="ph-points" style={{ color }}>
+                          <span className="ph-points">
                             {formatPoints(entry.total_points)}
                             <span className="ph-points-unit">分</span>
                           </span>
@@ -257,7 +262,6 @@ export default function PublicHomeBoard({
                                 entry.total_points,
                                 maxStudentPoints,
                               )}%`,
-                              background: color,
                             }}
                           />
                         </div>
