@@ -106,24 +106,34 @@ func UpdateCompetition(competition *types.Competition, customFields []types.Comp
 		return err
 	}
 
-	// 已有报名或成绩时禁止修改比赛类型，避免历史数据与类型不一致
+	// 修改比赛类型的约束：
+	// 1. 已有成绩时禁止修改，成绩记录按 student_id / class_id 存储，换了类型会对不上；
+	// 2. 改为全校性比赛时不能有报名记录（全校性比赛不开放报名，直接按班级录成绩）。
+	// 报名记录本身对个人赛和团体赛是同一套数据（按学生报名、带 class_id），
+	// 因此报名完成但成绩未录入时允许改类型，例如个人赛改为团体赛。
 	var existing types.Competition
 	if err := db.Select("competition_type").First(&existing, competition.ID).Error; err != nil {
 		return err
 	}
 	if existing.CompetitionType != competition.CompetitionType {
-		var registrationCount int64
-		if err := db.Model(&types.Registration{}).Where("competition_id = ?", competition.ID).
-			Count(&registrationCount).Error; err != nil {
-			return err
-		}
 		var scoreCount int64
 		if err := db.Model(&types.Score{}).Where("competition_id = ?", competition.ID).
 			Count(&scoreCount).Error; err != nil {
 			return err
 		}
-		if registrationCount > 0 || scoreCount > 0 {
-			return errors.New("该项目已有报名或成绩，不能修改比赛类型")
+		if scoreCount > 0 {
+			return errors.New("该项目已有成绩，不能修改比赛类型，请先删除成绩")
+		}
+
+		if competition.CompetitionType == types.TypeSchool {
+			var registrationCount int64
+			if err := db.Model(&types.Registration{}).Where("competition_id = ?", competition.ID).
+				Count(&registrationCount).Error; err != nil {
+				return err
+			}
+			if registrationCount > 0 {
+				return errors.New("该项目已有报名，不能改为全校性比赛，请先删除报名记录")
+			}
 		}
 	}
 
