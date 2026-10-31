@@ -1387,6 +1387,7 @@ const Progress: React.FC = () => {
         <BracketMatchModal
           bracketId={bracketDetail.bracket.id}
           match={editingMatch}
+          radarConfig={bracketDetail.bracket.radar_config}
           participants={
             new Map(bracketDetail.participants.map((p) => [p.id, p]))
           }

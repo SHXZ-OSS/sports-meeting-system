@@ -63,6 +63,21 @@ type UpdateBracketMatchRequest struct {
 	ScheduledAt *string  `json:"scheduled_at"` // RFC3339，空串表示清除
 	Venue       string   `json:"venue"`
 	Note        string   `json:"note"`
+	// 双方本场统计数据（启用雷达图时随结果提交，字段见 radar_config.fields）
+	Stats1 map[string]float64 `json:"stats1"`
+	Stats2 map[string]float64 `json:"stats2"`
+}
+
+// UpdateBracketRadarRequest 设置雷达图请求；enabled 为 false 时关闭
+type UpdateBracketRadarRequest struct {
+	Enabled    bool                           `json:"enabled"`
+	Preset     types.RadarPreset              `json:"preset"`
+	Dimensions []services.RadarDimensionInput `json:"dimensions"`
+}
+
+// SetParticipantRadarRequest 手动评分请求：维度 → 0–5，null 表示取消手动值
+type SetParticipantRadarRequest struct {
+	Values map[string]*float64 `json:"values" binding:"required"`
 }
 
 // ==== 管理端 ====
@@ -393,6 +408,8 @@ func updateBracketMatch(c *gin.Context, bracket *types.Bracket) {
 		WinnerID: req.WinnerID,
 		IsDraw:   req.IsDraw,
 		Clear:    req.Clear,
+		Stats1:   req.Stats1,
+		Stats2:   req.Stats2,
 		Venue:    req.Venue,
 		Note:     req.Note,
 	}
@@ -415,6 +432,63 @@ func updateBracketMatch(c *gin.Context, bracket *types.Bracket) {
 		return
 	}
 	utils.ResponseSuccessWithCustomMessage(c, "保存成功")
+}
+
+// ==== 雷达图 ====
+
+// GetRadarPresets 获取雷达图预设（各项目需统计的数据与默认维度）
+func GetRadarPresets(c *gin.Context) {
+	utils.ResponseOK(c, services.ListRadarPresets())
+}
+
+// UpdateBracketRadar 启用、修改或关闭对阵表的雷达图
+func UpdateBracketRadar(c *gin.Context) {
+	bracket, ok := loadBracket(c)
+	if !ok {
+		return
+	}
+	var req UpdateBracketRadarRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
+		return
+	}
+	var config *types.RadarConfig
+	if req.Enabled {
+		built, err := services.BuildRadarConfig(req.Preset, req.Dimensions)
+		if err != nil {
+			utils.ResponseError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		config = built
+	}
+	if err := services.UpdateBracketRadarConfig(bracket, config); err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	utils.ResponseSuccessWithCustomMessage(c, "雷达图设置已保存")
+}
+
+// SetParticipantRadar 设置参赛方的手动雷达评分（0–5 连续值）
+func SetParticipantRadar(c *gin.Context) {
+	bracket, ok := loadBracket(c)
+	if !ok {
+		return
+	}
+	participantID, err := strconv.Atoi(c.Param("participant_id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的参赛方ID")
+		return
+	}
+	var req SetParticipantRadarRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效请求")
+		return
+	}
+	if err := services.SetParticipantRadarManual(bracket, participantID, req.Values); err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	utils.ResponseSuccessWithCustomMessage(c, "评分已保存")
 }
 
 // ==== 成绩与赛事进程端（按比赛项目访问其对阵图，需成绩与赛事进程权限） ====
@@ -695,9 +769,12 @@ func respondBracketError(c *gin.Context, err error) {
 		errors.Is(err, services.ErrBracketLinkedEnabled),
 		errors.Is(err, services.ErrBracketCompetitionFinished),
 		errors.Is(err, services.ErrBracketCompetitionNotRunning),
-		errors.Is(err, services.ErrBracketToggleWithScores):
+		errors.Is(err, services.ErrBracketToggleWithScores),
+		errors.Is(err, services.ErrRadarPresetLocked):
 		utils.ResponseError(c, http.StatusConflict, err.Error())
 	case isBracketValidationError(err):
+		utils.ResponseError(c, http.StatusBadRequest, err.Error())
+	case services.IsRadarStatsError(err):
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
 	default:
 		utils.ResponseError(c, http.StatusInternalServerError, "操作失败："+err.Error())
@@ -716,6 +793,8 @@ func isBracketValidationError(err error) bool {
 		models.ErrBracketStudentMissing, models.ErrBracketClassMissing,
 		services.ErrBracketUnsupportedCompetition, services.ErrBracketTypeMismatch,
 		services.ErrBracketNotSettled, services.ErrBracketCompetitionNoMatches,
+		services.ErrRadarStatsRequired, services.ErrRadarScoreRequired,
+		services.ErrRadarManualDimension, services.ErrRadarManualRange, services.ErrRadarNotEnabled,
 	} {
 		if errors.Is(err, target) {
 			return true

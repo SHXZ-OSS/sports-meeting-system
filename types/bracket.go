@@ -72,6 +72,7 @@ type Bracket struct {
 	PointsDraw      int                    `json:"points_draw"                gorm:"not null;default:1"` // 循环赛平局积分
 	PointsLoss      int                    `json:"points_loss"                gorm:"not null;default:0"` // 循环赛负场积分
 	Published       bool                   `json:"published"                  gorm:"default:false"`      // 是否在公开看板展示
+	RadarConfig     *RadarConfig           `json:"radar_config"               gorm:"serializer:json"`    // 雷达图配置，为空表示未启用
 	CompetitionName string                 `json:"competition_name,omitempty" gorm:"-"`
 	// 所属比赛项目是否启用对阵图；关联项目关闭对阵图后，对阵表在公开端隐藏、不再参与成绩
 	CompetitionBracketEnabled bool              `json:"competition_bracket_enabled"  gorm:"-"`
@@ -98,6 +99,8 @@ type BracketParticipant struct {
 	GroupIndex int    `json:"group_index"          gorm:"not null;default:0"` // 所在小组，从 0 开始
 	Name       string `json:"name"                 gorm:"-"`                  // 展示名称，通过关联填充
 	ClassName  string `json:"class_name,omitempty" gorm:"-"`
+	// 管理员手动设置的雷达图数值（维度 → 0–5），对公式维度为覆盖值
+	RadarManual map[string]float64 `json:"radar_manual,omitempty" gorm:"serializer:json"`
 
 	// 关联关系，不响应到前端
 	Class   *Class   `json:"-" gorm:"foreignKey:ClassID"`
@@ -129,7 +132,10 @@ type BracketMatch struct {
 	ScheduledAt *time.Time         `json:"scheduled_at,omitempty"`
 	Venue       string             `json:"venue"                  gorm:"default:''"`
 	Note        string             `json:"note"                   gorm:"default:''"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	// 双方本场统计数据（雷达图字段 → 数值），随结果一起录入和清空
+	Stats1    map[string]float64 `json:"stats1,omitempty" gorm:"serializer:json"`
+	Stats2    map[string]float64 `json:"stats2,omitempty" gorm:"serializer:json"`
+	UpdatedAt time.Time          `json:"updated_at"`
 }
 
 // BracketStandingRow 小组积分榜中的一行
@@ -158,4 +164,5 @@ type BracketDetail struct {
 	Participants []*BracketParticipant  `json:"participants"`
 	Matches      []*BracketMatch        `json:"matches"`
 	Standings    []BracketGroupStanding `json:"standings"`
+	Radar        *BracketRadar          `json:"radar,omitempty"`
 }

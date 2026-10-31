@@ -22,6 +22,7 @@ import {
   EditOutlined,
   ImportOutlined,
   PlusOutlined,
+  RadarChartOutlined,
   ReloadOutlined,
   SaveOutlined,
   ThunderboltOutlined,
@@ -49,6 +50,12 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import BracketView from "../../components/BracketView";
 import BracketFormModal from "../../components/BracketFormModal";
 import BracketMatchModal from "../../components/BracketMatchModal";
+import RadarConfigModal from "../../components/radar/RadarConfigModal";
+import RadarManualModal from "../../components/radar/RadarManualModal";
+import {
+  RADAR_FORMULA_NOTE,
+  RADAR_PRESET_LABELS,
+} from "../../components/radar/radarUtils";
 
 const { Title, Text } = Typography;
 
@@ -65,6 +72,8 @@ const BracketDetail: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<BracketMatch | null>(null);
+  const [radarOpen, setRadarOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   usePageTitle(detail?.bracket.name ?? "对阵图");
 
@@ -100,6 +109,12 @@ const BracketDetail: React.FC = () => {
   const generated = detail.matches.length > 0;
   const grouped = isGroupFormat(bracket.format);
   const typeLabel = PARTICIPANT_TYPE_LABELS[bracket.participant_type];
+  const radarConfig = bracket.radar_config;
+  const hasRadarStats = detail.matches.some(
+    (m) =>
+      Object.keys(m.stats1 ?? {}).length > 0 ||
+      Object.keys(m.stats2 ?? {}).length > 0,
+  );
 
   const move = (index: number, delta: number) => {
     const next = [...order];
@@ -457,6 +472,72 @@ const BracketDetail: React.FC = () => {
         />
       </Card>
 
+      <Card
+        title="实力雷达"
+        style={{ marginBottom: 16 }}
+        extra={
+          radarConfig && (
+            <Space wrap>
+              <Button size="small" onClick={() => setManualOpen(true)}>
+                手动评分
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                icon={<RadarChartOutlined />}
+                onClick={() => setRadarOpen(true)}
+              >
+                设置雷达图
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {radarConfig ? (
+          <Space orientation="vertical" size={8} style={{ width: "100%" }}>
+            <div>
+              <Text type="secondary">预设：</Text>
+              <Tag color="gold">{RADAR_PRESET_LABELS[radarConfig.preset]}</Tag>
+              <Text type="secondary">
+                {radarConfig.dimensions.length} 个维度
+              </Text>
+            </div>
+            <div>
+              {radarConfig.dimensions.map((d) => (
+                <Tag
+                  key={d.key}
+                  color={d.formula ? "blue" : undefined}
+                  style={{ marginBlock: 2 }}
+                >
+                  {d.label}
+                  {!d.formula && "（手动）"}
+                </Tag>
+              ))}
+            </div>
+            {radarConfig.fields.length > 0 && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                每场需统计：
+                {radarConfig.fields.map((f) => f.label).join("、")}。
+                {RADAR_FORMULA_NOTE}
+              </Text>
+            )}
+          </Space>
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="未启用雷达图"
+          >
+            <Button
+              type="primary"
+              icon={<RadarChartOutlined />}
+              onClick={() => setRadarOpen(true)}
+            >
+              开启雷达图
+            </Button>
+          </Empty>
+        )}
+      </Card>
+
       <Card title="对阵图">
         {generated && (
           <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
@@ -477,6 +558,27 @@ const BracketDetail: React.FC = () => {
         }}
       />
 
+      <RadarConfigModal
+        open={radarOpen}
+        bracketId={bracketId}
+        config={radarConfig}
+        hasStats={hasRadarStats}
+        onCancel={() => setRadarOpen(false)}
+        onSaved={() => {
+          setRadarOpen(false);
+          fetchDetail();
+        }}
+      />
+
+      {radarConfig && (
+        <RadarManualModal
+          open={manualOpen}
+          detail={detail}
+          onCancel={() => setManualOpen(false)}
+          onSaved={fetchDetail}
+        />
+      )}
+
       <AddParticipantsModal
         open={addOpen}
         bracketId={bracketId}
@@ -493,6 +595,7 @@ const BracketDetail: React.FC = () => {
         bracketId={bracketId}
         match={editingMatch}
         participants={participantMap}
+        radarConfig={radarConfig}
         onCancel={() => setEditingMatch(null)}
         onSaved={() => {
           setEditingMatch(null);

@@ -33,6 +33,18 @@ func UpdateBracket(bracket *types.Bracket) error {
 	).Updates(bracket).Error
 }
 
+// UpdateBracketRadarConfig 保存雷达图配置（为空表示关闭）
+func UpdateBracketRadarConfig(bracket *types.Bracket) error {
+	return database.GetDB().Model(bracket).Select("RadarConfig").Updates(bracket).Error
+}
+
+// SaveParticipantRadarManual 保存参赛方的手动雷达评分（为空表示清除）
+func SaveParticipantRadarManual(participantID int, manual map[string]float64) error {
+	return database.GetDB().Model(&types.BracketParticipant{ID: participantID}).
+		Select("RadarManual").
+		Updates(&types.BracketParticipant{RadarManual: manual}).Error
+}
+
 // DeleteBracket 删除对阵表及其参赛方与比赛
 func DeleteBracket(id int) error {
 	return database.GetDB().Transaction(func(tx *gorm.DB) error {
@@ -407,7 +419,7 @@ func SaveBracketMatches(matches []*types.BracketMatch) error {
 		for _, m := range matches {
 			if err := tx.Model(m).Select(
 				"P1ID", "P2ID", "Score1", "Score2", "WinnerID", "IsDraw", "Completed",
-				"Status", "ScheduledAt", "Venue", "Note",
+				"Status", "ScheduledAt", "Venue", "Note", "Stats1", "Stats2",
 			).Updates(m).Error; err != nil {
 				return err
 			}

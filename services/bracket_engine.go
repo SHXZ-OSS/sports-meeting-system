@@ -620,6 +620,8 @@ func clearResult(m *types.BracketMatch) {
 	m.Score2 = nil
 	m.WinnerID = nil
 	m.IsDraw = false
+	m.Stats1 = nil
+	m.Stats2 = nil
 }
 
 func matchFingerprint(m *types.BracketMatch) string {

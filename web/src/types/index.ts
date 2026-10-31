@@ -268,6 +268,7 @@ export interface Bracket {
   points_draw: number;
   points_loss: number;
   published: boolean;
+  radar_config?: RadarConfig | null; // 雷达图配置，为空表示未启用
   participant_count: number;
   match_count: number;
   created_at: string;
@@ -283,6 +284,7 @@ export interface BracketParticipant {
   group_index: number;
   name: string;
   class_name?: string;
+  radar_manual?: Record<string, number>; // 管理员手动评分（维度 → 0–5）
 }
 
 export interface BracketMatch {
@@ -308,6 +310,8 @@ export interface BracketMatch {
   scheduled_at?: string;
   venue: string;
   note: string;
+  stats1?: Record<string, number>; // 一方本场统计数据
+  stats2?: Record<string, number>; // 另一方本场统计数据
 }
 
 export interface BracketStandingRow {
@@ -333,4 +337,75 @@ export interface BracketDetail {
   participants: BracketParticipant[];
   matches: BracketMatch[];
   standings: BracketGroupStanding[];
+  radar?: BracketRadar; // 雷达图结果，按最新比赛数据计算
+}
+
+// ==== 队伍雷达图 ====
+
+export type RadarPreset =
+  | "football"
+  | "basketball"
+  | "table_tennis"
+  | "badminton"
+  | "volleyball"
+  | "custom";
+
+export interface RadarStatField {
+  key: string;
+  label: string;
+  hint?: string;
+}
+
+export interface RadarSumConstraint {
+  fields: string[];
+  max: string;
+  message: string;
+}
+
+export interface RadarTerm {
+  side: "own" | "opp";
+  field: string; // 统计字段，或内置的 score（比分）/ match（场次）
+  weight: number;
+}
+
+export interface RadarFormula {
+  numerator: RadarTerm[];
+  denominator: RadarTerm[];
+  low: number;
+  high: number;
+  invert?: boolean;
+}
+
+export interface RadarDimension {
+  key: string;
+  label: string;
+  description?: string;
+  formula?: RadarFormula | null; // 为空时为手动评分维度
+}
+
+export interface RadarConfig {
+  preset: RadarPreset;
+  fields: RadarStatField[];
+  constraints?: RadarSumConstraint[];
+  dimensions: RadarDimension[];
+}
+
+export interface RadarPresetInfo {
+  preset: RadarPreset;
+  label: string;
+  description: string;
+  fields: RadarStatField[];
+  dimensions: RadarDimension[];
+}
+
+export interface RadarValue {
+  value: number | null; // 0–5；为空表示暂无数据
+  sample: number; // 参与计算的场次
+  manual: boolean; // 是否为管理员手动设置
+}
+
+export interface BracketRadar {
+  config: RadarConfig;
+  teams: Record<string, Record<string, RadarValue>>; // 参赛方 ID（字符串）→ 维度 → 数值
+  average: Record<string, number | null>;
 }

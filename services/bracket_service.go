@@ -60,6 +60,7 @@ func GetBracketDetail(id int) (*types.BracketDetail, error) {
 		Participants: participants,
 		Matches:      matches,
 		Standings:    standings,
+		Radar:        ComputeBracketRadar(bracket, participants, matches),
 	}, nil
 }
 
@@ -211,11 +212,14 @@ func ResetBracket(bracket *types.Bracket) error {
 
 // BracketMatchResult 比赛结果录入
 type BracketMatchResult struct {
-	Score1      *float64
-	Score2      *float64
-	WinnerID    *int
-	IsDraw      bool
-	Clear       bool // 为 true 时清空结果
+	Score1   *float64
+	Score2   *float64
+	WinnerID *int
+	IsDraw   bool
+	Clear    bool // 为 true 时清空结果
+	// 双方本场统计数据（对阵表启用雷达图时，录入或修改结果需一并提交）
+	Stats1      map[string]float64
+	Stats2      map[string]float64
 	ScheduledAt *time.Time
 	Venue       string
 	Note        string
@@ -262,12 +266,21 @@ func UpdateBracketMatch(
 	target.Note = result.Note
 
 	before := resultSignature(target)
+	oldStats1, oldStats2 := target.Stats1, target.Stats2
 	if result.Clear {
 		clearResult(target)
 	} else if err := applyMatchResult(target, result); err != nil {
 		return false, err
 	}
 	resultChanged := resultSignature(target) != before
+	if !result.Clear {
+		statsChanged, err := applyRadarStats(bracket.RadarConfig, target, result, resultChanged)
+		if err != nil {
+			return false, err
+		}
+		resultChanged = resultChanged || statsChanged ||
+			radarStatsChanged(oldStats1, target.Stats1) || radarStatsChanged(oldStats2, target.Stats2)
+	}
 
 	// 比分有变化时才校验项目进程（仅改时间地点不受限）
 	var competition *types.Competition
@@ -288,6 +301,103 @@ func UpdateBracketMatch(
 		return false, nil
 	}
 	return completeCompetitionFromBracket(competition, bracket, participants, matches, standings, operatorID)
+}
+
+// applyRadarStats 启用雷达图时校验并写入双方统计数据，返回统计数据是否有变化
+//
+// 比分或胜负改动时必须提交完整统计；只改时间地点等信息时可不提交（保留原统计）。
+func applyRadarStats(
+	config *types.RadarConfig,
+	m *types.BracketMatch,
+	result *BracketMatchResult,
+	outcomeChanged bool,
+) (bool, error) {
+	if config == nil || len(config.Fields) == 0 || !m.Completed {
+		return false, nil
+	}
+	provided := result.Stats1 != nil || result.Stats2 != nil
+	if !provided {
+		if outcomeChanged {
+			return false, ErrRadarStatsRequired
+		}
+		return false, nil
+	}
+	if m.Score1 == nil || m.Score2 == nil {
+		return false, ErrRadarScoreRequired
+	}
+	if err := validateRadarStats(config, result.Stats1, "一方"); err != nil {
+		return false, err
+	}
+	if err := validateRadarStats(config, result.Stats2, "另一方"); err != nil {
+		return false, err
+	}
+	s1, s2 := pickRadarStats(config, result.Stats1), pickRadarStats(config, result.Stats2)
+	changed := radarStatsChanged(m.Stats1, s1) || radarStatsChanged(m.Stats2, s2)
+	m.Stats1, m.Stats2 = s1, s2
+	return changed, nil
+}
+
+// UpdateBracketRadarConfig 启用、修改或关闭对阵表的雷达图（config 为空表示关闭）
+// 已有比赛录入统计数据时不允许更换预设，避免历史统计与新字段对不上
+func UpdateBracketRadarConfig(bracket *types.Bracket, config *types.RadarConfig) error {
+	bracketMu.Lock()
+	defer bracketMu.Unlock()
+
+	if config != nil && bracket.RadarConfig != nil && bracket.RadarConfig.Preset != config.Preset {
+		matches, err := models.GetBracketMatches(bracket.ID)
+		if err != nil {
+			return err
+		}
+		for _, m := range matches {
+			if m.Stats1 != nil || m.Stats2 != nil {
+				return ErrRadarPresetLocked
+			}
+		}
+	}
+	bracket.RadarConfig = config
+	return models.UpdateBracketRadarConfig(bracket)
+}
+
+// SetParticipantRadarManual 设置参赛方的手动评分；values 中为 nil 的维度表示取消手动值（恢复公式计算）
+func SetParticipantRadarManual(bracket *types.Bracket, participantID int, values map[string]*float64) error {
+	bracketMu.Lock()
+	defer bracketMu.Unlock()
+
+	if bracket.RadarConfig == nil {
+		return ErrRadarNotEnabled
+	}
+	dims := make(map[string]bool, len(bracket.RadarConfig.Dimensions))
+	for _, d := range bracket.RadarConfig.Dimensions {
+		dims[d.Key] = true
+	}
+	participant, err := models.GetBracketParticipantByID(bracket.ID, participantID)
+	if err != nil {
+		return err
+	}
+	manual := make(map[string]float64, len(participant.RadarManual))
+	for k, v := range participant.RadarManual {
+		// 清理已不在配置中的维度
+		if dims[k] {
+			manual[k] = v
+		}
+	}
+	for k, v := range values {
+		if !dims[k] {
+			return ErrRadarManualDimension
+		}
+		if v == nil {
+			delete(manual, k)
+			continue
+		}
+		if *v < 0 || *v > radarMaxScore || *v != *v {
+			return ErrRadarManualRange
+		}
+		manual[k] = round2(*v)
+	}
+	if len(manual) == 0 {
+		manual = nil
+	}
+	return models.SaveParticipantRadarManual(participant.ID, manual)
 }
 
 // resultSignature 单场比赛结果的摘要，用于判断本次是否改动了比分

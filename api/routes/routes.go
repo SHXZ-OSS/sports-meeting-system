@@ -206,6 +206,7 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	bracketMgmt.GET("/competitions", handlers.GetAllCompetitions) // 关联项目选择
 	bracketMgmt.GET("/classes", handlers.GetAllClasses)           // 参赛班级选择
 	bracketMgmt.GET("/students", handlers.GetAllStudents)         // 参赛学生选择
+	bracketMgmt.GET("/radar-presets", handlers.GetRadarPresets)   // 雷达图预设
 	bracketMgmt.GET("/:id", handlers.GetBracket)
 	bracketMgmt.PUT("/:id", handlers.UpdateBracket)
 	bracketMgmt.DELETE("/:id", handlers.DeleteBracket)
@@ -217,6 +218,8 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	bracketMgmt.POST("/:id/generate", handlers.GenerateBracket)
 	bracketMgmt.POST("/:id/reset", handlers.ResetBracket)
 	bracketMgmt.PUT("/:id/matches/:match_id", handlers.UpdateBracketMatch)
+	bracketMgmt.PUT("/:id/radar", handlers.UpdateBracketRadar)
+	bracketMgmt.PUT("/:id/participants/:participant_id/radar", handlers.SetParticipantRadar)
 
 	// 系统设置（需要网站管理权限）
 	websiteMgmt := adminAPI.Group("/settings")

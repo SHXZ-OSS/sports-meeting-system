@@ -8,6 +8,8 @@ import {
   Class,
   Competition,
   PaginatedResponse,
+  RadarPreset,
+  RadarPresetInfo,
   Student,
 } from "../../types";
 
@@ -35,6 +37,15 @@ export interface UpdateBracketMatchRequest {
   scheduled_at?: string;
   venue?: string;
   note?: string;
+  stats1?: Record<string, number>; // 启用雷达图时需提交双方统计数据
+  stats2?: Record<string, number>;
+}
+
+export interface UpdateBracketRadarRequest {
+  enabled: boolean;
+  preset?: RadarPreset;
+  // key 为预设维度时沿用其公式，否则为手动评分维度
+  dimensions?: { key?: string; label: string }[];
 }
 
 /**
@@ -131,6 +142,38 @@ export const adminBracketAPI = {
 
   reset: async (id: number): Promise<ApiResponse<void>> => {
     return await callApi(() => api.post(`/admin/brackets/${id}/reset`));
+  },
+
+  /**
+   * 获取雷达图预设（各项目需统计的数据与默认维度）
+   */
+  getRadarPresets: async (): Promise<ApiResponse<RadarPresetInfo[]>> => {
+    return await callApi(() => api.get("/admin/brackets/radar-presets"));
+  },
+
+  /**
+   * 启用、修改或关闭对阵表的雷达图
+   */
+  updateRadar: async (
+    id: number,
+    data: UpdateBracketRadarRequest,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() => api.put(`/admin/brackets/${id}/radar`, data));
+  },
+
+  /**
+   * 设置参赛方的手动评分（维度 → 0–5，null 表示恢复公式计算）
+   */
+  setParticipantRadar: async (
+    id: number,
+    participantId: number,
+    values: Record<string, number | null>,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.put(`/admin/brackets/${id}/participants/${participantId}/radar`, {
+        values,
+      }),
+    );
   },
 
   updateMatch: async (

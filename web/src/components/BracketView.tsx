@@ -19,6 +19,7 @@ import schoolBlue from "../assets/rm/school_blue.png";
 import schoolGrey from "../assets/rm/school_grey.png";
 import orderBg from "../assets/rm/order_bg.png";
 import championImg from "../assets/rm/champion.png";
+import TeamRadarPanel from "./radar/TeamRadarPanel";
 import "./BracketView.css";
 
 interface BracketViewProps {
@@ -838,7 +839,16 @@ const BracketView: React.FC<BracketViewProps> = ({ detail, onMatchClick }) => {
     return <Empty description="对阵尚未生成" />;
   }
 
+  // 默认页签只在赛段中选择，实力雷达不参与
   const fallback = (tabs.find((t) => t.live) ?? tabs[tabs.length - 1]).key;
+  if (detail.radar) {
+    tabs.push({
+      key: "radar",
+      label: "实力雷达",
+      live: false,
+      render: () => <TeamRadarPanel detail={detail} />,
+    });
+  }
   const activeKey =
     picked && picked.id === bracket.id && tabs.some((t) => t.key === picked.key)
       ? picked.key
