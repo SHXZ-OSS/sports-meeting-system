@@ -1,4 +1,5 @@
 import {
+  BracketDetail,
   BracketFormat,
   BracketMatch,
   BracketMatchStatus,
@@ -105,4 +106,25 @@ export const getSlotPlaceholder = (
     default:
       return "待定";
   }
+};
+
+// 冠军：淘汰赛决赛或双败总决赛的胜者；纯循环赛且全部完赛时取积分第一
+export const getBracketChampion = (detail: BracketDetail): number | null => {
+  const { bracket, matches, standings } = detail;
+  if (bracket.format === "round_robin") {
+    const done = matches.every(
+      (m) => m.stage !== "group" || m.status !== "scheduled",
+    );
+    const pending = matches.some((m) => m.status === "pending");
+    if (!done || pending || standings.length !== 1) return null;
+    return standings[0].rows[0]?.participant_id ?? null;
+  }
+  const finalStage: BracketStage =
+    bracket.format === "double_elimination" ? "grand_final" : "main";
+  const finals = matches.filter((m) => m.stage === finalStage);
+  if (finals.length === 0) return null;
+  const last = finals.reduce((a, b) => (b.round > a.round ? b : a));
+  return last.status === "completed" || last.status === "bye"
+    ? last.winner_id
+    : null;
 };

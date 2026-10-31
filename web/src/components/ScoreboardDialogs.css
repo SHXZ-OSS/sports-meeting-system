@@ -1,4 +1,8 @@
-/* 看板弹层：居中模态框，标题 + 内容，间距沿用 24px 栅格。 */
+/*
+ * 看板弹层：照搬 RM Schedule 的深色 v-dialog
+ * 卡片沿用 MatchMenu / SearchPlayer 的毛玻璃深蓝卡片，标题为 title_bg.png 横幅，
+ * 行沿用 school_bg.png 队伍行与 BracketTeamRow 的浅色底行，全部使用 MyFont。
+ */
 .sd-overlay {
   position: fixed;
   inset: 0;
@@ -6,28 +10,37 @@
   place-items: center;
   padding: 24px;
   overflow: hidden;
-  background: rgba(4, 8, 16, 0.62);
-  backdrop-filter: blur(6px) saturate(1.05);
-  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  /* Vuetify v-overlay 遮罩：黑色 0.32，叠一层 RM 画布色 */
+  background: rgba(2, 8, 16, 0.6);
   animation: sd-backdrop-in 0.18s ease both;
 }
 .sd-modal {
-  --sd-text: var(--sm-text);
-  --sd-muted: var(--sm-text-secondary);
-  --sd-line: var(--sm-line);
-  --sd-blue: var(--sm-accent);
+  --sd-text: #fff;
+  --sd-muted: rgba(220, 232, 246, 0.72);
+  --sd-line: rgba(255, 255, 255, 0.12);
+  --sd-blue: #64b5f6;
   width: 100%;
   max-height: 88vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--sm-line-strong);
-  border-radius: 4px;
-  background: var(--sm-panel-solid);
+  border: 1px solid rgba(210, 232, 250, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(172, 211, 240, 0.075),
+      rgba(24, 53, 79, 0.025)
+    ),
+    rgba(7, 20, 36, 0.86);
   color: var(--sd-text);
+  font-family: "MyFont", sans-serif;
   box-shadow:
-    0 24px 70px -20px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(33, 184, 201, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 18px 48px rgba(0, 5, 16, 0.42),
+    0 4px 14px rgba(0, 8, 24, 0.28);
+  backdrop-filter: blur(28px) saturate(1.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55);
   animation: sd-modal-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .sd-modal--sm {
@@ -40,53 +53,61 @@
   max-width: 780px;
 }
 
-/* 头部 */
+/* 头部：居中横幅 + 右上角圆形关闭按钮（MatchMenu 的 bracket-menu-close） */
 .sd-head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 24px 14px 0;
-  border-bottom: 1px solid var(--sd-line);
-  background: linear-gradient(180deg, var(--sm-panel-raised), transparent);
+  justify-content: center;
+  padding: 16px 60px 8px;
 }
 .sd-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 420px);
+  min-height: 48px;
   margin: 0;
-  padding: 4px 48px 4px 24px;
+  padding: 4px 36px 2px;
+  box-sizing: border-box;
   color: #fff;
-  font-family: var(--sm-display-font);
+  font-family: "MyFont", sans-serif;
   font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
+  font-weight: normal;
+  line-height: 1.25;
+  text-align: center;
   overflow-wrap: anywhere;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: 3px 3px 6px #000;
   background: var(--sm-banner);
-  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
 }
 .sd-close {
+  position: absolute;
+  top: 18px;
+  right: 14px;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  margin: -2px -2px 0 0;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 0;
+  border: 1px solid rgba(218, 237, 251, 0.1);
   border-radius: 50%;
-  background: transparent;
-  color: var(--sd-muted);
+  background: rgba(205, 229, 247, 0.08);
+  color: rgba(226, 240, 251, 0.82);
   cursor: pointer;
   transition:
-    background 0.15s ease,
-    color 0.15s ease;
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 120ms ease;
 }
 .sd-close:hover {
-  background: var(--sm-panel-hover);
-  color: var(--sd-text);
+  background: rgba(218, 237, 251, 0.14);
+  color: #fff;
+}
+.sd-close:active {
+  transform: scale(0.92);
 }
 .sd-close:focus-visible {
-  outline: 2px solid var(--sm-accent);
+  outline: 2px solid #2196f3;
   outline-offset: 2px;
 }
 .sd-close svg {
@@ -94,7 +115,7 @@
   height: 17px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  stroke-width: 1.9;
   stroke-linecap: round;
 }
 
@@ -110,7 +131,8 @@
   width: 8px;
 }
 .sd-body::-webkit-scrollbar-thumb {
-  border: 2px solid var(--sm-panel-solid);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   border-radius: 999px;
   background: var(--sm-line-strong);
 }
@@ -129,20 +151,20 @@
 .sd-meta-label {
   color: var(--sd-muted);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.1em;
 }
 .sd-meta-value {
   color: var(--sd-text);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 .sd-meta-line .sd-status {
   color: var(--sd-text);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.01em;
 }
 .sd-result-facts {
@@ -154,7 +176,7 @@
   margin: 0 0 10px;
   color: var(--sd-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.08em;
 }
 .sd-facts {
@@ -173,7 +195,7 @@
   flex: 0 0 auto;
   color: var(--sd-muted);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.08em;
 }
 .sd-facts dd {
@@ -182,7 +204,7 @@
   overflow: hidden;
   color: var(--sd-text);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: normal;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -202,7 +224,7 @@
   border-bottom: 1px solid var(--sd-line);
   color: var(--sd-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.06em;
   text-align: left;
   white-space: nowrap;
@@ -228,11 +250,11 @@
   border-top: 0;
 }
 .sd-table tbody tr:hover {
-  background: var(--sm-panel-hover);
+  background: rgba(180, 218, 246, 0.1);
 }
 .sd-strong {
   color: var(--sd-text);
-  font-weight: 600;
+  font-weight: normal;
 }
 .sd-muted {
   color: var(--sd-muted);
@@ -248,19 +270,19 @@
   font-weight: 400;
 }
 .sd-number {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-weight: 500;
+  font-family: "MyFont", sans-serif;
+  font-weight: normal;
   letter-spacing: -0.01em;
 }
 .sd-rank {
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "MyFont", sans-serif;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
 }
 .sd-rank-text {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-weight: 600;
+  font-family: "MyFont", sans-serif;
+  font-weight: normal;
 }
 .sd-link {
   display: inline;
@@ -269,10 +291,10 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: normal;
   text-align: left;
   text-decoration: underline;
-  text-decoration-color: rgba(33, 184, 201, 0.4);
+  text-decoration-color: rgba(100, 181, 246, 0.45);
   text-underline-offset: 3px;
   cursor: pointer;
   transition:
@@ -285,22 +307,28 @@
 }
 .sd-link-static {
   color: var(--sd-text);
-  font-weight: 600;
+  font-weight: normal;
 }
 
 /* 得分账单：项目、类型、名次、得分、说明、时间在同一条流水里。 */
 .sd-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .sd-entry {
-  padding: 14px 0;
-  border-bottom: 1px dashed var(--sd-line);
-}
-.sd-entry:last-child {
-  padding-bottom: 6px;
-  border-bottom: 0;
+  padding: 10px 14px;
+  border-left: 3px solid rgba(132, 187, 230, 0.68);
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(210, 232, 248, 0.055),
+    rgba(255, 255, 255, 0.025)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 .sd-entry-top {
   display: flex;
@@ -311,15 +339,15 @@
 .sd-entry-name {
   color: var(--sd-text);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: 0.01em;
   line-height: 1.35;
 }
 .sd-entry-points {
   flex: 0 0 auto;
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "MyFont", sans-serif;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
@@ -346,52 +374,68 @@
   font-size: 12px;
   line-height: 1.55;
 }
+/* RM 比分徽标：灰底白字，前三名金底深色字 */
 .sd-rank-chip {
   display: inline-flex;
   align-items: center;
   height: 20px;
   padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--sd-muted);
+  border: 0;
+  border-radius: 0;
+  background: #616161;
+  color: #fff;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+.sd-rank-chip[data-podium="true"] {
+  background: #ffa500;
+  color: #1a1408;
 }
 .sd-rank-chip--empty {
   padding: 0;
   background: transparent;
+  color: var(--sd-muted);
 }
 
 /* 比赛结果：名次 + 选手 / 班级 + 成绩 + 得分。 */
 .sd-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .sd-result {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px dashed var(--sd-line);
-}
-.sd-result:last-child {
-  padding-bottom: 6px;
-  border-bottom: 0;
+  gap: 14px;
+  min-height: 56px;
+  padding: 6px 30px 6px 14px;
+  background: url("../assets/rm/school_bg.png") center / 100% 100% no-repeat;
 }
 .sd-result-rank {
-  color: var(--sd-muted);
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  background: #616161;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 18px;
+  font-weight: normal;
   line-height: 1;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+.sd-result-rank[data-podium="true"] {
+  background: #ffa500;
+  color: #1a1408;
 }
 .sd-result-main {
   min-width: 0;
@@ -402,18 +446,18 @@
   gap: 8px;
   min-width: 0;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: 0.01em;
   line-height: 1.35;
 }
 .sd-result-class {
-  color: var(--sd-muted);
+  color: #9d9f9f;
   font-size: 12px;
   font-weight: 400;
   white-space: nowrap;
 }
 .sd-result-meta {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--sd-muted);
   font-size: 14px;
   line-height: 1.5;
@@ -421,9 +465,9 @@
 }
 .sd-result-points {
   flex: 0 0 auto;
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "MyFont", sans-serif;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -431,7 +475,7 @@
 .sd-result-points span {
   margin-left: 2px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   opacity: 0.7;
 }
 
@@ -445,7 +489,7 @@
   margin: 0 0 4px;
   color: var(--sd-muted);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.08em;
 }
 .sd-timeline-list {
@@ -465,9 +509,9 @@
 }
 .sd-timeline-clock {
   color: var(--sd-text);
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "MyFont", sans-serif;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
@@ -500,7 +544,7 @@
   margin-top: 12px;
   border-radius: 50%;
   background: #8696aa;
-  box-shadow: 0 0 0 3px var(--sm-panel-solid);
+  box-shadow: 0 0 0 3px #0a1a2c;
 }
 .sd-timeline-dot[data-status="in_progress"] {
   background: var(--sm-red);
@@ -517,12 +561,19 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding: 8px 0 16px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
   border: 0;
+  border-radius: 12px;
   background: none;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.sd-timeline-body:hover {
+  background: rgba(180, 218, 246, 0.1);
 }
 .sd-timeline-title {
   display: flex;
@@ -535,7 +586,7 @@
   overflow: hidden;
   color: var(--sd-text);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: 0.01em;
   line-height: 1.3;
   text-overflow: ellipsis;
@@ -561,16 +612,16 @@
   padding: 0 8px;
   border-radius: 3px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.02em;
 }
 .sd-type--ranking {
-  background: rgba(33, 184, 201, 0.14);
-  color: #5fd3e0;
+  background: rgba(33, 150, 243, 0.18);
+  color: #90caf9;
 }
 .sd-type--custom {
-  background: rgba(62, 207, 142, 0.14);
-  color: var(--sm-win);
+  background: rgba(76, 175, 80, 0.18);
+  color: #81c784;
 }
 .sd-summary {
   margin-top: 20px;
@@ -596,17 +647,17 @@
   gap: 16px;
   margin-top: 10px;
   padding-top: 12px;
-  border-top: 2px solid var(--sm-accent);
+  border-top: 2px solid #2196f3;
   color: var(--sd-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: 0.02em;
 }
 .sd-summary-total span:last-child {
-  color: var(--sm-accent);
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: var(--sd-blue);
+  font-family: "MyFont", sans-serif;
   font-size: 26px;
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
@@ -670,30 +721,45 @@
 .sd-list {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 .sd-row {
   display: flex;
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 12px 0;
+  min-height: 52px;
+  padding: 8px 14px;
   border: 0;
-  border-top: 1px solid var(--sd-line);
-  background: none;
+  border-left: 3px solid rgba(132, 187, 230, 0.68);
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(210, 232, 248, 0.055),
+    rgba(255, 255, 255, 0.025)
+  );
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 160ms ease;
 }
-.sd-row:first-child {
-  padding-top: 2px;
-  border-top: 0;
+.sd-row:hover {
+  background: rgba(180, 218, 246, 0.1);
+}
+.sd-row:focus-visible,
+.sd-timeline-body:focus-visible,
+.sd-link:focus-visible,
+.sd-text-button:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
 }
 .sd-row-name {
   flex: 1;
   min-width: 0;
   color: var(--sd-text);
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: normal;
   letter-spacing: 0.01em;
   line-height: 1.35;
   white-space: nowrap;
@@ -731,24 +797,24 @@
 .sd-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 12px 24px;
-  border-top: 1px solid var(--sd-line);
-  background: var(--sm-bg);
+  padding: 8px 16px 14px;
 }
 .sd-text-button {
-  padding: 0;
+  padding: 8px 12px;
   border: 0;
+  border-radius: 4px;
   background: none;
-  color: var(--sm-accent);
+  color: var(--sd-blue);
+  font-family: "MyFont", sans-serif;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.15s ease;
 }
 .sd-text-button:hover {
-  color: #5fd3e0;
+  background: rgba(100, 181, 246, 0.08);
 }
 .sd-loading,
 .sd-empty {
@@ -785,14 +851,28 @@
   .sd-modal {
     max-height: calc(100svh - 24px);
   }
+  .sd-modal {
+    border-radius: 16px;
+  }
   .sd-head {
-    padding: 14px 18px 12px 0;
+    padding: 14px 54px 6px;
+  }
+  .sd-title {
+    min-height: 42px;
+    padding: 2px 26px 0;
+    font-size: 19px;
+  }
+  .sd-close {
+    top: 16px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
   }
   .sd-body {
     padding: 12px 18px 20px;
   }
   .sd-footer {
-    padding: 10px 18px;
+    padding: 6px 10px 12px;
   }
   .sd-entry-name,
   .sd-entry-points {
@@ -812,11 +892,13 @@
     font-size: 18px;
   }
   .sd-result {
-    grid-template-columns: 36px minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 10px;
+    padding: 6px 24px 6px 10px;
   }
   .sd-result-rank {
-    font-size: 20px;
+    min-width: 28px;
+    height: 26px;
+    font-size: 16px;
   }
   .sd-result-name,
   .sd-result-points {
@@ -840,5 +922,10 @@
   .sd-overlay,
   .sd-modal {
     animation: none;
+  }
+  .sd-close,
+  .sd-row,
+  .sd-timeline-body {
+    transition: none;
   }
 }

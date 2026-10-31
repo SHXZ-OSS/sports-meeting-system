@@ -10,7 +10,6 @@ import {
   Switch,
   Typography,
 } from "antd";
-import type { BackgroundEffectsPreference } from "../utils/performance";
 import type {
   ScoreAnnouncementScope,
   ScoreboardSettings,
@@ -42,15 +41,6 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
   voiceOptions,
   onPreviewAnnouncement,
 }) => {
-  const updateBackgroundEffectsPreference = (
-    backgroundEffectsPreference: BackgroundEffectsPreference,
-  ) => {
-    onChange({
-      ...settings,
-      backgroundEffectsPreference,
-    });
-  };
-
   const updateScoreAnnouncement = <
     K extends keyof ScoreboardSettings["scoreAnnouncement"],
   >(
@@ -85,32 +75,6 @@ const ScoreboardSettingsModal: React.FC<ScoreboardSettingsModalProps> = ({
       styles={{ body: { paddingTop: 8 } }}
     >
       <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <div>
-          <Text strong style={{ fontSize: 16 }}>
-            背景动画
-          </Text>
-          <Paragraph
-            type="secondary"
-            style={{ marginTop: 8, marginBottom: 12 }}
-          >
-            自动模式会根据设备性能和实际运行帧率决定是否开启；如果现场机器性能足够，也可以强制打开。
-          </Paragraph>
-          <Radio.Group
-            value={settings.backgroundEffectsPreference}
-            onChange={(event) =>
-              updateBackgroundEffectsPreference(event.target.value)
-            }
-            optionType="button"
-            buttonStyle="solid"
-          >
-            <Radio.Button value="auto">自动</Radio.Button>
-            <Radio.Button value="enabled">总是开启</Radio.Button>
-            <Radio.Button value="disabled">关闭</Radio.Button>
-          </Radio.Group>
-        </div>
-
-        <Divider style={{ margin: 0 }} />
-
         <div>
           <Space
             align="center"

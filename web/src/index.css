@@ -1,12 +1,8 @@
-/* 按 unicode-range 分片加载，页面只下载实际用到的字形 */
-@import "@fontsource/noto-sans-sc/900.css";
 @import "./theme/global.css";
 
 body {
   margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Microsoft YaHei", "Roboto", "Helvetica Neue", sans-serif;
+  font-family: "MyFont", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

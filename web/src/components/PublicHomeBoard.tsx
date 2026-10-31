@@ -32,13 +32,27 @@ const getRankTier = (rank: number) => {
   return "rest";
 };
 
+// RM Schedule 队伍行：比分徽标 + 白色圆形校徽 + 单行名称
 function RankBadge({ rank }: { rank: number }) {
   return (
-    <span className="ph-rank-badge" aria-hidden="true">
-      {rank}
-    </span>
+    <>
+      <span className="ph-rank-badge" aria-hidden="true">
+        {rank}
+      </span>
+      <span className="ph-avatar" aria-hidden="true">
+        <img src="/school-emblem.svg" alt="" />
+      </span>
+    </>
   );
 }
+
+// 顶栏图标（Material Design Icons 路径，与 RM Schedule 的 mdi 图标同源）
+const MDI_TOURNAMENT =
+  "M2 2v2h5v4H2v2h5c1.11 0 2-.89 2-2V7h5v10H9v-1c0-1.11-.89-2-2-2H2v2h5v4H2v2h5c1.11 0 2-.89 2-2v-1h5c1.11 0 2-.89 2-2v-4h6v-2h-6V7c0-1.11-.89-2-2-2H9V4c0-1.11-.89-2-2-2H2Z";
+const MDI_LOGIN =
+  "M11 7 9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5m9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14Z";
+const MDI_ACCOUNT =
+  "M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2M7.07 18.28c.43-.9 3.05-1.78 4.93-1.78s4.5.88 4.93 1.78A7.893 7.893 0 0 1 12 20c-1.86 0-3.57-.64-4.93-1.72m11.29-1.45c-1.43-1.74-4.9-2.33-6.36-2.33s-4.93.59-6.36 2.33A7.95 7.95 0 0 1 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 1.82-.62 3.5-1.64 4.83M12 6c-1.94 0-3.5 1.56-3.5 3.5S10.06 13 12 13s3.5-1.56 3.5-3.5S13.94 6 12 6m0 5a1.5 1.5 0 0 1-1.5-1.5A1.5 1.5 0 0 1 12 8a1.5 1.5 0 0 1 1.5 1.5A1.5 1.5 0 0 1 12 11Z";
 
 interface PublicHomeBoardProps {
   eventName?: string;
@@ -110,12 +124,30 @@ export default function PublicHomeBoard({
 
   return (
     <div className="ph-shell">
-      <header className="ph-header">
+      <header className="ph-header sm-glass">
         <div className="ph-brand" onClick={onTitleClick} role="presentation">
           <img className="ph-emblem" src="/school-emblem.svg" alt="行知校徽" />
-          <span className="ph-school">上海市行知中学</span>
-          <span className="ph-divider" aria-hidden="true" />
-          <h1>{eventName?.trim() || "运动会"}</h1>
+          {isMobile ? (
+            <div className="ph-field-block ph-field-block--grow">
+              <span className="ph-field-label">上海市行知中学</span>
+              <h1 className="ph-field-value">
+                {eventName?.trim() || "运动会"}
+              </h1>
+            </div>
+          ) : (
+            <>
+              <div className="ph-field-block">
+                <span className="ph-field-label">学校</span>
+                <span className="ph-field-value ph-school">上海市行知中学</span>
+              </div>
+              <div className="ph-field-block ph-field-block--grow">
+                <span className="ph-field-label">赛事</span>
+                <h1 className="ph-field-value">
+                  {eventName?.trim() || "运动会"}
+                </h1>
+              </div>
+            </>
+          )}
         </div>
         <div className="ph-side">
           {onOpenBrackets && (
@@ -126,8 +158,8 @@ export default function PublicHomeBoard({
               aria-label="对阵图"
               title={isMobile ? "对阵图" : undefined}
             >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M3 4h4v4H3zM3 12h4v4H3zM7 6h3v8H7M10 10h3M13 8h4v4h-4z" />
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d={MDI_TOURNAMENT} />
               </svg>
               {!isMobile && "对阵图"}
             </button>
@@ -139,12 +171,8 @@ export default function PublicHomeBoard({
             title={isLoggedIn ? "进入系统" : "登录"}
             aria-label={isLoggedIn ? "进入系统" : "登录"}
           >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              {isLoggedIn ? (
-                <path d="M10 10a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 10 10Zm-6 6.4c0-2.5 2.7-4.2 6-4.2s6 1.7 6 4.2" />
-              ) : (
-                <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
-              )}
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d={isLoggedIn ? MDI_ACCOUNT : MDI_LOGIN} />
             </svg>
             {!isMobile && (
               <span className="ph-login-label">
@@ -162,8 +190,10 @@ export default function PublicHomeBoard({
             aria-labelledby="ph-class-title"
           >
             <header className="ph-heading">
-              <h2 id="ph-class-title">班级分数榜</h2>
-              <span className="ph-heading-note">TOP 10</span>
+              <h2 id="ph-class-title">
+                班级分数榜
+                <span className="ph-heading-note">TOP 10</span>
+              </h2>
             </header>
             {topClasses.length > 0 ? (
               <ol className="ph-rank-list" aria-label="班级分数榜前十名">
@@ -217,8 +247,10 @@ export default function PublicHomeBoard({
             aria-labelledby="ph-student-title"
           >
             <header className="ph-heading">
-              <h2 id="ph-student-title">个人分数榜</h2>
-              <span className="ph-heading-note">TOP 10</span>
+              <h2 id="ph-student-title">
+                个人分数榜
+                <span className="ph-heading-note">TOP 10</span>
+              </h2>
             </header>
             {topStudents.length > 0 ? (
               <ol className="ph-rank-list" aria-label="个人分数榜前十名">

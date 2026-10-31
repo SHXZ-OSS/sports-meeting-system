@@ -1,8 +1,10 @@
+/* 投票按钮：RM Schedule 的红蓝方配色（#f44336 / #2196f3 提亮色保证深底对比度） */
 .vote-buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  font-family: "MyFont", sans-serif;
   user-select: none;
 }
 
@@ -11,29 +13,30 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--sm-line-strong);
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
   cursor: pointer;
   transition: all 0.2s;
   padding: 4px;
-  color: var(--sm-text-secondary);
+  color: rgba(220, 232, 246, 0.72);
 }
 
 .vote-button:hover:not(.disabled) {
-  border-color: var(--sm-accent);
-  color: var(--sm-accent);
+  border-color: #64b5f6;
+  color: #64b5f6;
+  background: rgba(180, 218, 246, 0.1);
 }
 
 .vote-button.upvote.active {
-  border-color: #ff6a3d;
-  color: #ff6a3d;
-  background: rgba(255, 106, 61, 0.14);
+  border-color: #f44336;
+  color: #ff8a80;
+  background: rgba(244, 67, 54, 0.16);
 }
 
 .vote-button.downvote.active {
-  border-color: #8aa6ff;
-  color: #8aa6ff;
-  background: rgba(138, 166, 255, 0.14);
+  border-color: #2196f3;
+  color: #77bfff;
+  background: rgba(33, 150, 243, 0.16);
 }
 
 .vote-button.disabled {
@@ -42,7 +45,7 @@
 }
 
 .vote-count {
-  font-weight: 600;
+  font-weight: normal;
   font-size: 14px;
   color: var(--sm-text);
   min-width: 24px;
@@ -50,11 +53,11 @@
 }
 
 .vote-count.positive {
-  color: #ff6a3d;
+  color: #ff8a80;
 }
 
 .vote-count.negative {
-  color: #8aa6ff;
+  color: #77bfff;
 }
 
 /* Size variations */

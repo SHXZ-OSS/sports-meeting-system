@@ -1,46 +1,38 @@
 import { theme, type ThemeConfig } from "antd";
 
 /**
- * 全站视觉主题（参考 RM Schedule 的深色赛事风格）
+ * 全站视觉主题：照搬 RM Schedule（rm-schedule-ui，Vuetify 深色主题）
  *
  * 颜色同时以 CSS 变量形式写入 :root（见 theme/global.css），
- * 组件内联样式请使用 var(--sm-*)，不要再硬编码浅色值。
+ * 组件内联样式请使用 var(--sm-*)，不要再硬编码颜色值。
  */
 export const palette = {
-  // 背景层级：页面 → 面板 → 抬升面板
-  bg: "#0b1220",
-  bgDeep: "#060a14",
-  panel: "rgba(17, 26, 44, 0.78)",
-  panelSolid: "#111a2c",
-  panelRaised: "#18243b",
-  panelHover: "#1f2d48",
-  line: "rgba(148, 178, 214, 0.16)",
-  lineStrong: "rgba(148, 178, 214, 0.32)",
+  // RM Schedule 画布色；页面背景为半透明赛场图叠在画布上
+  bg: "#061321",
+  panel: "rgba(7, 18, 36, 0.9)",
+  panelSolid: "#0a1a2e",
+  panelRaised: "rgba(255, 255, 255, 0.08)",
+  panelHover: "rgba(255, 255, 255, 0.12)",
+  line: "rgba(255, 255, 255, 0.12)",
+  lineStrong: "rgba(255, 255, 255, 0.24)",
 
-  // 文字
-  text: "#e8eef7",
-  textSecondary: "#a3b1c6",
-  textMuted: "#6f7f97",
+  text: "#ffffff",
+  textSecondary: "rgba(220, 232, 246, 0.72)",
+  textMuted: "#9d9f9f",
 
-  // 强调色：标题横幅的青蓝渐变与冠军金
-  accent: "#21b8c9",
-  accentDeep: "#137b8c",
-  gold: "#f5a623",
-  goldDeep: "#c77a12",
-
-  // 红蓝方与胜负
-  red: "#e5484d",
-  blue: "#3e8bff",
-  win: "#3ecf8e",
-  lose: "#5b6678",
+  // Vuetify 深色主题 primary / success / warning
+  accent: "#2196f3",
+  accentDeep: "#1565c0",
+  gold: "#ffc857",
+  red: "#f44336",
+  blue: "#2196f3",
+  win: "#4caf50",
+  lose: "#616161",
 } as const;
 
-// 标题展示字体（Noto Sans SC Black，OFL 授权，见 @fontsource/noto-sans-sc），仅用于标题与横幅
-export const displayFont =
-  "'Noto Sans SC', 'Source Han Sans CN', 'PingFang SC', 'Microsoft YaHei', sans-serif";
-
-export const bodyFont =
-  "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, 'Helvetica Neue', Arial, sans-serif";
+// RM Schedule 全站字体（汉仪雅酷黑，见 assets/rm/NOTICE）
+export const displayFont = "'MyFont', sans-serif";
+export const bodyFont = displayFont;
 
 export const appTheme: ThemeConfig = {
   algorithm: theme.darkAlgorithm,
@@ -48,19 +40,19 @@ export const appTheme: ThemeConfig = {
     colorPrimary: palette.accent,
     colorInfo: palette.blue,
     colorSuccess: palette.win,
-    colorWarning: palette.gold,
+    colorWarning: "#fb8c00",
     colorError: palette.red,
     colorBgBase: palette.bg,
     colorBgLayout: "transparent",
-    colorBgContainer: palette.panelSolid,
-    colorBgElevated: palette.panelRaised,
+    colorBgContainer: palette.panel,
+    colorBgElevated: palette.panelSolid,
     colorBorder: palette.lineStrong,
     colorBorderSecondary: palette.line,
     colorText: palette.text,
     colorTextSecondary: palette.textSecondary,
     colorTextTertiary: palette.textMuted,
     colorTextHeading: palette.text,
-    borderRadius: 6,
+    borderRadius: 4,
     fontFamily: bodyFont,
   },
   components: {
@@ -72,8 +64,8 @@ export const appTheme: ThemeConfig = {
     Menu: {
       itemBg: "transparent",
       subMenuItemBg: "transparent",
-      itemSelectedBg: "rgba(33, 184, 201, 0.16)",
-      itemSelectedColor: palette.accent,
+      itemSelectedBg: "rgba(33, 150, 243, 0.2)",
+      itemSelectedColor: "#ffffff",
       itemHoverBg: palette.panelHover,
     },
     Card: {
@@ -82,7 +74,7 @@ export const appTheme: ThemeConfig = {
     },
     Table: {
       colorBgContainer: "transparent",
-      headerBg: "rgba(33, 184, 201, 0.10)",
+      headerBg: "rgba(255, 255, 255, 0.05)",
       headerColor: palette.text,
       headerSplitColor: palette.line,
       rowHoverBg: palette.panelHover,
@@ -107,18 +99,12 @@ export const appTheme: ThemeConfig = {
       primaryShadow: "none",
     },
     Segmented: {
-      itemSelectedBg: palette.accentDeep,
-      trackBg: palette.panelSolid,
+      itemSelectedBg: "rgba(120, 170, 255, 0.22)",
+      trackBg: "rgba(8, 28, 72, 0.52)",
     },
     Tabs: {
-      itemSelectedColor: palette.accent,
+      itemSelectedColor: "#ffffff",
       inkBarColor: palette.accent,
     },
   },
-};
-
-// 打印/导出（成绩单、证书）始终使用浅色，避免深色背景被打印出来
-export const printTheme: ThemeConfig = {
-  algorithm: theme.defaultAlgorithm,
-  token: { borderRadius: 8, fontFamily: bodyFont },
 };
