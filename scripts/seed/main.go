@@ -481,6 +481,13 @@ func seedBracket(
 	if err := models.AddBracketParticipants(&b, refs); err != nil {
 		return fmt.Errorf("添加参赛方失败: %w", err)
 	}
+	// 报名人数不足时减少小组数，保证每组人数多于出线名额
+	if b.AdvancePerGroup > 0 && b.GroupCount > 1 {
+		b.GroupCount = max(1, min(b.GroupCount, len(refs)/(b.AdvancePerGroup+1)))
+		if err := models.UpdateBracket(&b); err != nil {
+			return fmt.Errorf("更新对阵表 %s 失败: %w", b.Name, err)
+		}
+	}
 	if b.GroupCount > 1 {
 		if err := services.AutoGroupBracketParticipants(&b); err != nil {
 			return err
