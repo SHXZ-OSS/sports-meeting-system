@@ -91,6 +91,7 @@ export interface Competition {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  bracket_enabled?: boolean; // 使用对阵图：名次由对阵结果生成
   custom_fields?: CompetitionCustomField[];
   scores?: Score[];
 }
@@ -105,6 +106,7 @@ export interface Score {
   class_name: string;
   score: number;
   unit?: string; // 成绩单位（如 秒、米）
+  bracket_enabled?: boolean; // 对阵图名次：score 即名次，展示为「第 N 名」
   ranking?: number;
   point?: number; // 分数
 }
@@ -215,6 +217,7 @@ export const PERMISSIONS = {
   SCORE_AND_PROGRESS: 16,
   SCORE_REVIEW: 32,
   REGISTRATION_MANAGEMENT: 64,
+  BRACKET_MANAGEMENT: 128,
 } as const;
 
 // 后端在 index.html 中注入的初始数据（SPA 服务端注入）
@@ -226,4 +229,183 @@ declare global {
       website_info: Partial<WebsiteInfo> | null;
     };
   }
+}
+
+// ==== 对阵图 ====
+
+export type BracketFormat =
+  | "single_elimination"
+  | "double_elimination"
+  | "round_robin"
+  | "group_knockout";
+
+export type BracketParticipantType = "class" | "student";
+
+export type BracketStage =
+  "group" | "main" | "losers" | "grand_final" | "third_place";
+
+export type BracketMatchStatus =
+  "pending" | "scheduled" | "completed" | "bye" | "void";
+
+export type BracketSlotSource =
+  "none" | "participant" | "winner" | "loser" | "group_rank";
+
+export interface Bracket {
+  id: number;
+  event_id: number;
+  competition_id?: number;
+  competition_name?: string;
+  competition_bracket_enabled?: boolean; // 所属项目是否启用对阵图
+  competition_status?: string;
+  name: string;
+  description: string;
+  format: BracketFormat;
+  participant_type: BracketParticipantType;
+  group_count: number;
+  advance_per_group: number;
+  third_place_match: boolean;
+  points_win: number;
+  points_draw: number;
+  points_loss: number;
+  published: boolean;
+  radar_config?: RadarConfig | null; // 雷达图配置，为空表示未启用
+  participant_count: number;
+  match_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BracketParticipant {
+  id: number;
+  bracket_id: number;
+  class_id?: number;
+  student_id?: number;
+  seed: number;
+  group_index: number;
+  name: string;
+  class_name?: string;
+  radar_manual?: Record<string, number>; // 管理员手动评分（维度 → 0–5）
+}
+
+export interface BracketMatch {
+  id: number;
+  bracket_id: number;
+  stage: BracketStage;
+  group_index: number;
+  round: number;
+  position: number;
+  seq: number;
+  slot1_source: BracketSlotSource;
+  slot1_ref: number;
+  slot2_source: BracketSlotSource;
+  slot2_ref: number;
+  participant1_id: number | null;
+  participant2_id: number | null;
+  score1: number | null;
+  score2: number | null;
+  winner_id: number | null;
+  is_draw: boolean;
+  completed: boolean;
+  status: BracketMatchStatus;
+  scheduled_at?: string;
+  venue: string;
+  note: string;
+  stats1?: Record<string, number>; // 一方本场统计数据
+  stats2?: Record<string, number>; // 另一方本场统计数据
+}
+
+export interface BracketStandingRow {
+  participant_id: number;
+  rank: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  points: number;
+  score_for: number;
+  score_against: number;
+  score_diff: number;
+}
+
+export interface BracketGroupStanding {
+  group_index: number;
+  rows: BracketStandingRow[];
+}
+
+export interface BracketDetail {
+  bracket: Bracket;
+  participants: BracketParticipant[];
+  matches: BracketMatch[];
+  standings: BracketGroupStanding[];
+  radar?: BracketRadar; // 雷达图结果，按最新比赛数据计算
+}
+
+// ==== 队伍雷达图 ====
+
+export type RadarPreset =
+  | "football"
+  | "basketball"
+  | "table_tennis"
+  | "badminton"
+  | "volleyball"
+  | "custom";
+
+export interface RadarStatField {
+  key: string;
+  label: string;
+  hint?: string;
+}
+
+export interface RadarSumConstraint {
+  fields: string[];
+  max: string;
+  message: string;
+}
+
+export interface RadarTerm {
+  side: "own" | "opp";
+  field: string; // 统计字段，或内置的 score（比分）/ match（场次）
+  weight: number;
+}
+
+export interface RadarFormula {
+  numerator: RadarTerm[];
+  denominator: RadarTerm[];
+  low: number;
+  high: number;
+  invert?: boolean;
+}
+
+export interface RadarDimension {
+  key: string;
+  label: string;
+  description?: string;
+  formula?: RadarFormula | null; // 为空时为手动评分维度
+}
+
+export interface RadarConfig {
+  preset: RadarPreset;
+  fields: RadarStatField[];
+  constraints?: RadarSumConstraint[];
+  dimensions: RadarDimension[];
+}
+
+export interface RadarPresetInfo {
+  preset: RadarPreset;
+  label: string;
+  description: string;
+  fields: RadarStatField[];
+  dimensions: RadarDimension[];
+}
+
+export interface RadarValue {
+  value: number | null; // 0–5；为空表示暂无数据
+  sample: number; // 参与计算的场次
+  manual: boolean; // 是否为管理员手动设置
+}
+
+export interface BracketRadar {
+  config: RadarConfig;
+  teams: Record<string, Record<string, RadarValue>>; // 参赛方 ID（字符串）→ 维度 → 数值
+  average: Record<string, number | null>;
 }

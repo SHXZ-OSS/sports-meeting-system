@@ -1,0 +1,995 @@
+/*
+ * 对阵图：照搬 RM Schedule（rm-schedule-ui）
+ * 桌面端 = MatchGraph 经典节点（横幅 / 场次号 / school_bg 行）
+ * 移动端 = bracket/BracketMatchCard + BracketTeamRow 卡片
+ * 切图见 assets/rm（NOTICE）
+ */
+.bracket-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+}
+
+.bv-sub {
+  margin-left: 6px;
+  font-size: 0.78em;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+/* ==== 冠军横幅（title_winner_bg + champion.png） ==== */
+
+.bv-champion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  min-width: 280px;
+  height: 48px;
+  padding: 0 40px 0 12px;
+  background: url("../assets/rm/title_winner_bg.png") center / 100% 100%
+    no-repeat;
+}
+
+.bv-champion img {
+  height: 40px;
+  width: auto;
+}
+
+.bv-champion-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 20px;
+  white-space: nowrap;
+  text-shadow:
+    0 0 2px #000,
+    3px 3px 6px #000;
+}
+
+.bv-champion-label {
+  font-size: 14px;
+}
+
+.bv-champion .bv-sub {
+  color: #fff;
+}
+
+/* ==== 赛段选择器（BracketPage .group-selector） ==== */
+
+.bv-selector {
+  --track-bg: rgba(8, 28, 72, 0.52);
+  --selection-bg: rgba(120, 170, 255, 0.22);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bv-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.bv-selector-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  height: 32px;
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(180, 216, 246, 0.07),
+      rgba(30, 64, 104, 0.015)
+    ),
+    var(--track-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(170, 205, 236, 0.07);
+  backdrop-filter: blur(14px) saturate(1.18);
+  -webkit-backdrop-filter: blur(14px) saturate(1.18);
+  overflow: hidden;
+}
+
+.bv-selector-item {
+  flex: 1 0 auto;
+  min-width: max-content;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(190, 206, 234, 0.78);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bv-selector-item.is-active {
+  color: #fff;
+  background: var(--selection-bg);
+  box-shadow:
+    inset 0 0 0 1px rgba(180, 214, 255, 0.12),
+    0 3px 12px rgba(0, 8, 28, 0.16);
+  text-shadow: 0 1px 8px rgba(190, 220, 255, 0.18);
+}
+
+.bv-selector-item:focus-visible {
+  outline: 2px solid rgba(140, 180, 255, 0.7);
+  outline-offset: -3px;
+}
+
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .bv-selector {
+    --track-bg: rgba(8, 28, 72, 0.88);
+  }
+}
+
+/* ==== 淘汰赛树 ==== */
+
+.bv-tree-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.bv-tree {
+  position: relative;
+}
+
+.bv-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* 经典图：relation-graph 浅色细线 + 箭头 */
+.bv-tree-scroll.is-classic .bv-lines path {
+  fill: none;
+  stroke: rgba(225, 232, 240, 0.85);
+  stroke-width: 1.5;
+}
+
+.bv-tree-scroll.is-classic .bv-lines .bv-arrow {
+  fill: none;
+  stroke: rgba(225, 232, 240, 0.85);
+  stroke-width: 1.2;
+}
+
+/* 卡片图：BracketConnectors */
+.bv-tree-scroll.is-card .bv-lines path {
+  fill: none;
+  stroke: rgba(140, 180, 220, 0.45);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ==== 经典节点：轮次横幅 ==== */
+
+.bv-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 2px 16px 0;
+  color: #fff;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-shadow:
+    0 0 2px #000,
+    3px 3px 6px #000;
+  background: url("../assets/rm/title_bg.png") center / 100% 100% no-repeat;
+}
+
+.bv-banner.tone-gold {
+  background-image: url("../assets/rm/title_winner_bg.png");
+}
+
+.bv-banner.tone-loser {
+  background-image: url("../assets/rm/title_loser_bg.png");
+}
+
+/* ==== 经典节点：场次号 + 两行 school_bg ==== */
+
+.bv-match {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 68px;
+  border-radius: 2px;
+}
+
+.bv-match.is-clickable {
+  cursor: pointer;
+}
+
+/* 选中/悬停：RM .selected-match 金色光晕 */
+.bv-match.is-clickable:hover,
+.bv-match.is-clickable:focus-visible {
+  outline: none;
+  background: rgba(255, 215, 0, 0.35);
+  box-shadow: 0 0 8px 4px rgba(255, 215, 0, 0.25);
+}
+
+.bv-order {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 58px;
+}
+
+.bv-order img {
+  width: 100%;
+  height: 100%;
+}
+
+.bv-order b {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  font-size: 10px;
+  font-weight: normal;
+  letter-spacing: -0.04em;
+}
+
+.bv-rows {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bv-row {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 22px 0 12px;
+  background: url("../assets/rm/school_bg.png") center / 100% 100% no-repeat;
+}
+
+/* 比分徽标：#616161 灰底，未落败一方为红/蓝渐变闪烁 */
+.bv-badge {
+  flex: none;
+  min-width: 18px;
+  height: 20px;
+  padding: 0 4px;
+  color: #fff;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: #616161;
+}
+
+.bv-badge.is-text {
+  font-size: 11px;
+}
+
+/*
+ * 原版红 #C62828↔#F44336、蓝 #1565C0↔#2196F3；
+ * 亮端与白字对比度不足 4.5:1，这里收窄到 #D32F2F / #1976D2
+ */
+.bv-badge.is-red {
+  animation: bv-color-red 1.5s infinite;
+}
+
+.bv-badge.is-blue {
+  animation: bv-color-blue 1.5s infinite;
+}
+
+@keyframes bv-color-red {
+  0%,
+  100% {
+    background: #b71c1c;
+  }
+  50% {
+    background: #d32f2f;
+  }
+}
+
+@keyframes bv-color-blue {
+  0%,
+  100% {
+    background: #0d47a1;
+  }
+  50% {
+    background: #1976d2;
+  }
+}
+
+.bv-avatar {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0 5px;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: cover;
+}
+
+.bv-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  color: #fff;
+}
+
+.bv-row.is-loser .bv-name,
+.bv-row.is-loser .bv-sub {
+  color: #9d9f9f;
+}
+
+.bv-row.is-placeholder .bv-name {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 冠军/季军节点：校名为橙色（collegeNameColor #FFB553） */
+.bv-match.is-gold .bv-row:not(.is-loser):not(.is-placeholder) .bv-name {
+  color: #ffb553;
+}
+
+.bv-match.status-bye .bv-row.is-placeholder .bv-name {
+  color: #9d9f9f;
+}
+
+/* ==== 移动端卡片（BracketMatchCard） ==== */
+
+.bv-card {
+  padding: 8px;
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(162, 205, 240, 0.1) 0%,
+      rgba(22, 50, 78, 0.03) 42%
+    ),
+    rgba(4, 12, 28, 0.4);
+  border: 1px solid rgba(154, 196, 230, 0.26);
+  border-left-width: 3px;
+  border-left-color: rgba(132, 187, 230, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(190, 220, 244, 0.025),
+    0 8px 22px rgba(0, 5, 16, 0.18);
+  backdrop-filter: blur(22px) saturate(1.28);
+  -webkit-backdrop-filter: blur(22px) saturate(1.28);
+  transition:
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 220ms ease-out;
+}
+
+.bv-card.is-clickable {
+  cursor: pointer;
+}
+
+.bv-card.is-clickable:active {
+  transform: scale(0.975);
+  filter: brightness(0.9) saturate(0.94);
+  transition-duration: 80ms;
+}
+
+.bv-card.is-clickable:focus-visible {
+  outline: 2px solid rgba(255, 222, 142, 0.9);
+  outline-offset: 2px;
+}
+
+.bv-card.podium-champion {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 215, 112, 0.13) 0%,
+      rgba(93, 60, 12, 0.035) 46%
+    ),
+    rgba(34, 24, 8, 0.4);
+  border-color: rgba(232, 187, 102, 0.32);
+  border-left-color: #ffc857;
+}
+
+.bv-card.podium-champion .bv-card-title {
+  color: #ffd56a;
+}
+
+.bv-card.podium-champion .bv-tag {
+  color: #1a1408;
+  background: #ffd56a;
+}
+
+.bv-card.podium-third {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(214, 150, 101, 0.12) 0%,
+      rgba(79, 43, 24, 0.035) 46%
+    ),
+    rgba(30, 20, 17, 0.4);
+  border-color: rgba(200, 137, 90, 0.3);
+  border-left-color: #c8895a;
+}
+
+.bv-card.podium-third .bv-card-title {
+  color: #e0a878;
+}
+
+.bv-card.podium-third .bv-tag {
+  color: #1a120c;
+  background: #c8895a;
+}
+
+.bv-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bv-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: rgba(220, 232, 246, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bv-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bv-tag.is-progress {
+  color: #9fd9bc;
+  background: rgba(93, 206, 160, 0.18);
+}
+
+.bv-slot-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* BracketTeamRow */
+.bv-team {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(210, 232, 248, 0.055),
+    rgba(255, 255, 255, 0.025)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(190, 220, 244, 0.018);
+}
+
+.bv-team.side-red {
+  --side-color: 229, 57, 53;
+  border-left: 3px solid rgb(var(--side-color));
+}
+
+.bv-team.side-blue {
+  --side-color: 30, 136, 229;
+  border-left: 3px solid rgb(var(--side-color));
+}
+
+.bv-team.is-winner.side-red {
+  background: hsla(2, 36%, 35%, 0.42);
+}
+
+.bv-team.is-winner.side-blue {
+  background: hsla(212, 36%, 35%, 0.42);
+}
+
+.bv-team.is-pending {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 原版败者整行 opacity .52，为保证文字对比度只淡化底色与校徽 */
+.bv-team.is-loser.side-red {
+  --side-color: 138, 74, 72;
+}
+
+.bv-team.is-loser.side-blue {
+  --side-color: 74, 106, 138;
+}
+
+.bv-team.is-loser .bv-team-logo {
+  opacity: 0.52;
+}
+
+.bv-team.is-loser .bv-team-name,
+.bv-team.is-loser .bv-team-score,
+.bv-team.is-loser .bv-sub {
+  color: rgba(214, 222, 232, 0.72);
+}
+
+.bv-team.medal-gold {
+  background: rgba(212, 160, 48, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(255, 213, 106, 0.35);
+  animation: bv-medal-gold 3.6s ease-in-out infinite;
+}
+
+.bv-team.medal-silver {
+  background: rgba(160, 172, 188, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(210, 220, 235, 0.35);
+}
+
+.bv-team.medal-bronze {
+  background: rgba(176, 112, 64, 0.46);
+  box-shadow: inset 0 0 0 1px rgba(224, 168, 120, 0.35);
+}
+
+.bv-team[class*="medal-"] .bv-team-name,
+.bv-team[class*="medal-"] .bv-team-score {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+@keyframes bv-medal-gold {
+  0%,
+  100% {
+    background: rgba(212, 160, 48, 0.4);
+  }
+  50% {
+    background: rgba(240, 190, 70, 0.62);
+  }
+}
+
+.bv-team-logo {
+  flex: none;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.bv-team.is-pending .bv-team-logo {
+  opacity: 0.7;
+}
+
+.bv-team-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.84rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bv-team.is-pending .bv-team-name {
+  color: rgba(220, 232, 246, 0.78);
+}
+
+.bv-team-score {
+  flex: none;
+  min-width: 1.1em;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bv-team-score.is-text {
+  font-size: 0.66rem;
+}
+
+.bv-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  margin-top: 6px;
+  font-size: 0.66rem;
+  line-height: 1.2rem;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+/* ==== 小组赛：积分榜毛玻璃面板 ==== */
+
+.bv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bv-panel {
+  padding: 10px;
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(176, 216, 245, 0.1) 0%,
+      rgba(30, 64, 92, 0.025) 100%
+    ),
+    rgba(7, 22, 40, 0.52);
+  border: 1px solid rgba(154, 196, 230, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 14px 32px -12px rgba(0, 6, 18, 0.24);
+  backdrop-filter: blur(18px) saturate(1.24);
+  -webkit-backdrop-filter: blur(18px) saturate(1.24);
+}
+
+.bracket-view.is-classic .bv-panel {
+  max-width: 760px;
+}
+
+.bv-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bv-panel-title {
+  flex: 1;
+  font-size: 16px;
+}
+
+.bv-panel-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.bv-standings-scroll {
+  overflow-x: auto;
+}
+
+.bv-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 460px;
+}
+
+.bv-standing {
+  display: grid;
+  grid-template-columns: 44px minmax(120px, 1fr) repeat(4, 36px) 56px 48px;
+  align-items: center;
+  min-height: 36px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  background: linear-gradient(
+    180deg,
+    rgba(210, 232, 248, 0.055),
+    rgba(255, 255, 255, 0.025)
+  );
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.bv-standing.is-head {
+  min-height: 24px;
+  background: none;
+  font-size: 12px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.bv-standing.is-promoted {
+  border-left-color: #ffa500;
+  background: rgba(255, 165, 0, 0.12);
+}
+
+.bv-rank {
+  display: inline-block;
+  min-width: 26px;
+  padding: 0 4px;
+  line-height: 20px;
+  color: #fff;
+  background: #616161;
+}
+
+.bv-standing.is-promoted .bv-rank {
+  color: #1a1204;
+  background: #ffa500;
+}
+
+.bv-standing-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: left;
+}
+
+.bv-points {
+  color: #ffb553;
+  font-size: 16px;
+}
+
+/* 各轮对阵 */
+.bv-group-rounds {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.bv-group-round {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 272px;
+}
+
+.bv-group-round-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bv-group-rounds.is-card {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bv-group-rounds.is-card .bv-group-round {
+  width: 100%;
+}
+
+/* ==== 公开对阵图页（PublicBrackets）顶栏：BracketPage .floating-container ==== */
+
+.pb-page {
+  min-height: 100vh;
+  color: #fff;
+}
+
+.pb-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(176, 216, 245, 0.1) 0%,
+      rgba(30, 64, 92, 0.025) 100%
+    ),
+    rgba(7, 22, 40, 0.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 14px 32px -12px rgba(0, 6, 18, 0.24);
+  backdrop-filter: blur(18px) saturate(1.24);
+  -webkit-backdrop-filter: blur(18px) saturate(1.24);
+}
+
+.pb-bar-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 55px;
+}
+
+/* Vuetify filled v-select 外观：上方小标签 + 大号值 */
+.pb-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 120px;
+  padding: 6px 16px 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pb-field + .pb-field {
+  min-width: 260px;
+  max-width: 420px;
+}
+
+.pb-field-label {
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.pb-field-value {
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 22px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-field .ant-select {
+  width: 100%;
+  margin-top: 2px;
+  font-family: "MyFont", sans-serif;
+}
+
+.pb-field .ant-select .ant-select-selector,
+.pb-field .ant-select .ant-select-content,
+.pb-field .ant-select-selection-item {
+  font-size: 17px;
+}
+
+.pb-back {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.pb-back:hover,
+.pb-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pb-back:focus-visible,
+.pb-icon-btn:focus-visible {
+  outline: 2px solid rgba(140, 180, 255, 0.7);
+  outline-offset: -3px;
+}
+
+.pb-spacer {
+  flex: 1;
+}
+
+.pb-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.pb-icon-btn {
+  flex: none;
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  margin-right: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.pb-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pb-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 16px 10px;
+  font-size: 13px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.pb-info-format {
+  display: none;
+}
+
+.pb-info .bv-tag {
+  font-size: 12px;
+}
+
+.pb-info-desc {
+  flex-basis: 100%;
+  white-space: pre-wrap;
+}
+
+.pb-content {
+  padding: 16px;
+}
+
+.pb-state {
+  padding: 48px 0;
+  text-align: center;
+}
+
+@media (max-width: 991px) {
+  /* 窄屏只保留对阵图选择，赛制改在信息行显示 */
+  .pb-field.is-format {
+    display: none;
+  }
+
+  .pb-field + .pb-field,
+  .pb-field {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px 4px;
+  }
+
+  .bv-standings {
+    min-width: 0;
+  }
+
+  .bv-standing {
+    grid-template-columns: 34px minmax(0, 1fr) repeat(4, 24px) 40px 34px;
+    padding: 2px 4px;
+    font-size: 13px;
+  }
+
+  .bv-standing.is-head {
+    font-size: 11px;
+  }
+
+  .bv-standing-name .bv-team-logo {
+    display: none;
+  }
+
+  .bv-rank {
+    min-width: 22px;
+  }
+
+  .pb-brand-text,
+  .pb-spacer {
+    display: none;
+  }
+
+  .pb-info-format {
+    display: inline;
+  }
+
+  .pb-content {
+    padding: 12px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bv-badge.is-red,
+  .bv-badge.is-blue,
+  .bv-team.medal-gold {
+    animation: none;
+  }
+
+  .bv-badge.is-red {
+    background: #c62828;
+  }
+
+  .bv-badge.is-blue {
+    background: #1565c0;
+  }
+
+  .bv-card,
+  .bv-selector-item {
+    transition: none;
+  }
+
+  .bv-card.is-clickable:active {
+    transform: none;
+  }
+}

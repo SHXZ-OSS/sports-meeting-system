@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   Table,
@@ -27,11 +28,13 @@ import {
   RollbackOutlined,
   CheckOutlined,
   PrinterOutlined,
+  ApartmentOutlined,
+  TrophyOutlined,
 } from "@ant-design/icons";
 import { adminProgressAPI, adminReviewAPI } from "../../api/admin/progress";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWebsite } from "../../contexts/WebsiteContext";
-import { PERMISSIONS } from "../../types";
+import { PERMISSIONS, BracketDetail, BracketMatch } from "../../types";
 import {
   Class,
   Competition,
@@ -48,6 +51,7 @@ import {
   isClassScoredType,
   isRegistrationOnlyType,
   isSchoolWideType,
+  formatScoreText,
 } from "../../utils/competition";
 import {
   formatCustomFieldValue,
@@ -58,6 +62,8 @@ import { chineseSort, compareClassThenName } from "../../utils/sort";
 import { adminRegistrationAPI } from "../../api/admin/registration";
 import CertificateExport from "../../components/CertificateExport";
 import ScorePrintModal from "../../components/ScorePrintModal";
+import BracketView from "../../components/BracketView";
+import BracketMatchModal from "../../components/BracketMatchModal";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -116,6 +122,12 @@ const Progress: React.FC = () => {
   const [allCompletedScores, setAllCompletedScores] = useState<Score[]>([]);
   const [scoreTablePage, setScoreTablePage] = useState(1);
   const [scoreTablePageSize, setScoreTablePageSize] = useState(30);
+  // 使用对阵图的项目：对阵数据与正在录入的比赛
+  const [bracketDetail, setBracketDetail] = useState<BracketDetail | null>(
+    null,
+  );
+  const [editingMatch, setEditingMatch] = useState<BracketMatch | null>(null);
+  const navigate = useNavigate();
 
   const fetchCompetitions = async () => {
     setLoading(true);
@@ -141,6 +153,17 @@ const Progress: React.FC = () => {
         setLoading(false);
       },
     );
+  };
+
+  // 拉取对阵；返回所属项目的最新状态（全部完赛时后端会自动置为已完成）
+  const fetchBracket = async (competitionId: number) => {
+    const response = await adminProgressAPI.getBracket(competitionId);
+    let status: string | undefined;
+    handleResp(response, (data) => {
+      setBracketDetail(data ?? null);
+      status = data?.bracket.competition_status;
+    });
+    return status;
   };
 
   const fetchScores = async (competitionId: number) => {
@@ -204,10 +227,14 @@ const Progress: React.FC = () => {
     const competition = competitions.find((c) => c.id === competitionId);
     setSelectedCompetition(competition || null);
     setScoreTablePage(1);
+    setBracketDetail(null);
     if (competitionId) {
       await Promise.all([
         fetchScores(competitionId),
         fetchRegistrations(competitionId),
+        competition?.bracket_enabled
+          ? fetchBracket(competitionId)
+          : Promise.resolve(undefined),
       ]);
     }
   };
@@ -535,7 +562,11 @@ const Progress: React.FC = () => {
               sheetData.push([
                 index + 1,
                 score.class_name,
-                `${score.score} ${competition.unit}`,
+                formatScoreText(
+                  score.score,
+                  competition.unit,
+                  competition.bracket_enabled,
+                ),
                 score.ranking || "",
                 score.point !== undefined && score.point !== null
                   ? score.point
@@ -563,7 +594,13 @@ const Progress: React.FC = () => {
               sheetData.push([
                 index + 1,
                 reg.class_name,
-                score ? `${score.score} ${competition.unit}` : "",
+                score
+                  ? formatScoreText(
+                      score.score,
+                      competition.unit,
+                      competition.bracket_enabled,
+                    )
+                  : "",
                 score && score.ranking ? score.ranking : "",
                 score && score.point !== undefined && score.point !== null
                   ? score.point
@@ -580,7 +617,13 @@ const Progress: React.FC = () => {
                 index + 1,
                 reg.class_name,
                 reg.student_name,
-                score ? `${score.score} ${competition.unit}` : "",
+                score
+                  ? formatScoreText(
+                      score.score,
+                      competition.unit,
+                      competition.bracket_enabled,
+                    )
+                  : "",
                 score && score.ranking ? score.ranking : "",
                 score && score.point !== undefined && score.point !== null
                   ? score.point
@@ -648,7 +691,11 @@ const Progress: React.FC = () => {
         key: "score",
         render: (score: unknown) => (
           <span>
-            {score as number} {selectedCompetition?.unit}
+            {formatScoreText(
+              score as number,
+              selectedCompetition?.unit,
+              selectedCompetition?.bracket_enabled,
+            )}
           </span>
         ),
       },
@@ -675,6 +722,36 @@ const Progress: React.FC = () => {
           : c,
       ),
     );
+  };
+
+  const isBracket = !!selectedCompetition?.bracket_enabled;
+  const bracketSettled = useMemo(
+    () =>
+      !!bracketDetail &&
+      bracketDetail.matches.length > 0 &&
+      bracketDetail.matches.every(
+        (m) => m.status !== "pending" && m.status !== "scheduled",
+      ),
+    [bracketDetail],
+  );
+
+  const refreshAfterBracketChange = async () => {
+    if (!selectedCompetition) return;
+    const status = await fetchBracket(selectedCompetition.id);
+    if (status && status !== selectedCompetition.status) {
+      applyStatus(status as Competition["status"]);
+    }
+    await fetchScores(selectedCompetition.id);
+  };
+
+  const handleCompleteFromBracket = async () => {
+    if (!selectedCompetition) return;
+    const response = await adminProgressAPI.completeFromBracket(
+      selectedCompetition.id,
+    );
+    handleRespWithNotifySuccess(response, () => {
+      void refreshAfterBracketChange();
+    });
   };
 
   const handleSetStatus = (
@@ -709,7 +786,9 @@ const Progress: React.FC = () => {
     handleSetStatus(
       "in_progress",
       `开始比赛「${selectedCompetition?.name ?? ""}」？`,
-      "将比赛状态切换为“进行中”，之后可在本页录入成绩。",
+      selectedCompetition?.bracket_enabled
+        ? "将比赛状态切换为“进行中”，之后可在本页对阵图中录入比分，全部完赛后自动生成名次。"
+        : "将比赛状态切换为“进行中”，之后可在本页录入成绩。",
     );
 
   const openModal = async () => {
@@ -1055,7 +1134,7 @@ const Progress: React.FC = () => {
                       </Button>
                     </Popconfirm>
                   )}
-                {selectedCompetition.status === "in_progress" && (
+                {selectedCompetition.status === "in_progress" && !isBracket && (
                   <Button
                     type="primary"
                     icon={<FormOutlined />}
@@ -1064,6 +1143,21 @@ const Progress: React.FC = () => {
                     录入成绩
                   </Button>
                 )}
+                {selectedCompetition.status === "in_progress" &&
+                  isBracket &&
+                  bracketSettled && (
+                    <Popconfirm
+                      title="按对阵结果生成名次并完赛？"
+                      description="名次将直接计入积分，无需审核"
+                      onConfirm={handleCompleteFromBracket}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <Button type="primary" icon={<TrophyOutlined />}>
+                        按对阵结果完赛
+                      </Button>
+                    </Popconfirm>
+                  )}
               </Space>
             ) : undefined
           }
@@ -1115,7 +1209,11 @@ const Progress: React.FC = () => {
               <Card type="inner" title="报名名单" style={{ marginTop: 16 }}>
                 {registrations.length === 0 ? (
                   <div
-                    style={{ color: "#999", textAlign: "center", padding: 12 }}
+                    style={{
+                      color: "var(--sm-text-muted)",
+                      textAlign: "center",
+                      padding: 12,
+                    }}
                   >
                     暂无报名学生
                   </div>
@@ -1146,7 +1244,12 @@ const Progress: React.FC = () => {
                             <span style={{ fontWeight: 500 }}>
                               {reg.student_name}
                             </span>
-                            <span style={{ fontSize: 12, color: "#666" }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "var(--sm-text-secondary)",
+                              }}
+                            >
                               {reg.class_name}
                             </span>
                             {(selectedCompetition.custom_fields ?? []).map(
@@ -1158,7 +1261,10 @@ const Progress: React.FC = () => {
                                 return (
                                   <span
                                     key={field.id}
-                                    style={{ fontSize: 12, color: "#666" }}
+                                    style={{
+                                      fontSize: 12,
+                                      color: "var(--sm-text-secondary)",
+                                    }}
                                   >
                                     {field.name}：
                                     {formatCustomFieldValue(field, value) ||
@@ -1219,6 +1325,85 @@ const Progress: React.FC = () => {
             </div>
           )}
         </Card>
+      )}
+
+      {selectedCompetition && isBracket && (
+        <Card
+          title="对阵图"
+          style={{ marginBottom: 24 }}
+          extra={
+            hasPermission(PERMISSIONS.BRACKET_MANAGEMENT) &&
+            bracketDetail && (
+              <Button
+                icon={<ApartmentOutlined />}
+                onClick={() =>
+                  navigate(`/admin/brackets/${bracketDetail.bracket.id}`)
+                }
+              >
+                对阵图管理
+              </Button>
+            )
+          }
+        >
+          {!bracketDetail || bracketDetail.matches.length === 0 ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="尚未生成对阵"
+              description={
+                hasPermission(PERMISSIONS.BRACKET_MANAGEMENT)
+                  ? "请在「对阵图管理」中添加参赛方并生成对阵，生成后才能开始比赛。"
+                  : "请联系有对阵图管理权限的管理员添加参赛方并生成对阵。"
+              }
+            />
+          ) : (
+            <>
+              <Alert
+                type={
+                  selectedCompetition.status === "completed"
+                    ? "success"
+                    : "info"
+                }
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={
+                  selectedCompetition.status === "in_progress"
+                    ? "点击双方已确定的比赛录入比分；全部完赛后自动生成名次并计入积分。"
+                    : selectedCompetition.status === "completed"
+                      ? "对阵已完赛，名次已计入积分。如需修改比分，请先退回进行中。"
+                      : "开始比赛后即可在此录入比分；比赛时间与地点可随时修改。"
+                }
+              />
+              <BracketView
+                detail={bracketDetail}
+                onMatchClick={canManageProgress ? setEditingMatch : undefined}
+              />
+            </>
+          )}
+        </Card>
+      )}
+
+      {bracketDetail && (
+        <BracketMatchModal
+          bracketId={bracketDetail.bracket.id}
+          match={editingMatch}
+          radarConfig={bracketDetail.bracket.radar_config}
+          participants={
+            new Map(bracketDetail.participants.map((p) => [p.id, p]))
+          }
+          submit={(matchId, data) =>
+            adminProgressAPI.updateBracketMatch(
+              selectedCompetition?.id ?? 0,
+              matchId,
+              data,
+            )
+          }
+          onCancel={() => setEditingMatch(null)}
+          onSaved={() => {
+            setEditingMatch(null);
+            void refreshAfterBracketChange();
+          }}
+        />
       )}
 
       <Modal
@@ -1313,7 +1498,7 @@ const Progress: React.FC = () => {
                 style={{
                   marginBottom: "16px",
                   padding: "12px",
-                  background: "#fafafa",
+                  background: "var(--sm-panel-raised)",
                   borderRadius: "6px",
                   textAlign: "center",
                   fontWeight: 500,

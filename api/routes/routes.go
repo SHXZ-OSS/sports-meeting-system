@@ -89,6 +89,9 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	dashboard.GET("/points/students/summary", handlers.GetStudentPointsSummary)
 	dashboard.GET("/points/classes/:id/details", handlers.GetClassPointDetails)
 	dashboard.GET("/points/students/:id/details", handlers.GetStudentPointDetails)
+	// 对阵图（仅返回已公开的对阵表）
+	dashboard.GET("/brackets", handlers.GetPublicBrackets)
+	dashboard.GET("/brackets/:id", handlers.GetPublicBracket)
 
 	// 认证API路由
 	api.POST("/login", handlers.Login)
@@ -167,6 +170,10 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	progressMgmt.POST("/remind", handlers.RemindStudent)
 	// 赛事进程状态流转：开始检录（钉钉通知已报名学生）、开始比赛、退回等，body.status 为目标状态
 	progressMgmt.POST("/:id/status", handlers.UpdateCompetitionProgressStatus)
+	// 使用对阵图的项目：在赛事进程中查看对阵并录入比分，全部完赛自动生成名次
+	progressMgmt.GET("/:id/bracket", handlers.GetCompetitionBracket)
+	progressMgmt.PUT("/:id/bracket/matches/:match_id", handlers.UpdateCompetitionBracketMatch)
+	progressMgmt.POST("/:id/bracket/complete", handlers.CompleteCompetitionFromBracket)
 	progressScores := progressMgmt.Group("/scores")
 	progressScores.POST("", handlers.CreateOrUpdateScores)
 	progressScores.GET("/:id", handlers.GetCompetitionScores)
@@ -190,6 +197,29 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	pointsMgmt.GET("/students/:id/summary", handlers.GetStudentPointsSummaryByID)
 	pointsMgmt.GET("/classes/:id/details", handlers.GetClassPointDetails)
 	pointsMgmt.GET("/students/:id/details", handlers.GetStudentPointDetails)
+
+	// 对阵图管理（需要对阵图管理权限）
+	bracketMgmt := adminAPI.Group("/brackets")
+	bracketMgmt.Use(middlewares.PermissionMiddleware(utils.PermissionBracketManagement))
+	bracketMgmt.GET("", handlers.GetBrackets)
+	bracketMgmt.POST("", handlers.CreateBracket)
+	bracketMgmt.GET("/competitions", handlers.GetAllCompetitions) // 关联项目选择
+	bracketMgmt.GET("/classes", handlers.GetAllClasses)           // 参赛班级选择
+	bracketMgmt.GET("/students", handlers.GetAllStudents)         // 参赛学生选择
+	bracketMgmt.GET("/radar-presets", handlers.GetRadarPresets)   // 雷达图预设
+	bracketMgmt.GET("/:id", handlers.GetBracket)
+	bracketMgmt.PUT("/:id", handlers.UpdateBracket)
+	bracketMgmt.DELETE("/:id", handlers.DeleteBracket)
+	bracketMgmt.POST("/:id/participants", handlers.AddBracketParticipants)
+	bracketMgmt.POST("/:id/participants/import", handlers.ImportBracketParticipantsFromCompetition)
+	bracketMgmt.PUT("/:id/participants/order", handlers.ReorderBracketParticipants)
+	bracketMgmt.POST("/:id/participants/auto-group", handlers.AutoGroupBracketParticipants)
+	bracketMgmt.DELETE("/:id/participants/:participant_id", handlers.RemoveBracketParticipant)
+	bracketMgmt.POST("/:id/generate", handlers.GenerateBracket)
+	bracketMgmt.POST("/:id/reset", handlers.ResetBracket)
+	bracketMgmt.PUT("/:id/matches/:match_id", handlers.UpdateBracketMatch)
+	bracketMgmt.PUT("/:id/radar", handlers.UpdateBracketRadar)
+	bracketMgmt.PUT("/:id/participants/:participant_id/radar", handlers.SetParticipantRadar)
 
 	// 系统设置（需要网站管理权限）
 	websiteMgmt := adminAPI.Group("/settings")

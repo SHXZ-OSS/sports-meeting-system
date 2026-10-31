@@ -507,7 +507,9 @@ const StudentCompetitions: React.FC = () => {
                       <Tag>{getGenderText(comp.gender)}</Tag>
                       {registered && <Tag color="success">已报名</Tag>}
                     </Space>
-                    <div style={{ fontSize: 12, color: "#999" }}>
+                    <div
+                      style={{ fontSize: 12, color: "var(--sm-text-muted)" }}
+                    >
                       {comp.start_time && comp.end_time
                         ? `${dayjs(comp.start_time).format("MM-DD HH:mm")} - ${dayjs(comp.end_time).format("HH:mm")}`
                         : "时间待定"}

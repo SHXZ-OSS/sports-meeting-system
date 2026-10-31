@@ -124,11 +124,11 @@ const Dashboard: React.FC = () => {
         <Card style={{ marginBottom: 12 }}>
           <Title
             level={3}
-            style={{ color: "#1f2937", marginBottom: 4, marginTop: 0 }}
+            style={{ color: "var(--sm-text)", marginBottom: 4, marginTop: 0 }}
           >
             你好，{user?.full_name}
           </Title>
-          <Text style={{ color: "#6b7280", fontSize: 16 }}>
+          <Text style={{ color: "var(--sm-text-secondary)", fontSize: 16 }}>
             在这里管理比赛项目、审核成绩、掌握运动会整体进展
           </Text>
         </Card>
@@ -143,7 +143,7 @@ const Dashboard: React.FC = () => {
                     title="比赛项目"
                     value={stats.totalCompetitions}
                     prefix={<TrophyOutlined style={{ color: "#4C80F8" }} />}
-                    valueStyle={{ color: "#1f2937" }}
+                    valueStyle={{ color: "var(--sm-text)" }}
                     suffix="个"
                   />
                 </Card>
@@ -157,7 +157,7 @@ const Dashboard: React.FC = () => {
                     prefix={
                       <CheckCircleOutlined style={{ color: "#52c41a" }} />
                     }
-                    valueStyle={{ color: "#1f2937" }}
+                    valueStyle={{ color: "var(--sm-text)" }}
                     suffix="个"
                   />
                 </Card>
@@ -171,7 +171,7 @@ const Dashboard: React.FC = () => {
                     prefix={
                       <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />
                     }
-                    valueStyle={{ color: "#1f2937" }}
+                    valueStyle={{ color: "var(--sm-text)" }}
                   />
                 </Card>
               </Col>
@@ -205,7 +205,10 @@ const Dashboard: React.FC = () => {
                   value={stats.pendingApproval}
                   suffix="个项目待审核"
                   valueStyle={{
-                    color: stats.pendingApproval > 0 ? "#faad14" : "#666",
+                    color:
+                      stats.pendingApproval > 0
+                        ? "#faad14"
+                        : "var(--sm-text-secondary)",
                   }}
                 />
               </Card>
@@ -234,7 +237,10 @@ const Dashboard: React.FC = () => {
                   value={stats.pendingScoreReview}
                   suffix="个成绩待审核"
                   valueStyle={{
-                    color: stats.pendingScoreReview > 0 ? "#ff4d4f" : "#666",
+                    color:
+                      stats.pendingScoreReview > 0
+                        ? "#ff4d4f"
+                        : "var(--sm-text-secondary)",
                   }}
                 />
               </Card>

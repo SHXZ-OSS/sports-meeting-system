@@ -1,68 +1,35 @@
-/* 看板排版系统：字号 5 档、字重 3 档、间距统一走 4px 栅格。 */
-.stadium-scene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  transition: opacity 0.7s ease;
-  background:
-    linear-gradient(
-      90deg,
-      #fff 0%,
-      rgba(255, 255, 255, 0.985) 38%,
-      rgba(255, 255, 255, 0.955) 60%,
-      rgba(255, 255, 255, 0.88) 78%,
-      rgba(255, 255, 255, 0.78) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.24) 0%,
-      transparent 54%,
-      rgba(255, 255, 255, 0.08) 100%
-    );
-}
-
+/*
+ * 公开看板：照搬 RM Schedule（rm-schedule-ui）的视觉
+ * - 顶栏：Situation.vue 的 glass-sheet + Vuetify filled 选择框样式的信息块
+ * - 栏目标题：MatchGraph.vue 的 title_bg.png 横幅
+ * - 榜单行：MatchGraph.vue 的 school_bg.png 队伍行（灰色比分徽标、白色圆形校徽、单行名称）
+ * - 赛场动态：bracket/BracketMatchCard.vue 的玻璃卡片
+ */
 .ph-shell {
-  /* 颜色 */
-  --ph-text: #0b2440;
-  --ph-muted: #5d748c;
-  --ph-faint: #8fa2b6;
-  --ph-blue: #1f7fe8;
-  --ph-line: rgba(33, 80, 130, 0.14);
-  --ph-line-strong: rgba(33, 80, 130, 0.22);
-
-  /* 字号：仅此 5 档 */
-  --ph-fs-xs: clamp(11px, 0.72vw, 12px);
-  --ph-fs-sm: clamp(13px, 0.85vw, 14px);
-  --ph-fs-md: clamp(17px, 1.15vw, 20px);
-  --ph-fs-lg: clamp(22px, 1.55vw, 26px);
-  --ph-fs-xl: clamp(28px, 2vw, 34px);
-
-  /* 间距：4 / 8 / 12 / 16 / 24 / 32 */
-  --ph-s1: 4px;
-  --ph-s2: 8px;
-  --ph-s3: 12px;
-  --ph-s4: 16px;
-  --ph-s5: 24px;
-  --ph-s6: 32px;
-  --ph-pad-x: 32px;
-  --ph-gap: 32px;
-  --ph-header-h: 60px;
-  --ph-heading-h: 56px;
+  --ph-text: var(--sm-text);
+  /* Vuetify 深色主题的次要文字（medium-emphasis） */
+  --ph-muted: rgba(255, 255, 255, 0.7);
+  --ph-faint: #9d9f9f;
+  --ph-line: rgba(255, 255, 255, 0.12);
+  /* RM 的比分徽标：未完成灰、已完成/晋级金 */
+  --ph-badge: #616161;
+  --ph-badge-gold: #ffa500;
+  --ph-row-h: 44px;
+  --ph-logo: 30px;
+  --ph-pad-x: 24px;
+  --ph-gap: 20px;
+  --ph-header-h: 64px;
 
   position: relative;
   z-index: 1;
   width: 100%;
   height: 100svh;
   min-height: 640px;
-  max-width: 2560px;
-  margin-inline: auto;
-  padding: 0 var(--ph-pad-x) var(--ph-s5);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--ph-header-h) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   color: var(--ph-text);
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: "MyFont", sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -77,198 +44,272 @@
   white-space: nowrap;
   border: 0;
 }
-/* 顶栏：64px 高，标题 34px，其余统一 14px。 */
+
+/* ==== 顶栏：RM 的 glass-sheet，左侧信息块仿 Season / Zone 选择框 ==== */
 .ph-header {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  gap: var(--ph-s5);
+  gap: 16px;
   min-width: 0;
-  border-bottom: 1px solid var(--ph-line);
+  height: var(--ph-header-h);
+  padding: env(safe-area-inset-top, 0px) 8px 0 0;
+  box-sizing: content-box;
 }
 .ph-brand {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex: 1 1 auto;
-  gap: var(--ph-s3);
   min-width: 0;
   cursor: default;
   user-select: none;
 }
 .ph-emblem {
-  width: 32px;
-  height: 32px;
+  align-self: center;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
+  margin: 0 12px 0 16px;
+  padding: 2px;
   object-fit: contain;
+  /* 校徽本身不改，衬白色圆底（同 RM 的白色 v-avatar） */
+  border-radius: 50%;
+  background: #fff;
+  box-sizing: content-box;
 }
-.ph-school {
-  color: #26496d;
-  font-size: var(--ph-fs-sm);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-.ph-divider {
-  width: 1px;
-  height: 20px;
+/* Vuetify filled 选择框：浅色填充底 + 小号标签在上、取值在下 */
+.ph-field-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   flex: 0 0 auto;
-  background: var(--ph-line-strong);
+  min-width: 120px;
+  padding: 6px 16px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.38);
 }
-.ph-brand h1 {
-  flex: 1 1 0;
+.ph-field-block--grow {
+  flex: 0 1 auto;
   min-width: 0;
-  margin: 0;
-  color: var(--ph-text);
-  font-size: var(--ph-fs-sm);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
+  max-width: 420px;
+}
+.ph-field-label {
+  color: var(--ph-muted);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.009em;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ph-field-value {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 17px;
+  font-weight: normal;
+  line-height: 24px;
+  letter-spacing: 0.009em;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 .ph-side {
   display: flex;
   align-items: center;
+  gap: 4px;
   flex: 0 0 auto;
 }
+/* Vuetify v-btn variant="flat" color="transparent"：无边框，悬停叠加白色 */
 .ph-login {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--ph-s1);
-  height: 36px;
-  padding: 0 var(--ph-s4);
-  border: 1px solid var(--ph-line-strong);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  color: #26496d;
-  font-size: var(--ph-fs-sm);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-}
-.ph-login:hover {
-  background: #123a5e;
-  border-color: #123a5e;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.0892857143em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ph-login::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+}
+.ph-login:hover::after {
+  opacity: 0.08;
+}
+.ph-login:active::after {
+  opacity: 0.16;
+}
+.ph-login:focus-visible,
+.ph-action:focus-visible,
+.ph-entry:focus-visible,
+.ph-event:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
 }
 .ph-login svg {
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
 }
 
-/* 主体：榜单 2 栏 + 赛场动态 1 栏，统一 32px 间距。 */
+/* ==== 主体：榜单 2 栏 + 赛场动态 1 栏 ==== */
 .ph-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  align-items: start;
   gap: var(--ph-gap);
   min-height: 0;
-  padding-top: var(--ph-s5);
+  padding: 20px var(--ph-pad-x) 24px;
+  overflow: auto;
 }
 .ph-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: var(--ph-gap);
   min-height: 0;
 }
-.ph-board {
+/* 面板：RM 关系图节点的毛玻璃底（rel-node：2px 圆角 + blur(5px)） */
+.ph-board,
+.ph-field {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-.ph-board--student::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--ph-gap) / -2);
-  width: 1px;
-  background: var(--ph-line);
-}
-.ph-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--ph-s4);
-  flex: 0 0 var(--ph-heading-h);
-  height: var(--ph-heading-h);
-}
-.ph-heading h2 {
-  margin: 0;
-  font-size: var(--ph-fs-lg);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-.ph-heading-note {
-  color: var(--ph-muted);
-  font-size: var(--ph-fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
+  padding: 8px 12px 14px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
-/* 排行榜：名次圆点 + 积分 + 相对最高分的进度条。 */
+/* 栏目标题：title_bg.png 横幅，文字居中 + 3px 3px 6px 黑色投影 */
+.ph-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  margin: 0 0 6px;
+  background: var(--sm-banner);
+}
+.ph-heading h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 22px;
+  font-weight: normal;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 3px 3px 6px #000;
+}
+.ph-heading-note {
+  color: #fff;
+  font-size: 22px;
+}
+
+/* ==== 榜单：RM 的 school_bg 队伍行 ==== */
 .ph-rank-list {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  min-height: 0;
+  gap: 4px;
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 8px;
   list-style: none;
 }
 .ph-rank-row {
+  --ph-fill: 33, 150, 243;
+  position: relative;
   display: flex;
-  flex: 0 0 10%;
   align-items: center;
-  gap: var(--ph-s3);
-  min-height: 48px;
+  min-width: 0;
+  height: var(--ph-row-h);
+  padding: 0 18px 0 16px;
+  /* school_bg.png 右侧带斜切，拉伸铺满整行（同 MatchGraph 的 object-fit: fill） */
+  background: url("../assets/rm/school_bg.png") center / 100% 100% no-repeat;
+  isolation: isolate;
+}
+.ph-rank-row[data-tier="gold"],
+.ph-rank-row[data-tier="silver"],
+.ph-rank-row[data-tier="bronze"] {
+  --ph-fill: 255, 165, 0;
 }
 .ph-rank-badge {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--ph-blue);
+  min-width: 26px;
+  height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  background: var(--ph-badge);
   color: #fff;
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: var(--ph-fs-sm);
-  font-weight: 600;
-  letter-spacing: 0;
+  font-family: "MyFont", sans-serif;
+  font-size: 15px;
+  line-height: 1;
+}
+/* 前三名用 RM 的金色徽标；金底配深色字保证对比度 */
+.ph-rank-row[data-tier="gold"] .ph-rank-badge,
+.ph-rank-row[data-tier="silver"] .ph-rank-badge,
+.ph-rank-row[data-tier="bronze"] .ph-rank-badge {
+  background: var(--ph-badge-gold);
+  color: #1a1408;
+}
+.ph-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--ph-logo);
+  height: var(--ph-logo);
+  margin: 0 6px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fff;
+}
+.ph-avatar img {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
 }
 .ph-rank-body {
   display: flex;
   flex: 1;
-  flex-direction: column;
-  gap: 6px;
   min-width: 0;
 }
 .ph-rank-line {
   display: flex;
-  align-items: baseline;
+  flex: 1;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--ph-s4);
+  gap: 12px;
   min-width: 0;
 }
 .ph-entry-group {
   display: flex;
   align-items: baseline;
-  gap: var(--ph-s2);
+  gap: 8px;
   min-width: 0;
 }
 .ph-entry {
@@ -279,11 +320,9 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--ph-text);
+  color: #fff;
   font: inherit;
-  font-size: var(--ph-fs-md);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 20px;
   line-height: 1.3;
   text-align: left;
   white-space: nowrap;
@@ -293,216 +332,240 @@
   transition: color 0.18s ease;
 }
 .ph-entry:hover {
-  color: var(--ph-blue);
+  color: #90caf9;
 }
 .ph-inline-sub {
   flex: 0 0 auto;
-  color: var(--ph-muted);
-  font-size: var(--ph-fs-xs);
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  color: var(--ph-faint);
+  font-size: 13px;
   white-space: nowrap;
 }
+/* 积分：RM 比分数字，右对齐 */
 .ph-points {
   flex: 0 0 auto;
-  color: var(--ph-text);
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: var(--ph-fs-md);
-  font-weight: 600;
-  letter-spacing: 0;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 22px;
+  line-height: 1;
+}
+.ph-rank-row[data-tier="gold"] .ph-points {
+  color: var(--sm-gold);
 }
 .ph-points-unit {
-  margin-left: 2px;
-  color: inherit;
-  font-size: var(--ph-fs-xs);
-  font-weight: 500;
-  opacity: 0.7;
+  margin-left: 3px;
+  color: var(--ph-muted);
+  font-size: 12px;
 }
+/* 积分占比：BracketTeamRow 支持率填充条，叠在行底图上、内容下方 */
 .ph-bar {
-  height: 4px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #e6edf5;
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  clip-path: polygon(0 0, 100% 0, 95.3% 100%, 0 100%);
 }
 .ph-bar span {
   display: block;
   height: 100%;
-  border-radius: inherit;
-  background: var(--ph-blue);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--ph-fill), 0.36) 0,
+    rgba(var(--ph-fill), 0.16) 28px,
+    rgba(var(--ph-fill), 0.1) 100%
+  );
   transition: width 0.45s ease;
 }
 .ph-empty,
 .ph-loading {
-  margin: var(--ph-s3) 0 0;
+  margin: 12px 0 0;
   color: var(--ph-muted);
-  font-size: var(--ph-fs-sm);
+  font-size: 14px;
+  text-align: center;
 }
 
-/* 赛场动态：分组标题 12px，项目名 20px，地点 14px，间距统一 24px。 */
-.ph-field {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding-left: var(--ph-gap);
-  border-left: 1px solid var(--ph-line);
-}
+/* ==== 赛场动态：BracketMatchCard 玻璃卡片 ==== */
 .ph-event-groups {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: var(--ph-s5);
+  gap: 16px;
   min-height: 0;
-}
-.ph-event-group + .ph-event-group {
-  padding-top: var(--ph-s5);
-  border-top: 1px solid var(--ph-line);
+  padding: 0 4px;
 }
 .ph-event-group h3 {
   display: flex;
   align-items: center;
-  gap: var(--ph-s2);
-  margin: 0 0 var(--ph-s3);
-  color: var(--ph-muted);
-  font-size: var(--ph-fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: rgba(236, 243, 252, 0.88);
+  font-size: 14px;
+  font-weight: normal;
   line-height: 1.4;
 }
 .ph-status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
 }
 .ph-event-list {
-  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
   padding: 0;
-}
-.ph-event-list li + li {
-  margin-top: var(--ph-s4);
+  list-style: none;
 }
 .ph-event {
-  padding: 0;
-  border: 0;
-  background: none;
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(154, 196, 230, 0.26);
+  border-left: 3px solid rgba(132, 187, 230, 0.68);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(162, 205, 240, 0.1) 0%,
+      rgba(22, 50, 78, 0.03) 42%
+    ),
+    rgba(4, 12, 28, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 22px rgba(0, 5, 16, 0.18);
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.18s ease;
+}
+.ph-event:hover {
+  border-color: rgba(154, 196, 230, 0.5);
+  border-left-color: #2196f3;
+}
+.ph-event:active {
+  transform: scale(0.975);
 }
 .ph-event h4 {
   margin: 0;
-  font-size: var(--ph-fs-md);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.3;
-  transition: color 0.18s ease;
+  overflow: hidden;
+  color: #fff;
+  font-size: 18px;
+  font-weight: normal;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .ph-event p {
   margin: 2px 0 0;
   color: var(--ph-muted);
-  font-size: var(--ph-fs-sm);
-  font-weight: 400;
+  font-size: 13px;
   line-height: 1.45;
 }
-.ph-event:hover h4 {
-  color: var(--ph-blue);
-}
 .ph-progress {
-  margin-top: auto;
-  padding-top: var(--ph-s5);
+  margin-top: 20px;
+  padding: 0 4px;
   color: var(--ph-muted);
-  font-size: var(--ph-fs-sm);
+  font-size: 14px;
 }
 .ph-progress-row {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--ph-s4);
-  margin-bottom: var(--ph-s2);
-  letter-spacing: 0.02em;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 .ph-progress-row strong {
-  color: var(--ph-text);
-  font-weight: 600;
+  color: #fff;
+  font-size: 18px;
+  font-weight: normal;
 }
+/* Vuetify v-progress-linear：primary 色，轨道同色 0.24 透明度 */
 .ph-progress progress {
   display: block;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
-  background: #e1e9f2;
+  background: rgba(33, 150, 243, 0.24);
 }
 .ph-progress progress::-webkit-progress-bar {
-  background: #e1e9f2;
-  border-radius: 6px;
+  background: rgba(33, 150, 243, 0.24);
 }
 .ph-progress progress::-webkit-progress-value {
-  background: var(--ph-blue);
-  border-radius: 6px;
+  background: #2196f3;
 }
 .ph-progress progress::-moz-progress-bar {
-  background: var(--ph-blue);
-  border-radius: 6px;
+  background: #2196f3;
 }
+/* 操作按钮：RM 分组切换的描边胶囊 */
 .ph-field-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ph-s3);
-  padding-top: var(--ph-s4);
+  gap: 10px;
+  padding: 16px 4px 0;
 }
 .ph-action {
-  height: 36px;
-  padding: 0 var(--ph-s4);
-  border: 1px solid var(--ph-line-strong);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.55);
-  color: #33577a;
-  font-size: var(--ph-fs-sm);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  height: 32px;
+  padding: 0 14px;
+  border: 1.5px solid #fff;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 14px;
   cursor: pointer;
   transition:
-    background 0.18s ease,
     border-color 0.18s ease,
     color 0.18s ease;
 }
 .ph-action:hover {
-  background: #123a5e;
-  border-color: #123a5e;
-  color: #fff;
+  border-color: #2196f3;
+  color: #64b5f6;
 }
 
-/* 大屏只放大留白，不新增字号档位。 */
+/* 大屏：行高与校徽放大（同 MatchGraph 的 --school-row-height） */
 @media (min-width: 1900px) {
   .ph-shell {
-    --ph-pad-x: 48px;
-    --ph-gap: 40px;
-    --ph-header-h: 72px;
-    --ph-heading-h: 64px;
+    --ph-row-h: 52px;
+    --ph-logo: 34px;
+    --ph-pad-x: 40px;
+    --ph-gap: 28px;
   }
 }
 
-/* 低高度屏幕收紧垂直留白。 */
-@media (max-height: 780px) and (min-width: 1051px) {
+/* 低高度屏幕收紧行高 */
+@media (max-height: 820px) and (min-width: 1051px) {
   .ph-shell {
+    --ph-row-h: 38px;
+    --ph-logo: 26px;
     --ph-header-h: 56px;
-    --ph-heading-h: 48px;
   }
-  .ph-layout {
-    padding-top: var(--ph-s4);
+  .ph-heading {
+    height: 42px;
   }
-  .ph-progress {
-    padding-top: var(--ph-s4);
+  .ph-heading h2,
+  .ph-heading-note {
+    font-size: 19px;
+  }
+  .ph-entry {
+    font-size: 18px;
+  }
+  .ph-points {
+    font-size: 19px;
   }
 }
 
 @media (max-width: 1200px) {
   .ph-shell {
-    --ph-pad-x: 24px;
-    --ph-gap: 24px;
+    --ph-pad-x: 16px;
+    --ph-gap: 14px;
+  }
+  .ph-entry {
+    font-size: 18px;
   }
 }
 
@@ -510,94 +573,88 @@
   .ph-shell {
     height: auto;
     min-height: 100svh;
-    grid-template-rows: var(--ph-header-h) auto;
-    padding-bottom: var(--ph-s6);
+    grid-template-rows: auto auto;
   }
   .ph-layout {
     grid-template-columns: 1fr;
-  }
-  .ph-pair {
-    min-height: 620px;
+    overflow: visible;
+    padding-bottom: 32px;
   }
   .ph-field {
     order: -1;
-    padding: 0 0 var(--ph-s5);
-    border-top: 0;
-    border-bottom: 1px solid var(--ph-line);
-    border-left: 0;
   }
   .ph-event-groups {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--ph-s5) var(--ph-s6);
-  }
-  .ph-event-group + .ph-event-group {
-    padding-top: 0;
-    border-top: 0;
-  }
-  .ph-progress {
-    margin-top: var(--ph-s5);
-    padding-top: 0;
+    gap: 16px 24px;
   }
 }
 
 @media (max-width: 600px) {
   .ph-shell {
-    --ph-pad-x: 16px;
-    --ph-gap: 20px;
+    --ph-pad-x: 10px;
+    --ph-gap: 14px;
     --ph-header-h: 56px;
-    --ph-heading-h: 48px;
-    padding-bottom: var(--ph-s5);
+    --ph-row-h: 42px;
+    --ph-logo: 28px;
   }
   .ph-header {
-    gap: var(--ph-s3);
-  }
-  .ph-brand {
-    gap: var(--ph-s2);
+    gap: 4px;
+    padding-right: 0;
   }
   .ph-emblem {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
+    margin: 0 10px 0 12px;
   }
-  .ph-school {
-    letter-spacing: 0.04em;
+  .ph-field-block {
+    min-width: 0;
+    padding: 6px 12px 4px;
   }
-  .ph-divider {
-    height: 16px;
-  }
-  .ph-login {
-    height: 32px;
-    padding: 0 var(--ph-s3);
+  .ph-field-value {
+    font-size: 16px;
   }
   .ph-pair {
     grid-template-columns: 1fr;
-    gap: var(--ph-s6);
   }
-  .ph-board {
-    min-height: 620px;
+  .ph-heading h2,
+  .ph-heading-note {
+    font-size: 20px;
   }
-  .ph-board--student {
-    padding-top: var(--ph-s5);
-    border-top: 1px solid var(--ph-line);
+  .ph-rank-list {
+    padding-left: 4px;
   }
-  .ph-board--student::before {
-    display: none;
+  .ph-entry {
+    font-size: 17px;
+  }
+  .ph-points {
+    font-size: 19px;
   }
   .ph-event-groups {
     grid-template-columns: 1fr;
-    gap: var(--ph-s5);
   }
 }
 
-/* 窄屏手机（useIsMobile 判定）：账号入口收成图标按钮，把宽度让给届次标题。 */
+/* 窄屏手机（useIsMobile 判定）：入口收成 RM 顶栏的圆形图标按钮 */
 .ph-login--compact {
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   justify-content: center;
   gap: 0;
+  border-radius: 50%;
 }
 .ph-login--compact svg {
-  width: 16px;
-  height: 16px;
+  width: 26px;
+  height: 26px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-bar span,
+  .ph-event,
+  .ph-entry,
+  .ph-login::after,
+  .ph-action {
+    transition: none;
+  }
 }

@@ -70,6 +70,8 @@ type CreateCompetitionRequest struct {
 	EndTime                 *time.Time                     `json:"end_time"`
 	AllowConcurrent         bool                           `json:"allow_concurrent"`
 	CustomFields            []types.CompetitionCustomField `json:"custom_fields"`
+	BracketEnabled          bool                           `json:"bracket_enabled"` // 使用对阵图（仅全局管理员创建时生效）
+	BracketFormat           types.BracketFormat            `json:"bracket_format"`  // 对阵赛制，默认单败淘汰
 }
 
 // UpdateCompetitionRequest 更新比赛项目请求
@@ -92,6 +94,8 @@ type UpdateCompetitionRequest struct {
 	EndTime                 *time.Time                     `json:"end_time"`
 	AllowConcurrent         bool                           `json:"allow_concurrent"`
 	CustomFields            []types.CompetitionCustomField `json:"custom_fields"`
+	BracketEnabled          *bool                          `json:"bracket_enabled"` // 不传则保持不变；关闭后对阵数据保留
+	BracketFormat           types.BracketFormat            `json:"bracket_format"`  // 首次开启且尚无对阵表时使用
 }
 
 // GetAllCompetitions 获取所有比赛项目
@@ -367,6 +371,13 @@ func CreateCompetition(c *gin.Context) {
 
 	// 全校性、仅报名项目及报名自定义字段仅允许全局管理员配置
 	isGlobalAdmin := role == services.RoleAdmin && user != nil && !models.IsClassBound(user)
+
+	// 对阵图仅全局管理员可开启；先校验，避免项目已创建而对阵图开启失败
+	req.BracketEnabled = req.BracketEnabled && isGlobalAdmin
+	if msg := precheckBracketOnCreate(&req); msg != "" {
+		utils.ResponseError(c, http.StatusBadRequest, msg)
+		return
+	}
 	if !isGlobalAdmin {
 		if req.CompetitionType == types.TypeSchool || req.CompetitionType == types.TypeRegistration {
 			utils.ResponseError(c, http.StatusForbidden, "无权创建该类型的比赛项目")
@@ -457,7 +468,8 @@ func CreateCompetition(c *gin.Context) {
 			req.CustomFields,
 		)
 	default:
-		err = models.AdminCreateCompetition(
+		var created *types.Competition
+		created, err = models.AdminCreateCompetition(
 			req.Name,
 			req.Description,
 			req.Venue,
@@ -478,6 +490,9 @@ func CreateCompetition(c *gin.Context) {
 			req.AllowConcurrent,
 			req.CustomFields,
 		)
+		if err == nil {
+			err = enableBracketOnCreate(created, &req)
+		}
 	}
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建比赛项目失败: "+err.Error())
@@ -486,6 +501,58 @@ func CreateCompetition(c *gin.Context) {
 
 	// 返回响应
 	utils.ResponseSuccessWithCustomMessage(c, "创建成功")
+}
+
+// precheckBracketOnCreate 创建前校验对阵图请求，返回错误提示（空串表示通过或未开启）
+func precheckBracketOnCreate(req *CreateCompetitionRequest) string {
+	if !req.BracketEnabled {
+		return ""
+	}
+	return checkBracketRequest(req.CompetitionType, "", true, req.BracketFormat)
+}
+
+// enableBracketOnCreate 项目创建后按请求开启对阵图；已预先校验，失败属于意外（如数据库错误）
+func enableBracketOnCreate(created *types.Competition, req *CreateCompetitionRequest) error {
+	if !req.BracketEnabled {
+		return nil
+	}
+	if err := services.SetCompetitionBracket(created, true, req.BracketFormat); err != nil {
+		return fmt.Errorf("项目已创建，但开启对阵图失败：%w", err)
+	}
+	return nil
+}
+
+// checkBracketRequest 校验对阵图开关请求，返回错误提示（空串表示通过）
+func checkBracketRequest(
+	competitionType types.CompetitionType,
+	status types.CompetitionStatus,
+	enabled bool,
+	format types.BracketFormat,
+) string {
+	if format != "" && !isValidBracketFormat(format) {
+		return "无效的对阵赛制"
+	}
+	if err := services.CheckBracketToggle(competitionType, status, enabled); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// checkBracketTypeCompatible 使用对阵图时，比赛类型须与已有对阵表的参赛方类型一致
+func checkBracketTypeCompatible(competition *types.Competition) error {
+	want, err := services.ParticipantTypeForCompetition(competition.CompetitionType)
+	if err != nil {
+		return err
+	}
+	bracket, err := models.GetBracketByCompetitionID(competition.ID)
+	if err != nil {
+		// 尚未创建对阵表时由开启流程按比赛类型创建
+		return nil //nolint:nilerr // 没有对阵表即无冲突
+	}
+	if bracket.ParticipantType != want {
+		return services.ErrBracketTypeMismatch
+	}
+	return nil
 }
 
 // UpdateCompetition 更新比赛项目
@@ -562,10 +629,42 @@ func UpdateCompetition(c *gin.Context) {
 		}
 		competition.ImagePath = imagePath
 	}
+	// 已开启对阵图时不允许改为仅报名项目，也不允许改变参赛方类型（学生 ↔ 班级）
+	bracketEnabled := competition.BracketEnabled
+	if req.BracketEnabled != nil {
+		bracketEnabled = *req.BracketEnabled
+		if bracketEnabled != competition.BracketEnabled {
+			msg := checkBracketRequest(
+				competition.CompetitionType,
+				competition.Status,
+				bracketEnabled,
+				req.BracketFormat,
+			)
+			if msg != "" {
+				utils.ResponseError(c, http.StatusBadRequest, msg)
+				return
+			}
+		}
+	}
+	if bracketEnabled {
+		if err := checkBracketTypeCompatible(competition); err != nil {
+			utils.ResponseError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
 	err = models.UpdateCompetition(competition, req.CustomFields)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "更新比赛项目失败: "+err.Error())
 		return
+	}
+
+	// 已在保存前校验过，这里失败属于意外（如数据库错误）
+	if req.BracketEnabled != nil {
+		if err := services.SetCompetitionBracket(competition, *req.BracketEnabled, req.BracketFormat); err != nil {
+			utils.ResponseError(c, http.StatusInternalServerError, "项目信息已保存，但切换对阵图失败："+err.Error())
+			return
+		}
 	}
 
 	// 时间（开始/结束）或地点实际发生变化时，按全局配置钉钉通知已报名学生
@@ -764,6 +863,13 @@ func UpdateCompetitionProgressStatus(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest,
 			fmt.Sprintf("不允许从 %s 流转到 %s", competition.Status, req.Status))
 		return
+	}
+
+	if req.Status == types.StatusInProgress {
+		if err := services.EnsureCompetitionCanStart(competition); err != nil {
+			utils.ResponseError(c, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	if err := models.UpdateCompetitionStatus(id, req.Status); err != nil {

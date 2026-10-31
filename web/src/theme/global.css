@@ -1,0 +1,202 @@
+/*
+ * 全站主题：照搬 RM Schedule（rm-schedule-ui）的视觉
+ * 字体、背景、横幅切图来自 assets/rm（见该目录 NOTICE）
+ * 颜色变量与 theme/tokens.ts 的 palette 保持一致
+ */
+@font-face {
+  font-family: "MyFont";
+  src: url("../assets/rm/fonts/HYYaKuHei.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  /* RM Schedule 画布色与 Vuetify 深色主题 */
+  --sm-bg: #061321;
+  --sm-bg-deep: #061321;
+  --sm-panel: rgba(7, 18, 36, 0.9);
+  --sm-panel-solid: #0a1a2e;
+  --sm-panel-raised: rgba(255, 255, 255, 0.08);
+  --sm-panel-hover: rgba(255, 255, 255, 0.12);
+  --sm-line: rgba(255, 255, 255, 0.12);
+  --sm-line-strong: rgba(255, 255, 255, 0.24);
+  --sm-text: #ffffff;
+  --sm-text-secondary: rgba(220, 232, 246, 0.72);
+  --sm-text-muted: #9d9f9f;
+  /* 强调色：Vuetify primary 与 RM 横幅青 */
+  --sm-accent: #2196f3;
+  --sm-accent-deep: #1565c0;
+  --sm-gold: #ffc857;
+  --sm-gold-deep: #c8895a;
+  /* 红蓝方（与 RM 比分徽标一致） */
+  --sm-red: #f44336;
+  --sm-red-deep: #c62828;
+  --sm-blue: #2196f3;
+  --sm-blue-deep: #1565c0;
+  --sm-win: #4caf50;
+  --sm-lose: #616161;
+  --sm-display-font: "MyFont", sans-serif;
+  /* 横幅切图：轮次标题 / 冠军争夺 / 季军争夺 */
+  --sm-banner: url("../assets/rm/title_bg.png") center / 100% 100% no-repeat;
+  --sm-banner-gold: url("../assets/rm/title_winner_bg.png") center / 100% 100%
+    no-repeat;
+  --sm-banner-loser: url("../assets/rm/title_loser_bg.png") center / 100% 100%
+    no-repeat;
+}
+
+html,
+body {
+  margin: 0;
+  background-color: var(--sm-bg);
+  color: var(--sm-text);
+  font-family: "MyFont", sans-serif;
+}
+
+/*
+ * 页面背景：1:1 自适应构图，主体在中心，横屏裁上下、竖屏裁左右；
+ * 半透明铺满（同 RM 的 opacity 0.5）
+ */
+.sm-app-bg {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--sm-bg);
+}
+
+.sm-app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("../assets/background/stadium.jpg") center / cover no-repeat;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 已决出冠军的对阵图：颁奖之夜背景 */
+.sm-app-bg--final::before {
+  background-image: url("../assets/background/final.jpg");
+}
+
+/* 毛玻璃面板（RM 的 glass-sheet：顶栏、侧边栏） */
+.sm-glass {
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.sm-display {
+  font-family: var(--sm-display-font);
+  font-weight: normal;
+}
+
+/* 横幅标题（RM 的轮次标题切图） */
+.sm-banner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 2px 36px;
+  font-family: var(--sm-display-font);
+  font-size: 18px;
+  color: #fff;
+  text-shadow: 3px 3px 6px #000;
+  background: var(--sm-banner);
+}
+
+.sm-banner--gold {
+  background: var(--sm-banner-gold);
+}
+
+.sm-banner--loser {
+  background: var(--sm-banner-loser);
+}
+
+/* 后台页面主标题：沿用横幅切图 */
+.sm-app-bg h2.ant-typography {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 48px 0 20px;
+  font-family: var(--sm-display-font);
+  font-weight: normal;
+  text-shadow: 3px 3px 6px #000;
+  background: var(--sm-banner);
+}
+
+/* ==== antd 组件补充（token 覆盖不到的部分） ==== */
+
+.ant-card {
+  border: 1px solid var(--sm-line);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.ant-card .ant-card-head {
+  border-bottom: 1px solid var(--sm-line);
+}
+
+.ant-card .ant-card-head-title {
+  font-family: var(--sm-display-font);
+  font-weight: normal;
+}
+
+.ant-form-item-label > label,
+.ant-descriptions-item-label,
+.ant-table-thead > tr > th {
+  font-weight: normal;
+}
+
+.ant-tag {
+  border-radius: 2px;
+}
+
+.ant-statistic-content-value {
+  font-family: var(--sm-display-font);
+}
+
+/* 悬停效果卡片 */
+.hover-card {
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.hover-card:hover {
+  border-color: var(--sm-accent);
+  transform: translateY(-2px);
+}
+
+/* 成绩前三名高亮行 */
+.score-ranking.top-3 {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 200, 87, 0.22) 0%,
+    rgba(255, 200, 87, 0) 100%
+  );
+  border-left: 4px solid var(--sm-gold);
+}
+
+/* ==== 滚动条 ==== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sm-line-strong);
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-card,
+  .hover-card:hover {
+    transition: none;
+    transform: none;
+  }
+}

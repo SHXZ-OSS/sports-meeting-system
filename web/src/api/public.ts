@@ -6,6 +6,8 @@ import {
   Statistics,
   ApiResponse,
   Registration,
+  Bracket,
+  BracketDetail,
 } from "../types";
 
 /**
@@ -124,5 +126,19 @@ export const publicAPI = {
     return await callApi(() =>
       publicApi.get(`/points/students/${studentId}/details`),
     );
+  },
+
+  /**
+   * 获取已公开的对阵表列表
+   */
+  getBrackets: async (): Promise<ApiResponse<Bracket[]>> => {
+    return await callApi(() => publicApi.get("/brackets"));
+  },
+
+  /**
+   * 获取已公开对阵表的完整数据
+   */
+  getBracket: async (id: number): Promise<ApiResponse<BracketDetail>> => {
+    return await callApi(() => publicApi.get(`/brackets/${id}`));
   },
 };

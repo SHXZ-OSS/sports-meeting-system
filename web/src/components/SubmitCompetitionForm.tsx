@@ -240,7 +240,7 @@ const SubmitCompetitionForm: React.FC<SubmitCompetitionFormProps> = ({
                 <strong>分数越高排名越好</strong>
                 <div
                   style={{
-                    color: "#666",
+                    color: "var(--sm-text-secondary)",
                     fontSize: "12px",
                     marginLeft: "24px",
                   }}
@@ -252,7 +252,7 @@ const SubmitCompetitionForm: React.FC<SubmitCompetitionFormProps> = ({
                 <strong>分数越低排名越好</strong>
                 <div
                   style={{
-                    color: "#666",
+                    color: "var(--sm-text-secondary)",
                     fontSize: "12px",
                     marginLeft: "24px",
                   }}

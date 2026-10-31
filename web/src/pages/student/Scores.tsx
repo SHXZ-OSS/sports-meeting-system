@@ -121,7 +121,7 @@ const StudentScores: React.FC = () => {
                 valueStyle={{
                   color: getBestRanking(scores)
                     ? getRankingColor(getBestRanking(scores) ?? undefined)
-                    : "#666",
+                    : "var(--sm-text-secondary)",
                 }}
               />
             </Card>
@@ -184,20 +184,28 @@ const StudentScores: React.FC = () => {
                       lineHeight: 1.2,
                     }}
                   >
-                    {score.score}
-                    {score.unit && (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          marginLeft: 3,
-                        }}
-                      >
-                        {score.unit}
-                      </span>
+                    {score.bracket_enabled ? (
+                      `第 ${score.score} 名`
+                    ) : (
+                      <>
+                        {score.score}
+                        {score.unit && (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginLeft: 3,
+                            }}
+                          >
+                            {score.unit}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: "#999" }}>成绩</div>
+                  <div style={{ fontSize: 11, color: "var(--sm-text-muted)" }}>
+                    成绩
+                  </div>
                 </div>
               </div>
             </Card>

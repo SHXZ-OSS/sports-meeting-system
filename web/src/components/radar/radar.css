@@ -1,0 +1,346 @@
+/* ==== 实力雷达（参照 RM Schedule 机器人数据雷达图） ==== */
+
+.radar-chart {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  font-family: var(--sm-display-font);
+}
+
+.radar-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.radar-ring {
+  fill: rgba(255, 255, 255, 0.02);
+  stroke: var(--sm-line-strong);
+  stroke-width: 1;
+}
+
+.radar-ring.is-alt {
+  fill: rgba(120, 170, 255, 0.05);
+}
+
+.radar-spoke {
+  stroke: var(--sm-line);
+  stroke-width: 1;
+}
+
+.radar-tick {
+  fill: var(--sm-text-muted);
+  font-size: 10px;
+}
+
+.radar-axis-label {
+  fill: var(--sm-text);
+  font-size: 14px;
+}
+
+.radar-series circle {
+  cursor: default;
+}
+
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--sm-text);
+}
+
+.radar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.radar-legend-swatch {
+  width: 22px;
+  height: 12px;
+  border: 2px solid;
+  border-radius: 3px;
+}
+
+.radar-legend-swatch.is-dashed {
+  border-style: dashed;
+}
+
+/* ==== 面板 ==== */
+
+.radar-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+  .radar-panel {
+    grid-template-columns: minmax(360px, 5fr) minmax(0, 6fr);
+    align-items: start;
+  }
+}
+
+.radar-preset-tag {
+  padding: 0 10px;
+  line-height: 22px;
+  font-size: 12px;
+  color: #1a1204;
+  background: var(--sm-gold);
+  border-radius: 2px;
+}
+
+.radar-hint {
+  font-size: 12px;
+  color: var(--sm-text-secondary);
+}
+
+.radar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+}
+
+.radar-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.radar-control.is-inline {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.radar-control-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--sm-text-secondary);
+}
+
+.radar-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.radar-select {
+  width: 100%;
+}
+
+/* ==== 数据表 ==== */
+
+.radar-table-scroll {
+  overflow-x: auto;
+}
+
+.radar-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.radar-table th,
+.radar-table td {
+  padding: 6px 8px;
+  font-weight: normal;
+}
+
+.radar-table thead th {
+  font-size: 12px;
+  color: var(--sm-text-secondary);
+}
+
+.radar-table tbody tr > * {
+  background: linear-gradient(
+    180deg,
+    rgba(210, 232, 248, 0.055),
+    rgba(255, 255, 255, 0.025)
+  );
+}
+
+.radar-table .is-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background-color: #0b1d33;
+}
+
+.radar-table thead .is-name {
+  background: #0b1d33;
+}
+
+.radar-table tbody tr > :first-child {
+  border-left: 3px solid transparent;
+  border-radius: 4px 0 0 4px;
+}
+
+.radar-table tbody tr > :last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.radar-table tr.is-single > :first-child {
+  border-left-color: #ffb300;
+}
+
+.radar-table tr.is-red > :first-child {
+  border-left-color: #e53935;
+}
+
+.radar-table tr.is-blue > :first-child {
+  border-left-color: #1e88e5;
+}
+
+.radar-table tr.is-single > *,
+.radar-table tr.is-red > *,
+.radar-table tr.is-blue > * {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.radar-table tr.is-average > * {
+  color: var(--sm-text-secondary);
+}
+
+.radar-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.radar-th:focus-visible {
+  outline: 2px solid rgba(140, 180, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.radar-th-icon {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.radar-name {
+  display: block;
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.radar-table .bv-sub {
+  display: block;
+  font-size: 11px;
+}
+
+.radar-empty {
+  color: var(--sm-text-muted);
+}
+
+.radar-manual-tag {
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--sm-gold);
+  border: 1px solid rgba(255, 200, 87, 0.5);
+  border-radius: 2px;
+  vertical-align: 1px;
+}
+
+.radar-note p {
+  margin: 0 0 4px;
+  line-height: 1.6;
+}
+
+.radar-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ==== 管理端：比赛统计录入 ==== */
+
+.radar-stats {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--sm-line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.radar-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.radar-stats-head {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sm-text-secondary);
+  text-align: center;
+}
+
+.radar-stats-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.radar-stats-errors {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--sm-red);
+}
+
+/* 覆盖桌面对阵图中小组面板的最大宽度 */
+.bracket-view .radar-panel .bv-panel {
+  max-width: none;
+  min-width: 0;
+}
+
+.radar-stats-row {
+  display: contents;
+}
+
+.radar-stats-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-bottom: 8px;
+}
+
+.radar-stats-sub {
+  font-size: 12px;
+}

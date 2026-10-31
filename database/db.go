@@ -211,6 +211,32 @@ func autoMigrate() error {
 		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for registration_custom_values: %v", err))
 	}
 
+	// 对阵表内拓扑序唯一，签位通过 Seq 引用来源比赛
+	if err := db.Exec(
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_bracket_match_seq ON bracket_matches(bracket_id, seq)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for bracket_matches: %v", err))
+	}
+	// 同一对阵表内班级/学生不可重复（NULL 不参与唯一性比较）
+	if err := db.Exec(
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_bracket_participant_class ON bracket_participants(bracket_id, class_id)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for bracket_participants: %v", err))
+	}
+	if err := db.Exec(
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_bracket_participant_student ON bracket_participants(bracket_id, student_id)",
+	).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to create unique index for bracket_participants: %v", err))
+	}
+
+	// 新增对阵图管理权限：原先持有全部权限的用户（如初始管理员）自动获得，避免升级后无人可管理
+	const legacyAllPermissions = utils.PermissionBracketManagement - 1
+	if err := db.Model(&types.User{}).
+		Where("permission & ? = ?", legacyAllPermissions, legacyAllPermissions).
+		Update("permission", gorm.Expr("permission | ?", utils.PermissionBracketManagement)).Error; err != nil {
+		logger.L.Warn(fmt.Sprintf("Warning: failed to grant bracket permission: %v", err))
+	}
+
 	// 学生登录已迁移至钉钉/OIDC，移除遗留的学生密码列
 	// DROP COLUMN 需整表重建，期间须关闭外键检查（同 foreignkey.go 的做法）；
 	// 删除失败必须中止启动，否则后续学生插入会因列 NOT NULL 约束在运行期失败
@@ -255,6 +281,9 @@ func allModels() []any {
 		&types.Score{},
 		&types.Vote{},
 		&types.Points{},
+		&types.Bracket{},
+		&types.BracketParticipant{},
+		&types.BracketMatch{},
 	}
 }
 
