@@ -170,6 +170,10 @@ func SetupRouter(staticFS fs.FS) *gin.Engine {
 	progressMgmt.POST("/remind", handlers.RemindStudent)
 	// 赛事进程状态流转：开始检录（钉钉通知已报名学生）、开始比赛、退回等，body.status 为目标状态
 	progressMgmt.POST("/:id/status", handlers.UpdateCompetitionProgressStatus)
+	// 使用对阵图的项目：在赛事进程中查看对阵并录入比分，全部完赛自动生成名次
+	progressMgmt.GET("/:id/bracket", handlers.GetCompetitionBracket)
+	progressMgmt.PUT("/:id/bracket/matches/:match_id", handlers.UpdateCompetitionBracketMatch)
+	progressMgmt.POST("/:id/bracket/complete", handlers.CompleteCompetitionFromBracket)
 	progressScores := progressMgmt.Group("/scores")
 	progressScores.POST("", handlers.CreateOrUpdateScores)
 	progressScores.GET("/:id", handlers.GetCompetitionScores)

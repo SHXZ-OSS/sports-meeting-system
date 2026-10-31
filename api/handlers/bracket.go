@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/SHXZ-OSS/sports-meeting-system/api/middlewares"
 	"github.com/SHXZ-OSS/sports-meeting-system/config"
 	"github.com/SHXZ-OSS/sports-meeting-system/models"
 	"github.com/SHXZ-OSS/sports-meeting-system/services"
@@ -128,6 +129,9 @@ func CreateBracket(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest, msg)
 		return
 	}
+	if !validateCompetitionLink(c, bracket) {
+		return
+	}
 	if err := models.CreateBracket(bracket); err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "创建对阵表失败："+err.Error())
 		return
@@ -152,6 +156,9 @@ func UpdateBracket(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest, msg)
 		return
 	}
+	if !sameIntPtr(bracket.CompetitionID, update.CompetitionID) && !validateCompetitionLink(c, &update) {
+		return
+	}
 	if err := services.UpdateBracketInfo(bracket, &update); err != nil {
 		respondBracketError(c, err)
 		return
@@ -163,6 +170,10 @@ func UpdateBracket(c *gin.Context) {
 func DeleteBracket(c *gin.Context) {
 	bracket, ok := loadBracket(c)
 	if !ok {
+		return
+	}
+	if bracket.CompetitionID != nil && bracket.CompetitionBracketEnabled {
+		respondBracketError(c, services.ErrBracketLinkedEnabled)
 		return
 	}
 	if err := models.DeleteBracket(bracket.ID); err != nil {
@@ -183,7 +194,7 @@ func AddBracketParticipants(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest, "请选择要添加的参赛方")
 		return
 	}
-	if err := services.EnsureBracketEditable(bracket.ID); err != nil {
+	if err := ensureParticipantsMutable(bracket); err != nil {
 		respondBracketError(c, err)
 		return
 	}
@@ -205,12 +216,17 @@ func ImportBracketParticipantsFromCompetition(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest, "对阵表未关联比赛项目")
 		return
 	}
-	if err := services.EnsureBracketEditable(bracket.ID); err != nil {
+	if err := ensureParticipantsMutable(bracket); err != nil {
 		respondBracketError(c, err)
 		return
 	}
 
-	registrations, err := models.GetCompetitionRegistrations(*bracket.CompetitionID, 0)
+	competition, err := models.GetCompetitionByID(*bracket.CompetitionID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusNotFound, "关联的比赛项目不存在")
+		return
+	}
+	candidates, err := importCandidates(bracket, competition)
 	if err != nil {
 		utils.ResponseError(c, http.StatusInternalServerError, "获取报名记录失败："+err.Error())
 		return
@@ -231,16 +247,10 @@ func ImportBracketParticipantsFromCompetition(c *gin.Context) {
 	}
 
 	var ids []int
-	for _, reg := range registrations {
-		var ref *int
-		if bracket.ParticipantType == types.ParticipantTypeStudent {
-			ref = reg.StudentID
-		} else {
-			ref = reg.ClassID
-		}
-		if ref != nil && !existing[*ref] {
-			existing[*ref] = true
-			ids = append(ids, *ref)
+	for _, ref := range candidates {
+		if !existing[ref] {
+			existing[ref] = true
+			ids = append(ids, ref)
 		}
 	}
 	if len(ids) == 0 {
@@ -265,7 +275,7 @@ func RemoveBracketParticipant(c *gin.Context) {
 		utils.ResponseError(c, http.StatusBadRequest, "无效的参赛方ID")
 		return
 	}
-	if err := services.EnsureBracketEditable(bracket.ID); err != nil {
+	if err := ensureParticipantsMutable(bracket); err != nil {
 		respondBracketError(c, err)
 		return
 	}
@@ -332,7 +342,7 @@ func ResetBracket(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := services.ResetBracket(bracket.ID); err != nil {
+	if err := services.ResetBracket(bracket); err != nil {
 		respondBracketError(c, err)
 		return
 	}
@@ -343,6 +353,16 @@ func ResetBracket(c *gin.Context) {
 func UpdateBracketMatch(c *gin.Context) {
 	bracket, ok := loadBracket(c)
 	if !ok {
+		return
+	}
+	updateBracketMatch(c, bracket)
+}
+
+// updateBracketMatch 解析请求并录入比分；所属项目全部完赛时提示已自动出成绩
+func updateBracketMatch(c *gin.Context, bracket *types.Bracket) {
+	operatorID, ok := middlewares.GetUserIDFromContext(c)
+	if !ok {
+		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
 		return
 	}
 	matchID, err := strconv.Atoi(c.Param("match_id"))
@@ -385,11 +405,81 @@ func UpdateBracketMatch(c *gin.Context) {
 		result.ScheduledAt = &t
 	}
 
-	if err := services.UpdateBracketMatch(bracket, matchID, result); err != nil {
+	completed, err := services.UpdateBracketMatch(bracket, matchID, result, operatorID)
+	if err != nil {
 		respondBracketError(c, err)
 		return
 	}
+	if completed {
+		utils.ResponseSuccessWithCustomMessage(c, "对阵已全部完赛，名次已生成并计入积分")
+		return
+	}
 	utils.ResponseSuccessWithCustomMessage(c, "保存成功")
+}
+
+// ==== 成绩与赛事进程端（按比赛项目访问其对阵图，需成绩与赛事进程权限） ====
+
+// GetCompetitionBracket 获取比赛项目的对阵图；项目未启用对阵图或尚未创建时 data 为空
+func GetCompetitionBracket(c *gin.Context) {
+	competition, ok := loadProgressCompetition(c)
+	if !ok {
+		return
+	}
+	if !competition.BracketEnabled {
+		utils.ResponseOK(c, nil)
+		return
+	}
+	bracket, err := models.GetBracketByCompetitionID(competition.ID)
+	if errors.Is(err, models.ErrBracketNotFound) {
+		utils.ResponseOK(c, nil)
+		return
+	}
+	if err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	detail, err := services.GetBracketDetail(bracket.ID)
+	if err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	utils.ResponseOK(c, detail)
+}
+
+// UpdateCompetitionBracketMatch 在成绩与赛事进程中录入对阵比分
+func UpdateCompetitionBracketMatch(c *gin.Context) {
+	competition, ok := loadProgressCompetition(c)
+	if !ok {
+		return
+	}
+	if !competition.BracketEnabled {
+		utils.ResponseError(c, http.StatusBadRequest, "该项目未使用对阵图")
+		return
+	}
+	bracket, err := models.GetBracketByCompetitionID(competition.ID)
+	if err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	updateBracketMatch(c, bracket)
+}
+
+// CompleteCompetitionFromBracket 按当前对阵结果生成名次并完赛（退回后未改动比分时使用）
+func CompleteCompetitionFromBracket(c *gin.Context) {
+	competition, ok := loadProgressCompetition(c)
+	if !ok {
+		return
+	}
+	operatorID, ok := middlewares.GetUserIDFromContext(c)
+	if !ok {
+		utils.ResponseError(c, http.StatusUnauthorized, "未授权")
+		return
+	}
+	if err := services.CompleteCompetitionFromBracket(competition, operatorID); err != nil {
+		respondBracketError(c, err)
+		return
+	}
+	utils.ResponseSuccessWithCustomMessage(c, "名次已生成并计入积分")
 }
 
 // ==== 公开端 ====
@@ -410,7 +500,10 @@ func GetPublicBracket(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if !bracket.Published {
+	hidden := bracket.CompetitionID != nil && (!bracket.CompetitionBracketEnabled ||
+		bracket.CompetitionStatus == types.StatusPendingApproval ||
+		bracket.CompetitionStatus == types.StatusRejected)
+	if !bracket.Published || hidden {
 		utils.ResponseError(c, http.StatusNotFound, models.ErrBracketNotFound.Error())
 		return
 	}
@@ -423,6 +516,83 @@ func GetPublicBracket(c *gin.Context) {
 }
 
 // ==== 辅助函数 ====
+
+// loadProgressCompetition 解析路径中的比赛项目 ID，并限定在当前届次内
+func loadProgressCompetition(c *gin.Context) (*types.Competition, bool) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "无效的比赛ID")
+		return nil, false
+	}
+	competition, err := models.GetCompetitionByID(id)
+	if err != nil || competition.EventID != config.Get().CurrentEventID {
+		utils.ResponseError(c, http.StatusNotFound, "比赛项目不存在")
+		return nil, false
+	}
+	return competition, true
+}
+
+// validateCompetitionLink 关联比赛项目时校验参赛方类型与唯一性，失败时已写入响应
+func validateCompetitionLink(c *gin.Context, bracket *types.Bracket) bool {
+	if bracket.CompetitionID == nil {
+		return true
+	}
+	competition, err := models.GetCompetitionByID(*bracket.CompetitionID)
+	if err != nil {
+		utils.ResponseError(c, http.StatusBadRequest, "关联的比赛项目不存在")
+		return false
+	}
+	if err := services.ValidateBracketLink(bracket, competition); err != nil {
+		respondBracketError(c, err)
+		return false
+	}
+	return true
+}
+
+// ensureParticipantsMutable 参赛方变动前校验：对阵未生成，且所属项目尚未出成绩
+func ensureParticipantsMutable(bracket *types.Bracket) error {
+	if err := services.EnsureBracketEditable(bracket.ID); err != nil {
+		return err
+	}
+	return services.EnsureBracketStructureMutable(bracket)
+}
+
+// importCandidates 可导入的参赛方 ID：全校性比赛为全部班级，其余为报名的班级或学生
+func importCandidates(bracket *types.Bracket, competition *types.Competition) ([]int, error) {
+	if competition.CompetitionType == types.TypeSchool && bracket.ParticipantType == types.ParticipantTypeClass {
+		classes, _, err := models.GetAllClasses(0, 0, "")
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]int, len(classes))
+		for i, cl := range classes {
+			ids[i] = cl.ID
+		}
+		return ids, nil
+	}
+	registrations, err := models.GetCompetitionRegistrations(competition.ID, 0)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int, 0, len(registrations))
+	for _, reg := range registrations {
+		ref := reg.ClassID
+		if bracket.ParticipantType == types.ParticipantTypeStudent {
+			ref = reg.StudentID
+		}
+		if ref != nil {
+			ids = append(ids, *ref)
+		}
+	}
+	return ids, nil
+}
+
+func sameIntPtr(a, b *int) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
 
 // loadBracket 解析路径中的对阵表 ID，并限定在当前届次内
 func loadBracket(c *gin.Context) (*types.Bracket, bool) {
@@ -520,7 +690,12 @@ func respondBracketError(c *gin.Context, err error) {
 		errors.Is(err, models.ErrBracketParticipantNotFound):
 		utils.ResponseError(c, http.StatusNotFound, err.Error())
 	case errors.Is(err, services.ErrBracketLocked),
-		errors.Is(err, models.ErrBracketParticipantExists):
+		errors.Is(err, models.ErrBracketParticipantExists),
+		errors.Is(err, models.ErrBracketCompetitionTaken),
+		errors.Is(err, services.ErrBracketLinkedEnabled),
+		errors.Is(err, services.ErrBracketCompetitionFinished),
+		errors.Is(err, services.ErrBracketCompetitionNotRunning),
+		errors.Is(err, services.ErrBracketToggleWithScores):
 		utils.ResponseError(c, http.StatusConflict, err.Error())
 	case isBracketValidationError(err):
 		utils.ResponseError(c, http.StatusBadRequest, err.Error())
@@ -539,6 +714,8 @@ func isBracketValidationError(err error) bool {
 		services.ErrBracketWinnerRequired, services.ErrBracketWinnerScoreConfit,
 		services.ErrBracketOrderMismatch,
 		models.ErrBracketStudentMissing, models.ErrBracketClassMissing,
+		services.ErrBracketUnsupportedCompetition, services.ErrBracketTypeMismatch,
+		services.ErrBracketNotSettled, services.ErrBracketCompetitionNoMatches,
 	} {
 		if errors.Is(err, target) {
 			return true

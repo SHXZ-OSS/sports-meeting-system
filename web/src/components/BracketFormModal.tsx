@@ -51,7 +51,10 @@ const BracketFormModal: React.FC<BracketFormModalProps> = ({
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const format = Form.useWatch("format", form);
+  const participantType = Form.useWatch("participant_type", form);
   const isEdit = !!bracket;
+  // 所属项目已启用对阵图时，关联关系由项目管理控制，这里不允许改动
+  const linkLocked = !!bracket?.competition_bracket_enabled;
 
   useEffect(() => {
     if (!open) return;
@@ -168,13 +171,26 @@ const BracketFormModal: React.FC<BracketFormModalProps> = ({
         <Form.Item
           label="关联比赛项目"
           name="competition_id"
-          extra="关联后可一键导入该项目的报名作为参赛方"
+          extra={
+            linkLocked
+              ? "所属项目已启用对阵图，名次由本对阵生成；如需解除关联，请先在项目管理中关闭对阵图"
+              : "关联后可一键导入该项目的报名作为参赛方；在项目管理中开启「使用对阵图」后，对阵结果会计入成绩与积分"
+          }
         >
           <Select
             allowClear
+            disabled={linkLocked}
             showSearch={{ optionFilterProp: "label" }}
             placeholder="可选"
-            options={competitions.map((c) => ({ value: c.id, label: c.name }))}
+            options={competitions
+              // 个人赛对应学生、团体赛与全校性比赛对应班级；仅报名项目没有成绩
+              .filter((c) =>
+                participantType === "student"
+                  ? c.competition_type === "individual"
+                  : c.competition_type === "team" ||
+                    c.competition_type === "school",
+              )
+              .map((c) => ({ value: c.id, label: c.name }))}
           />
         </Form.Item>
 

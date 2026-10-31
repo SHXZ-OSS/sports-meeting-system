@@ -199,8 +199,14 @@ const ScorePrintSheet: React.FC<{
                     </>
                   )}
                   <td className="is-score">
-                    {formatScore(score.score)}{" "}
-                    <span>{score.unit || competition.unit}</span>
+                    {competition.bracket_enabled ? (
+                      `第 ${score.score} 名`
+                    ) : (
+                      <>
+                        {formatScore(score.score)}{" "}
+                        <span>{score.unit || competition.unit}</span>
+                      </>
+                    )}
                   </td>
                   <td className="is-point">
                     {score.point !== undefined && score.point !== null

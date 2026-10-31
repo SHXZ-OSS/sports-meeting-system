@@ -72,6 +72,7 @@ type Competition struct {
 	EndTime                 *time.Time        `json:"end_time,omitempty"`                                      // 比赛结束时间
 	CheckinReminderSentAt   *time.Time        `json:"checkin_reminder_sent_at,omitempty"`                      // 检录前定时提醒的发送时间，非空表示已提醒
 	AllowConcurrent         bool              `json:"allow_concurrent"                   gorm:"default:false"` // 允许兼项
+	BracketEnabled          bool              `json:"bracket_enabled"                    gorm:"default:false"` // 使用对阵图：名次由对阵结果生成，关闭后对阵数据保留但隐藏
 
 	// 报名自定义字段
 	CustomFields []CompetitionCustomField `json:"custom_fields,omitempty" gorm:"foreignKey:CompetitionID"`

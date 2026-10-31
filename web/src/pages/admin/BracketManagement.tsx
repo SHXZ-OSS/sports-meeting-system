@@ -8,6 +8,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import {
@@ -104,6 +105,7 @@ const BracketManagement: React.FC = () => {
             <Tag>未生成</Tag>
           )}
           {b.published && <Tag color="green">已公开</Tag>}
+          {b.competition_bracket_enabled && <Tag color="cyan">计入成绩</Tag>}
         </Space>
       ),
     },
@@ -138,17 +140,25 @@ const BracketManagement: React.FC = () => {
               编辑
             </Button>
           )}
-          <Popconfirm
-            title="确定删除此对阵表吗？"
-            description="对阵与已录入的结果将一并删除，不可恢复"
-            onConfirm={() => handleDelete(b)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
+          {b.competition_bracket_enabled ? (
+            <Tooltip title="所属项目已启用对阵图，请先在项目管理中关闭对阵图">
+              <Button size="small" danger disabled icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Tooltip>
+          ) : (
+            <Popconfirm
+              title="确定删除此对阵表吗？"
+              description="对阵与已录入的结果将一并删除，不可恢复"
+              onConfirm={() => handleDelete(b)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

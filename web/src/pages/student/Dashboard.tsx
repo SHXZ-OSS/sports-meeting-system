@@ -261,13 +261,23 @@ const StudentDashboard: React.FC = () => {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {item.score}
-                    {item.unit && (
-                      <span
-                        style={{ fontSize: 12, fontWeight: 500, marginLeft: 2 }}
-                      >
-                        {item.unit}
-                      </span>
+                    {item.bracket_enabled ? (
+                      `第 ${item.score} 名`
+                    ) : (
+                      <>
+                        {item.score}
+                        {item.unit && (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginLeft: 2,
+                            }}
+                          >
+                            {item.unit}
+                          </span>
+                        )}
+                      </>
                     )}
                   </span>
                 </div>

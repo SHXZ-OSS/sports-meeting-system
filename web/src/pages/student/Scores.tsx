@@ -184,17 +184,23 @@ const StudentScores: React.FC = () => {
                       lineHeight: 1.2,
                     }}
                   >
-                    {score.score}
-                    {score.unit && (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          marginLeft: 3,
-                        }}
-                      >
-                        {score.unit}
-                      </span>
+                    {score.bracket_enabled ? (
+                      `第 ${score.score} 名`
+                    ) : (
+                      <>
+                        {score.score}
+                        {score.unit && (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 500,
+                              marginLeft: 3,
+                            }}
+                          >
+                            {score.unit}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   <div style={{ fontSize: 11, color: "var(--sm-text-muted)" }}>

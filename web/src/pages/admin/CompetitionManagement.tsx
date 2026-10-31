@@ -21,6 +21,7 @@ import {
   InputNumber,
   DatePicker,
   Switch,
+  Tag,
 } from "antd";
 import {
   PlusOutlined,
@@ -50,6 +51,7 @@ import {
   serializeCustomFieldSpec,
 } from "../../utils/customFields";
 import { useIsMobile } from "../../utils/mobile";
+import { BRACKET_FORMAT_OPTIONS } from "../../utils/bracket";
 import CustomFieldsEditor from "../../components/CustomFieldsEditor";
 import BatchResults, { BatchResult } from "../../components/BatchResults";
 import BatchImportExport from "../../components/BatchImportExport";
@@ -65,6 +67,7 @@ const CompetitionManagement: React.FC = () => {
   const isMobile = useIsMobile();
   const genderValue = Form.useWatch("gender", form);
   const competitionTypeValue = Form.useWatch("competition_type", form);
+  const bracketEnabledValue = Form.useWatch("bracket_enabled", form);
 
   const [loading, setLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -356,6 +359,7 @@ const CompetitionManagement: React.FC = () => {
           : null,
         end_time: competition.end_time ? dayjs(competition.end_time) : null,
         allow_concurrent: competition.allow_concurrent || false,
+        bracket_enabled: competition.bracket_enabled || false,
         custom_fields: competition.custom_fields || [],
       });
 
@@ -402,6 +406,7 @@ const CompetitionManagement: React.FC = () => {
       ? values.ranking_mode || "higher_first"
       : values.ranking_mode;
     const customFields: CompetitionCustomField[] = values.custom_fields || [];
+    const bracketEnabled = !isRegistrationOnly && !!values.bracket_enabled;
 
     if (editingCompetition) {
       const response = await adminCompetitionAPI.updateCompetition(
@@ -428,6 +433,8 @@ const CompetitionManagement: React.FC = () => {
           start_time: values.start_time?.toISOString(),
           end_time: values.end_time?.toISOString(),
           allow_concurrent: values.allow_concurrent ?? false,
+          bracket_enabled: bracketEnabled,
+          bracket_format: bracketEnabled ? values.bracket_format : undefined,
           custom_fields: customFields,
         },
       );
@@ -454,6 +461,8 @@ const CompetitionManagement: React.FC = () => {
         start_time: values.start_time?.toISOString(),
         end_time: values.end_time?.toISOString(),
         allow_concurrent: values.allow_concurrent ?? false,
+        bracket_enabled: bracketEnabled,
+        bracket_format: bracketEnabled ? values.bracket_format : undefined,
         custom_fields: customFields,
       });
       handleRespWithNotifySuccess(response, () => {
@@ -585,7 +594,12 @@ const CompetitionManagement: React.FC = () => {
       title: "类型",
       dataIndex: "competition_type",
       key: "competition_type",
-      render: (type: string) => getCompetitionTypeTag(type),
+      render: (type: string, record: Competition) => (
+        <Space size={4} wrap>
+          {getCompetitionTypeTag(type)}
+          {record.bracket_enabled && <Tag color="cyan">对阵图</Tag>}
+        </Space>
+      ),
     },
     {
       title: "性别",
@@ -1162,6 +1176,40 @@ const CompetitionManagement: React.FC = () => {
           >
             <Switch />
           </Form.Item>
+
+          {competitionTypeValue !== "registration" && (
+            <Form.Item
+              label="使用对阵图"
+              name="bracket_enabled"
+              valuePropName="checked"
+              initialValue={false}
+              extra={
+                bracketEnabledValue
+                  ? "名次由对阵结果生成：全部完赛后自动计入积分，无需审核。关闭后对阵数据保留，可随时重新开启。已有成绩时需先删除成绩才能切换。"
+                  : "开启后在「成绩与赛事进程」中按对阵录入比分，代替手动录入成绩"
+              }
+            >
+              <Switch />
+            </Form.Item>
+          )}
+
+          {competitionTypeValue !== "registration" &&
+            bracketEnabledValue &&
+            !editingCompetition?.bracket_enabled && (
+              <Form.Item
+                label="对阵赛制"
+                name="bracket_format"
+                initialValue="single_elimination"
+                extra="首次开启时按此赛制创建对阵表；小组数量、出线人数等可在对阵图管理中调整。已有对阵表时沿用原赛制。"
+              >
+                <Select
+                  options={BRACKET_FORMAT_OPTIONS.map((o) => ({
+                    value: o.value,
+                    label: o.label,
+                  }))}
+                />
+              </Form.Item>
+            )}
 
           <Form.Item label="项目图片" name="image">
             <Upload

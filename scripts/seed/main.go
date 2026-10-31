@@ -248,29 +248,38 @@ func run(seed uint64, classCount, perClass int) error {
 		},
 	}
 
+	operatorID := 1
+	if admin, err := models.GetUserByUsername("admin"); err == nil {
+		operatorID = admin.ID
+	}
+
 	for _, plan := range plans {
-		var count int64
-		if err := db.Model(&types.Bracket{}).
-			Where("event_id = ? AND name = ?", eventID, plan.bracket.Name).
-			Count(&count).Error; err != nil {
-			return err
-		}
-		if count > 0 {
-			logger.L.Info("对阵表已存在，跳过", "name", plan.bracket.Name)
+		compID := competitionIDs[plan.compName]
+		if _, err := models.GetBracketByCompetitionID(compID); err == nil {
+			logger.L.Info("项目已有对阵表，跳过", "competition", plan.compName)
 			continue
 		}
 
-		b := plan.bracket
-		b.EventID = eventID
-		b.Published = true
-		b.PointsWin, b.PointsDraw, b.PointsLoss = 3, 1, 0
-		if b.GroupCount == 0 {
-			b.GroupCount = 1
+		// 与后台「使用对阵图」一致：由比赛项目开启对阵图并自动创建对阵表
+		competition, err := models.GetCompetitionByID(compID)
+		if err != nil {
+			return err
 		}
-		compID := competitionIDs[plan.compName]
-		b.CompetitionID = &compID
-		if err := models.CreateBracket(&b); err != nil {
-			return fmt.Errorf("创建对阵表 %s 失败: %w", b.Name, err)
+		if err := services.SetCompetitionBracket(competition, true, plan.bracket.Format); err != nil {
+			return fmt.Errorf("开启对阵图 %s 失败: %w", plan.compName, err)
+		}
+		bp, err := models.GetBracketByCompetitionID(compID)
+		if err != nil {
+			return err
+		}
+		b := *bp
+		b.Name = plan.bracket.Name
+		b.Description = plan.bracket.Description
+		b.ThirdPlaceMatch = plan.bracket.ThirdPlaceMatch
+		b.GroupCount = max(plan.bracket.GroupCount, 1)
+		b.AdvancePerGroup = plan.bracket.AdvancePerGroup
+		if err := models.UpdateBracket(&b); err != nil {
+			return fmt.Errorf("更新对阵表 %s 失败: %w", b.Name, err)
 		}
 
 		refs, err := participantRefs(rng, &b, compID, classes, plan.pick)
@@ -288,7 +297,11 @@ func run(seed uint64, classCount, perClass int) error {
 		if err := services.GenerateBracket(&b); err != nil {
 			return fmt.Errorf("生成对阵 %s 失败: %w", b.Name, err)
 		}
-		played, err := playMatches(rng, &b, plan.progress, base)
+		// 开始比赛后才能录入比分；全部打完会自动出名次并计入积分
+		if err := models.UpdateCompetitionStatus(compID, types.StatusInProgress); err != nil {
+			return err
+		}
+		played, err := playMatches(rng, &b, plan.progress, base, operatorID)
 		if err != nil {
 			return fmt.Errorf("录入 %s 结果失败: %w", b.Name, err)
 		}
@@ -375,7 +388,7 @@ func participantRefs(
 }
 
 // playMatches 按拓扑序给约 progress 比例的比赛录入随机结果，种子越靠前胜率越高
-func playMatches(rng *rand.Rand, b *types.Bracket, progress float64, base time.Time) (int, error) {
+func playMatches(rng *rand.Rand, b *types.Bracket, progress float64, base time.Time, operatorID int) (int, error) {
 	detail, err := services.GetBracketDetail(b.ID)
 	if err != nil {
 		return 0, err
@@ -417,7 +430,7 @@ func playMatches(rng *rand.Rand, b *types.Bracket, progress float64, base time.T
 			ScheduledAt: &when,
 			Venue:       next.Venue,
 		}
-		if err := services.UpdateBracketMatch(b, next.ID, result); err != nil {
+		if _, err := services.UpdateBracketMatch(b, next.ID, result, operatorID); err != nil {
 			return played, err
 		}
 		played++

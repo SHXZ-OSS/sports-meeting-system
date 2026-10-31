@@ -16,6 +16,7 @@ var (
 	ErrBracketParticipantNotFound = errors.New("参赛方不存在")
 	ErrBracketParticipantExists   = errors.New("参赛方已在对阵表中")
 	ErrBracketStudentMissing      = errors.New("存在不存在的学生")
+	ErrBracketCompetitionTaken    = errors.New("该比赛项目已关联其他对阵表")
 	ErrBracketClassMissing        = errors.New("存在不存在的班级")
 )
 
@@ -76,7 +77,14 @@ func ListBrackets(eventID, page, pageSize int, keyword string, publishedOnly boo
 			query = query.Where("name LIKE ?", "%"+keyword+"%")
 		}
 		if publishedOnly {
-			query = query.Where("published = ?", true)
+			// 关联了比赛项目的对阵表跟随项目：项目须启用对阵图且已审核通过
+			query = query.Where("published = ?", true).Where(
+				"competition_id IS NULL OR competition_id IN (?)",
+				db.Model(&types.Competition{}).Select("id").Where(
+					"bracket_enabled = ? AND status NOT IN ?", true,
+					[]types.CompetitionStatus{types.StatusPendingApproval, types.StatusRejected},
+				),
+			)
 		}
 		return query
 	}
@@ -161,18 +169,62 @@ func fillBracketCompetitionNames(brackets []*types.Bracket) {
 		return
 	}
 	var competitions []types.Competition
-	if err := database.GetDB().Select("id", "name").Where("id IN ?", ids).Find(&competitions).Error; err != nil {
+	if err := database.GetDB().Select("id", "name", "bracket_enabled", "status").
+		Where("id IN ?", ids).Find(&competitions).Error; err != nil {
 		return
 	}
-	names := make(map[int]string, len(competitions))
+	byID := make(map[int]types.Competition, len(competitions))
 	for _, c := range competitions {
-		names[c.ID] = c.Name
+		byID[c.ID] = c
 	}
 	for _, b := range brackets {
-		if b.CompetitionID != nil {
-			b.CompetitionName = names[*b.CompetitionID]
+		if b.CompetitionID == nil {
+			continue
 		}
+		c := byID[*b.CompetitionID]
+		b.CompetitionName = c.Name
+		b.CompetitionBracketEnabled = c.BracketEnabled
+		b.CompetitionStatus = c.Status
 	}
+}
+
+// GetBracketByCompetitionID 获取比赛项目关联的对阵表；未关联时返回 ErrBracketNotFound
+func GetBracketByCompetitionID(competitionID int) (*types.Bracket, error) {
+	var bracket types.Bracket
+	if err := database.GetDB().Where("competition_id = ?", competitionID).First(&bracket).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrBracketNotFound
+		}
+		return nil, err
+	}
+	fillBracketCompetitionNames([]*types.Bracket{&bracket})
+	return &bracket, nil
+}
+
+// EnsureCompetitionUnlinked 校验比赛项目未被其他对阵表关联（excludeBracketID 为当前对阵表，可为 0）
+func EnsureCompetitionUnlinked(competitionID, excludeBracketID int) error {
+	var count int64
+	if err := database.GetDB().Model(&types.Bracket{}).
+		Where("competition_id = ? AND id != ?", competitionID, excludeBracketID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrBracketCompetitionTaken
+	}
+	return nil
+}
+
+// DeleteBracketsByCompetition 在事务中删除比赛项目关联的对阵表（比赛项目删除时调用）
+func DeleteBracketsByCompetition(tx *gorm.DB, competitionID int) error {
+	sub := tx.Model(&types.Bracket{}).Select("id").Where("competition_id = ?", competitionID)
+	if err := tx.Where("bracket_id IN (?)", sub).Delete(&types.BracketMatch{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("bracket_id IN (?)", sub).Delete(&types.BracketParticipant{}).Error; err != nil {
+		return err
+	}
+	return tx.Where("competition_id = ?", competitionID).Delete(&types.Bracket{}).Error
 }
 
 // ==== 参赛方 ====

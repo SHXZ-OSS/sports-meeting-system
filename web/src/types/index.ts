@@ -91,6 +91,7 @@ export interface Competition {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  bracket_enabled?: boolean; // 使用对阵图：名次由对阵结果生成
   custom_fields?: CompetitionCustomField[];
   scores?: Score[];
 }
@@ -105,6 +106,7 @@ export interface Score {
   class_name: string;
   score: number;
   unit?: string; // 成绩单位（如 秒、米）
+  bracket_enabled?: boolean; // 对阵图名次：score 即名次，展示为「第 N 名」
   ranking?: number;
   point?: number; // 分数
 }
@@ -253,6 +255,8 @@ export interface Bracket {
   event_id: number;
   competition_id?: number;
   competition_name?: string;
+  competition_bracket_enabled?: boolean; // 所属项目是否启用对阵图
+  competition_status?: string;
   name: string;
   description: string;
   format: BracketFormat;

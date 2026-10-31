@@ -5,6 +5,7 @@ import {
   CompetitionType,
   ApiResponse,
   PaginatedResponse,
+  BracketFormat,
 } from "../../types";
 
 export interface CreateCompetitionRequest {
@@ -25,6 +26,8 @@ export interface CreateCompetitionRequest {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  bracket_enabled?: boolean; // 使用对阵图
+  bracket_format?: BracketFormat; // 首次开启对阵图时的赛制
   custom_fields?: CompetitionCustomField[];
 }
 
@@ -46,6 +49,8 @@ export interface UpdateCompetitionRequest {
   start_time?: string;
   end_time?: string;
   allow_concurrent?: boolean;
+  bracket_enabled?: boolean; // 使用对阵图
+  bracket_format?: BracketFormat; // 首次开启对阵图时的赛制
   custom_fields?: CompetitionCustomField[];
 }
 

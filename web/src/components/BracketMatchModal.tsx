@@ -11,8 +11,11 @@ import {
   Typography,
 } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { adminBracketAPI } from "../api/admin/bracket";
-import { BracketMatch, BracketParticipant } from "../types";
+import {
+  adminBracketAPI,
+  UpdateBracketMatchRequest,
+} from "../api/admin/bracket";
+import { ApiResponse, BracketMatch, BracketParticipant } from "../types";
 import { handleRespWithNotifySuccess } from "../utils/handleResp";
 
 const { Text } = Typography;
@@ -23,6 +26,11 @@ interface BracketMatchModalProps {
   participants: Map<number, BracketParticipant>;
   onCancel: () => void;
   onSaved: () => void;
+  // 自定义提交接口（成绩与赛事进程页按比赛项目提交）；默认走对阵图管理接口
+  submit?: (
+    matchId: number,
+    data: UpdateBracketMatchRequest,
+  ) => Promise<ApiResponse<void>>;
 }
 
 interface MatchFormValues {
@@ -37,6 +45,7 @@ interface MatchFormValues {
 
 const BracketMatchModal: React.FC<BracketMatchModalProps> = ({
   bracketId,
+  submit: submitOverride,
   match,
   participants,
   onCancel,
@@ -80,7 +89,11 @@ const BracketMatchModal: React.FC<BracketMatchModalProps> = ({
     let winnerId: number | null = null;
     if (values.outcome === "1") winnerId = match.participant1_id;
     if (values.outcome === "2") winnerId = match.participant2_id;
-    const resp = await adminBracketAPI.updateMatch(bracketId, match.id, {
+    const send =
+      submitOverride ??
+      ((matchId: number, data: UpdateBracketMatchRequest) =>
+        adminBracketAPI.updateMatch(bracketId, matchId, data));
+    const resp = await send(match.id, {
       clear,
       score1: clear ? null : (values.score1 ?? null),
       score2: clear ? null : (values.score2 ?? null),

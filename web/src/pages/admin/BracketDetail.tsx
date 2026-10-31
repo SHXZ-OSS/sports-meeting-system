@@ -352,7 +352,18 @@ const BracketDetail: React.FC = () => {
             {
               key: "competition",
               label: "关联项目",
-              children: bracket.competition_name || "-",
+              children: bracket.competition_name ? (
+                <span>
+                  {bracket.competition_name}
+                  {bracket.competition_bracket_enabled && (
+                    <Tag color="cyan" style={{ marginLeft: 8 }}>
+                      计入成绩
+                    </Tag>
+                  )}
+                </span>
+              ) : (
+                "-"
+              ),
             },
           ]}
         />

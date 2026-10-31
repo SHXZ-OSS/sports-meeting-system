@@ -644,7 +644,6 @@ func sameID(a, b *int) bool {
 }
 
 //go:fix inline
-func intPtr(v int) *int { return new(v) }
 
 func ptrValue(p *int) any {
 	if p == nil {

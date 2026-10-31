@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -93,6 +94,14 @@ func UpdateBracketInfo(bracket *types.Bracket, update *types.Bracket) error {
 		return ErrBracketLocked
 	}
 
+	if !sameID(bracket.CompetitionID, update.CompetitionID) {
+		if competition, err := linkedCompetition(bracket); err != nil {
+			return err
+		} else if competition != nil {
+			return ErrBracketLinkedEnabled
+		}
+	}
+
 	bracket.Name = update.Name
 	bracket.Description = update.Description
 	bracket.CompetitionID = update.CompetitionID
@@ -120,6 +129,9 @@ func ReorderBracketParticipants(bracket *types.Bracket, order []int, groups map[
 	defer bracketMu.Unlock()
 
 	if err := EnsureBracketEditable(bracket.ID); err != nil {
+		return err
+	}
+	if err := EnsureBracketStructureMutable(bracket); err != nil {
 		return err
 	}
 	participants, err := models.GetBracketParticipants(bracket.ID)
@@ -156,6 +168,9 @@ func AutoGroupBracketParticipants(bracket *types.Bracket) error {
 	if err := EnsureBracketEditable(bracket.ID); err != nil {
 		return err
 	}
+	if err := EnsureBracketStructureMutable(bracket); err != nil {
+		return err
+	}
 	participants, err := models.GetBracketParticipants(bracket.ID)
 	if err != nil {
 		return err
@@ -169,6 +184,9 @@ func GenerateBracket(bracket *types.Bracket) error {
 	bracketMu.Lock()
 	defer bracketMu.Unlock()
 
+	if err := EnsureBracketStructureMutable(bracket); err != nil {
+		return err
+	}
 	participants, err := models.GetBracketParticipants(bracket.ID)
 	if err != nil {
 		return err
@@ -182,10 +200,13 @@ func GenerateBracket(bracket *types.Bracket) error {
 }
 
 // ResetBracket 清空已生成的对阵，恢复到可编辑参赛方的状态
-func ResetBracket(bracketID int) error {
+func ResetBracket(bracket *types.Bracket) error {
 	bracketMu.Lock()
 	defer bracketMu.Unlock()
-	return models.DeleteBracketMatches(bracketID)
+	if err := EnsureBracketStructureMutable(bracket); err != nil {
+		return err
+	}
+	return models.DeleteBracketMatches(bracket.ID)
 }
 
 // BracketMatchResult 比赛结果录入
@@ -201,17 +222,26 @@ type BracketMatchResult struct {
 }
 
 // UpdateBracketMatch 录入或修改单场比赛结果，并级联推导后续比赛
-func UpdateBracketMatch(bracket *types.Bracket, matchID int, result *BracketMatchResult) error {
+//
+// 对阵表所属项目启用对阵图时：仅在项目进行中可修改比分（时间、地点、备注不受限）；
+// 比分修改后若全部完赛，自动按名次写入成绩、置为已完成并计算积分，返回 completed=true。
+// operatorID 为操作的管理员，作为成绩提交人记录。
+func UpdateBracketMatch(
+	bracket *types.Bracket,
+	matchID int,
+	result *BracketMatchResult,
+	operatorID int,
+) (bool, error) {
 	bracketMu.Lock()
 	defer bracketMu.Unlock()
 
 	participants, err := models.GetBracketParticipants(bracket.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	matches, err := models.GetBracketMatches(bracket.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	var target *types.BracketMatch
 	for _, m := range matches {
@@ -221,7 +251,7 @@ func UpdateBracketMatch(bracket *types.Bracket, matchID int, result *BracketMatc
 		}
 	}
 	if target == nil {
-		return models.ErrBracketMatchNotFound
+		return false, models.ErrBracketMatchNotFound
 	}
 
 	// 先按当前数据推导一次，确保参赛方是最新的
@@ -231,15 +261,39 @@ func UpdateBracketMatch(bracket *types.Bracket, matchID int, result *BracketMatc
 	target.Venue = result.Venue
 	target.Note = result.Note
 
+	before := resultSignature(target)
 	if result.Clear {
 		clearResult(target)
 	} else if err := applyMatchResult(target, result); err != nil {
-		return err
+		return false, err
+	}
+	resultChanged := resultSignature(target) != before
+
+	// 比分有变化时才校验项目进程（仅改时间地点不受限）
+	var competition *types.Competition
+	if resultChanged {
+		competition, err = ensureResultEditable(bracket)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	ResolveBracket(bracket, participants, matches)
+	_, standings := ResolveBracket(bracket, participants, matches)
 	// 结果可能影响任意后续比赛，全部写回最简单可靠
-	return models.SaveBracketMatches(matches)
+	if err := models.SaveBracketMatches(matches); err != nil {
+		return false, err
+	}
+
+	if competition == nil {
+		return false, nil
+	}
+	return completeCompetitionFromBracket(competition, bracket, participants, matches, standings, operatorID)
+}
+
+// resultSignature 单场比赛结果的摘要，用于判断本次是否改动了比分
+func resultSignature(m *types.BracketMatch) string {
+	return fmt.Sprintf("%v|%v|%v|%v|%v",
+		m.Completed, ptrValue(m.WinnerID), m.IsDraw, floatPtrValue(m.Score1), floatPtrValue(m.Score2))
 }
 
 // applyMatchResult 校验并写入结果

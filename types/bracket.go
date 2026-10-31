@@ -73,10 +73,13 @@ type Bracket struct {
 	PointsLoss      int                    `json:"points_loss"                gorm:"not null;default:0"` // 循环赛负场积分
 	Published       bool                   `json:"published"                  gorm:"default:false"`      // 是否在公开看板展示
 	CompetitionName string                 `json:"competition_name,omitempty" gorm:"-"`
-	ParticipantNum  int                    `json:"participant_count"          gorm:"-"`
-	MatchNum        int                    `json:"match_count"                gorm:"-"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	// 所属比赛项目是否启用对阵图；关联项目关闭对阵图后，对阵表在公开端隐藏、不再参与成绩
+	CompetitionBracketEnabled bool              `json:"competition_bracket_enabled"  gorm:"-"`
+	CompetitionStatus         CompetitionStatus `json:"competition_status,omitempty" gorm:"-"`
+	ParticipantNum            int               `json:"participant_count"            gorm:"-"`
+	MatchNum                  int               `json:"match_count"                  gorm:"-"`
+	CreatedAt                 time.Time         `json:"created_at"`
+	UpdatedAt                 time.Time         `json:"updated_at"`
 
 	// 关联关系，不响应到前端
 	Event        *Event               `json:"-" gorm:"foreignKey:EventID"`
