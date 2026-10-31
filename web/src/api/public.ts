@@ -92,6 +92,11 @@ export const publicAPI = {
         };
       }
 
+      // 非 JSON 响应：原样返回，由 handleResp 的运行时判断渲染原始内容
+      if (typeof response.data !== "object" || response.data === null) {
+        return response.data;
+      }
+
       // 200 OK - 返回新数据和 ETag
       return {
         ...response.data,
