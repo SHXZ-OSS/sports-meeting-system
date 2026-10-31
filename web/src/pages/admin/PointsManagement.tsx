@@ -422,8 +422,11 @@ const PointsManagement: React.FC = () => {
       // 收集所有个人项目和团体项目名称
       const individualProjects = new Set<string>();
       const teamProjects = new Set<string>();
+      // 自定义得分条目最多的班级决定列数，每条记录单独占一列
+      let maxCustomCount = 0;
 
       classDetailsMap.forEach(({ details }) => {
+        let customCount = 0;
         details.forEach((detail) => {
           if (detail.point_type === "ranking") {
             if (detail.competition_type === "individual") {
@@ -434,8 +437,11 @@ const PointsManagement: React.FC = () => {
             ) {
               teamProjects.add(detail.competition_name);
             }
+          } else if (detail.point_type === "custom") {
+            customCount += 1;
           }
         });
+        maxCustomCount = Math.max(maxCustomCount, customCount);
       });
 
       const individualProjectList = Array.from(individualProjects);
@@ -453,6 +459,7 @@ const PointsManagement: React.FC = () => {
         "班级",
         ...Array(individualProjectList.length + 1).fill("个人项目"),
         ...Array(teamProjectList.length).fill("团体/全校性项目"),
+        ...Array(maxCustomCount).fill("自定义得分"),
         "班级总分",
         "班级名次",
       ];
@@ -464,6 +471,7 @@ const PointsManagement: React.FC = () => {
         ...individualProjectList,
         "个人项目总分",
         ...teamProjectList,
+        ...Array(maxCustomCount).fill(""),
         "", // 班级总分在第一行
         "", // 班级名次在第一行
       ];
@@ -488,8 +496,17 @@ const PointsManagement: React.FC = () => {
         merges.push(createMerge(0, teamStartCol, 0, teamEndCol, true, true));
       }
 
+      // 自定义得分：每条记录一列，合并第1行
+      const customStartCol = teamEndCol + 1;
+      const customEndCol = customStartCol + maxCustomCount - 1;
+      if (maxCustomCount > 0) {
+        merges.push(
+          createMerge(0, customStartCol, 0, customEndCol, true, true),
+        );
+      }
+
       // 班级总分：合并第1-2行
-      const totalCol = teamEndCol + 1;
+      const totalCol = customEndCol + 1;
       merges.push(createMerge(0, totalCol, 1, totalCol, true, true));
 
       // 班级名次：合并第1-2行
@@ -532,6 +549,21 @@ const PointsManagement: React.FC = () => {
           row.push(points > 0 ? points : "");
         });
 
+        // 自定义得分：每条记录一格，值（原因），不足的列留空
+        const customDetails = classData.details.filter(
+          (detail) => detail.point_type === "custom",
+        );
+        customDetails.forEach((detail) => {
+          row.push(
+            detail.reason
+              ? `${detail.points}（${detail.reason}）`
+              : `${detail.points}`,
+          );
+        });
+        for (let i = customDetails.length; i < maxCustomCount; i++) {
+          row.push("");
+        }
+
         // 班级总分
         row.push(summary.total_points);
 
@@ -546,6 +578,7 @@ const PointsManagement: React.FC = () => {
         ...individualProjectList.map(() => 12),
         12, // 个人项目总分
         ...teamProjectList.map(() => 12),
+        ...Array(maxCustomCount).fill(28), // 自定义得分（值（原因））
         10, // 班级总分
         8, // 班级名次
       ];
