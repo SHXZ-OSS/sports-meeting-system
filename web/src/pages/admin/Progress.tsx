@@ -114,6 +114,9 @@ const Progress: React.FC = () => {
   const [certificateModalVisible, setCertificateModalVisible] = useState(false);
   const [scorePrintVisible, setScorePrintVisible] = useState(false);
   const [allCompletedScores, setAllCompletedScores] = useState<Score[]>([]);
+  const [schoolCompetitionIds, setSchoolCompetitionIds] = useState<number[]>(
+    [],
+  );
   const [scoreTablePage, setScoreTablePage] = useState(1);
   const [scoreTablePageSize, setScoreTablePageSize] = useState(30);
 
@@ -375,11 +378,16 @@ const Progress: React.FC = () => {
         completedCompetitions = data;
       });
 
-      // 全校性比赛没有学生个人成绩，仅报名项目没有成绩，均不导出奖状
+      // 仅报名项目没有成绩，不导出奖状；全校性比赛按班级发一张奖状
       completedCompetitions = completedCompetitions.filter(
-        (competition) =>
-          !isSchoolWideType(competition.competition_type) &&
-          !isRegistrationOnlyType(competition.competition_type),
+        (competition) => !isRegistrationOnlyType(competition.competition_type),
+      );
+      setSchoolCompetitionIds(
+        completedCompetitions
+          .filter((competition) =>
+            isSchoolWideType(competition.competition_type),
+          )
+          .map((competition) => competition.id),
       );
 
       if (completedCompetitions.length === 0) {
@@ -1397,6 +1405,7 @@ const Progress: React.FC = () => {
         visible={certificateModalVisible}
         onClose={() => setCertificateModalVisible(false)}
         scores={allCompletedScores}
+        schoolCompetitionIds={schoolCompetitionIds}
       />
     </div>
   );
