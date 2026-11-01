@@ -23,6 +23,7 @@ interface CertificateExportProps {
   onClose: () => void;
   scores?: Score[]; // 比赛成绩数据（个人/团体项目）
   classRankings?: ClassPointsSummary[]; // 班级总分排名数据
+  schoolCompetitionIds?: number[]; // 全校性比赛ID，按班级发一张奖状，不参与集体项目勾选
 }
 
 interface CertificateFormData {
@@ -51,6 +52,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
   onClose,
   scores,
   classRankings,
+  schoolCompetitionIds,
 }) => {
   const [form] = Form.useForm<CertificateFormData>();
   const [loading, setLoading] = useState(false);
@@ -69,6 +71,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
       scores.forEach((score) => {
         if (
           score.student_name === "集体" &&
+          !schoolCompetitionIds?.includes(score.competition_id) &&
           !teamCompMap.has(score.competition_id)
         ) {
           teamCompMap.set(score.competition_id, score.competition_name);
@@ -80,7 +83,7 @@ const CertificateExport: React.FC<CertificateExportProps> = ({
       }));
       setTeamCompetitionOptions(teamComps);
     }
-  }, [visible, isScoreMode, scores]);
+  }, [visible, isScoreMode, scores, schoolCompetitionIds]);
 
   const handleExport = async (values: CertificateFormData) => {
     try {
