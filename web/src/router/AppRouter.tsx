@@ -7,6 +7,12 @@ import LoadingSpinner from "../components/Spinner";
 const PublicScoreboard = React.lazy(
   () => import("../pages/public/PublicScoreboard"),
 );
+const PublicBrackets = React.lazy(
+  () => import("../pages/public/PublicBrackets"),
+);
+const PublicSchedule = React.lazy(
+  () => import("../pages/public/PublicSchedule"),
+);
 const DingtalkAuth = React.lazy(() => import("../pages/auth/DingtalkAuth"));
 const Layout = React.lazy(() => import("./Layout"));
 
@@ -56,6 +62,11 @@ const AppRouter: React.FC = () => {
       <Routes>
         {/* 公共路由 - 游客访问的成绩看板，已认证用户重定向到对应首页 */}
         <Route path="/" element={<PublicScoreboard />} />
+
+        {/* 公开对阵图 */}
+        <Route path="/brackets" element={<PublicBrackets />} />
+        <Route path="/brackets/:id" element={<PublicBrackets />} />
+        <Route path="/schedule" element={<PublicSchedule />} />
 
         {/* 钉钉登录页面 */}
         <Route path="/auth/dingtalk" element={<DingtalkAuth />} />

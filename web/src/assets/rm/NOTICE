@@ -1,0 +1,9 @@
+本目录中的切图与字体来自 RM Schedule 前端（rm-schedule-ui）：
+https://github.com/scutrobotlab/rm-schedule-ui
+版权归华南理工大学华南虎战队（scutrobotlab）所有，按 Apache License 2.0（见同目录 LICENSE）使用，
+未作修改。本项目对阵图、看板等界面样式同样参照该项目实现。
+
+fonts/HYYaKuHei.ttf 为汉仪字库的「汉仪雅酷黑」商用字体，随上游项目一并引用；
+其嵌入与再分发须取得汉仪字库授权，使用方应自行确认授权范围。
+
+页面背景图（assets/background/）为本项目自行生成，不来自上游。

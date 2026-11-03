@@ -1,3 +1,7 @@
+/*
+ * 登录弹层：照搬 RM Schedule 的深色 v-dialog（MatchMenu / SearchPlayer 的毛玻璃深蓝卡片），
+ * 标题为 title_bg.png 横幅，输入框为 Vuetify filled 文本框，全部使用 MyFont。
+ */
 .ld-overlay {
   position: fixed;
   inset: 0;
@@ -5,80 +9,107 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(9, 23, 39, 0.4);
-  backdrop-filter: blur(8px) saturate(1.05);
-  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  background: rgba(2, 8, 16, 0.6);
   animation: ld-backdrop-in 0.18s ease both;
 }
 .ld-dialog {
-  --ld-text: #0b2440;
-  --ld-muted: #5d748c;
-  --ld-faint: #8fa2b6;
-  --ld-blue: #1f7fe8;
-  --ld-line: rgba(33, 80, 130, 0.14);
-  --ld-line-strong: rgba(33, 80, 130, 0.22);
+  --ld-text: #fff;
+  --ld-muted: rgba(220, 232, 246, 0.72);
+  --ld-faint: rgba(220, 232, 246, 0.6);
+  --ld-blue: #2196f3;
+  --ld-line: rgba(255, 255, 255, 0.12);
+  --ld-line-strong: rgba(255, 255, 255, 0.38);
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 440px;
   max-height: calc(100svh - 48px);
   overflow: hidden;
-  border-radius: 16px;
-  background: #fff;
+  border: 1px solid rgba(210, 232, 250, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(172, 211, 240, 0.075),
+      rgba(24, 53, 79, 0.025)
+    ),
+    rgba(7, 20, 36, 0.86);
   box-shadow:
-    0 24px 70px -20px rgba(8, 28, 50, 0.45),
-    0 2px 8px rgba(8, 28, 50, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 18px 48px rgba(0, 5, 16, 0.42),
+    0 4px 14px rgba(0, 8, 24, 0.28);
+  backdrop-filter: blur(28px) saturate(1.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55);
   color: var(--ld-text);
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: "MyFont", sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   animation: ld-dialog-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* 头部 */
+/* 头部：居中横幅 + 右上角圆形关闭按钮 */
 .ld-head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--ld-line);
+  justify-content: center;
+  padding: 16px 60px 4px;
 }
 .ld-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 260px);
+  min-height: 48px;
   margin: 0;
-  color: var(--ld-text);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
+  padding: 4px 36px 2px;
+  box-sizing: border-box;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: 22px;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-shadow: 3px 3px 6px #000;
+  background: var(--sm-banner);
 }
 .ld-close {
+  position: absolute;
+  top: 18px;
+  right: 14px;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  margin: -2px -2px 0 0;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 0;
+  border: 1px solid rgba(218, 237, 251, 0.1);
   border-radius: 50%;
-  background: transparent;
-  color: #7c8ea1;
+  background: rgba(205, 229, 247, 0.08);
+  color: rgba(226, 240, 251, 0.82);
   cursor: pointer;
   transition:
-    background 0.15s ease,
-    color 0.15s ease;
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 120ms ease;
 }
 .ld-close:hover {
-  background: #f1f5f9;
-  color: var(--ld-text);
+  background: rgba(218, 237, 251, 0.14);
+  color: #fff;
+}
+.ld-close:active {
+  transform: scale(0.92);
+}
+.ld-close:focus-visible {
+  outline: 2px solid var(--ld-blue);
+  outline-offset: 2px;
 }
 .ld-close svg {
   width: 17px;
   height: 17px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  stroke-width: 1.9;
   stroke-linecap: round;
 }
 
@@ -93,10 +124,10 @@
 .ld-error {
   margin-bottom: 16px;
   padding: 10px 12px;
-  border: 1px solid rgba(193, 85, 85, 0.24);
-  border-radius: 8px;
-  background: rgba(193, 85, 85, 0.07);
-  color: #a33f3f;
+  border: 1px solid rgba(244, 67, 54, 0.45);
+  border-radius: 12px;
+  background: rgba(244, 67, 54, 0.14);
+  color: #ff8a80;
   font-size: 13px;
   line-height: 1.55;
 }
@@ -114,19 +145,22 @@
 }
 .ld-label {
   color: var(--ld-muted);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: normal;
+  letter-spacing: 0.06em;
 }
+/* Vuetify filled 文本框：浅色填充 + 底部下划线，聚焦时变为 primary */
 .ld-input.ant-input,
 .ld-input.ant-input-affix-wrapper {
-  height: 46px;
-  padding: 0 12px;
-  border: 1px solid var(--ld-line);
-  border-radius: 8px;
-  background: #fbfdff;
+  height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--ld-line-strong);
+  border-radius: 4px 4px 0 0;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--ld-text);
-  font-size: 15px;
+  font-family: "MyFont", sans-serif;
+  font-size: 16px;
   box-shadow: none;
   transition:
     border-color 0.18s ease,
@@ -139,21 +173,22 @@
 }
 .ld-input.ant-input:hover,
 .ld-input.ant-input-affix-wrapper:hover {
-  border-color: var(--ld-line-strong);
-  background: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.09);
 }
 .ld-input.ant-input:focus,
 .ld-input.ant-input-affix-wrapper-focused {
-  border-color: var(--ld-blue);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(31, 127, 232, 0.1);
+  border-bottom-color: var(--ld-blue);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 -1px 0 var(--ld-blue);
 }
 .ld-input.ant-input-affix-wrapper .ant-input {
   height: 100%;
   padding: 0;
   background: transparent;
   color: var(--ld-text);
-  font-size: 15px;
+  font-family: "MyFont", sans-serif;
+  font-size: 16px;
 }
 .ld-input .ant-input-prefix {
   margin-right: 8px;
@@ -168,23 +203,29 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 46px;
-  margin-top: 2px;
+  height: 48px;
+  margin-top: 4px;
   border: 0;
-  border-radius: 8px;
-  background: #123a5e;
+  border-radius: 11px;
+  background: #1976d2;
   color: #fff;
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 16px;
+  font-weight: normal;
+  letter-spacing: 0.0892857143em;
+  box-shadow: 0 8px 22px rgba(68, 147, 211, 0.24);
   cursor: pointer;
   transition:
     background 0.18s ease,
     transform 0.18s ease;
 }
 .ld-submit:hover:not(:disabled) {
-  background: #1b4c78;
+  background: #1565c0;
+}
+.ld-submit:focus-visible,
+.ld-alt:focus-visible {
+  outline: 2px solid #90caf9;
+  outline-offset: 2px;
 }
 .ld-submit:active:not(:disabled) {
   transform: translateY(1px);
@@ -209,8 +250,8 @@
   gap: 12px;
   margin: 18px 0 14px;
   color: var(--ld-muted);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: normal;
   letter-spacing: 0.1em;
 }
 .ld-divider::before,
@@ -231,16 +272,16 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 42px;
+  height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--ld-line-strong);
-  border-radius: 8px;
-  background: #fbfdff;
-  color: #26496d;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ld-text);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: normal;
+  letter-spacing: 0.04em;
   cursor: pointer;
   transition:
     background 0.18s ease,
@@ -248,8 +289,8 @@
     color 0.18s ease;
 }
 .ld-alt:hover:not(:disabled) {
-  background: #123a5e;
-  border-color: #123a5e;
+  background: rgba(180, 218, 246, 0.1);
+  border-color: #64b5f6;
   color: #fff;
 }
 .ld-alt:disabled {
@@ -303,13 +344,20 @@
   .ld-dialog {
     max-width: 100%;
     max-height: calc(100svh - 24px);
-    border-radius: 14px;
+    border-radius: 16px;
   }
   .ld-head {
-    padding: 18px 18px 14px;
+    padding: 14px 54px 4px;
   }
   .ld-title {
-    font-size: 22px;
+    min-height: 42px;
+    font-size: 20px;
+  }
+  .ld-close {
+    top: 16px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
   }
   .ld-body {
     padding: 16px 18px 20px;
@@ -325,6 +373,11 @@
   .ld-overlay,
   .ld-dialog {
     animation: none;
+  }
+  .ld-close,
+  .ld-submit,
+  .ld-alt {
+    transition: none;
   }
   .ld-spinner {
     animation-duration: 1.6s;

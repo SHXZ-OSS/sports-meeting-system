@@ -159,6 +159,15 @@ func DeleteClass(id int) error {
 		return errors.New("班级下还有学生，无法删除")
 	}
 
+	// 检查是否作为参赛方出现在对阵表中
+	inBracket, err := IsClassInAnyBracket(id)
+	if err != nil {
+		return err
+	}
+	if inBracket {
+		return errors.New("班级已作为参赛方加入对阵表，无法删除")
+	}
+
 	// 删除班级
 	return db.Delete(&types.Class{}, id).Error
 }

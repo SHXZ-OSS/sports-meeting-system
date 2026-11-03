@@ -18,11 +18,17 @@ func CreateOrUpdateScores(competitionID int, scores []types.StudentScore, submit
 
 	// 检查比赛是否存在且状态正确
 	var competition types.Competition
-	if err := db.Select("status", "competition_type").First(&competition, competitionID).Error; err != nil {
+	if err := db.Select("status", "competition_type", "bracket_enabled").
+		First(&competition, competitionID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("比赛项目不存在")
 		}
 		return err
+	}
+
+	// 使用对阵图的项目由对阵结果生成名次，不接受手动录入
+	if competition.BracketEnabled {
+		return errors.New("该项目使用对阵图，名次由对阵结果自动生成，请在对阵图中录入比分")
 	}
 
 	// 仅进行中的比赛可以录入成绩（已完成的比赛需先退回进行中）
@@ -171,8 +177,13 @@ func CalculateRankingByCompetitionID(competitionID int) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 获取排名方式
 		var competition types.Competition
-		if err := tx.Select("ranking_mode").First(&competition, competitionID).Error; err != nil {
+		if err := tx.Select("ranking_mode", "bracket_enabled").First(&competition, competitionID).Error; err != nil {
 			return err
+		}
+
+		// 对阵图项目的名次由对阵结果直接写入，按分数重排会打乱并列名次
+		if competition.BracketEnabled {
+			return nil
 		}
 
 		// 确定排序方式
@@ -224,13 +235,13 @@ func GetScoresByCompetitionID(competitionID int) ([]*types.Score, error) {
 
 	// 获取比赛的排名方式
 	var competition types.Competition
-	if err := db.Select("ranking_mode").First(&competition, competitionID).Error; err != nil {
+	if err := db.Select("ranking_mode", "bracket_enabled").First(&competition, competitionID).Error; err != nil {
 		return nil, err
 	}
 
-	// 根据排名方式确定排序
+	// 根据排名方式确定排序；对阵图项目的 score 即名次，按名次升序
 	var order string
-	if competition.RankingMode == types.RankingLowerFirst {
+	if competition.RankingMode == types.RankingLowerFirst || competition.BracketEnabled {
 		order = "score ASC" // 分数低的排名靠前（如跑步）
 	} else {
 		order = "score DESC" // 分数高的排名靠前（如跳高）
@@ -254,6 +265,7 @@ func GetScoresByCompetitionID(competitionID int) ([]*types.Score, error) {
 		if score.Competition.ID > 0 {
 			score.CompetitionName = score.Competition.Name
 			score.Unit = score.Competition.Unit
+			score.BracketEnabled = score.Competition.BracketEnabled
 		}
 		// 个人比赛成绩
 		if score.StudentID != nil && score.Student != nil && score.Student.ID > 0 {
@@ -331,6 +343,7 @@ func GetScoresByStudentID(studentID int) ([]*types.Score, error) {
 		if score.Competition.ID > 0 {
 			score.CompetitionName = score.Competition.Name
 			score.Unit = score.Competition.Unit
+			score.BracketEnabled = score.Competition.BracketEnabled
 		}
 
 		if score.StudentID != nil && score.Student != nil && score.Student.ID > 0 {
@@ -384,6 +397,47 @@ func ReviewCompetitionScoresByID(competitionID int, reviewerID int) error {
 
 	// 审核通过后，计算得分（只有审核通过的成绩才会计算得分）
 	return RecalculatePointsByCompetitionID(competitionID)
+}
+
+// BracketPlacement 对阵图产生的一条名次（参赛方为学生或班级）
+type BracketPlacement struct {
+	StudentID *int
+	ClassID   *int
+	Ranking   int
+}
+
+// WriteBracketPlacements 用对阵名次覆盖比赛成绩并直接置为已完成（对阵完赛无需人工审核）
+// score 字段同样写入名次，便于导出与展示；调用方随后需重新计算积分
+func WriteBracketPlacements(competitionID int, placements []BracketPlacement, submitterID int) error {
+	if len(placements) == 0 {
+		return errors.New("没有可写入的名次")
+	}
+	db := database.GetDB()
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("competition_id = ?", competitionID).Delete(&types.Score{}).Error; err != nil {
+			return err
+		}
+		rows := make([]types.Score, len(placements))
+		for i, p := range placements {
+			rows[i] = types.Score{
+				CompetitionID: competitionID,
+				StudentID:     p.StudentID,
+				ClassID:       p.ClassID,
+				Score:         float64(p.Ranking),
+				Ranking:       p.Ranking,
+			}
+		}
+		if err := tx.Create(&rows).Error; err != nil {
+			return err
+		}
+		return tx.Model(&types.Competition{}).Where("id = ?", competitionID).Updates(map[string]any{
+			"status":             types.StatusCompleted,
+			"score_submitter_id": submitterID,
+			"score_created_at":   gorm.Expr("CURRENT_TIMESTAMP"),
+			"score_reviewer_id":  nil,
+			"score_reviewed_at":  gorm.Expr("CURRENT_TIMESTAMP"),
+		}).Error
+	})
 }
 
 // DeleteCompetitionScoresByID 删除比赛的所有成绩记录

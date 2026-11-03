@@ -1,10 +1,14 @@
 import { api, callApi, callPaginatedApi } from "../config";
+import type { UpdateBracketMatchRequest } from "./bracket";
 import {
   Class,
   Competition,
   Registration,
   Score,
   StudentScore,
+  BracketDetail,
+  BracketScheduleConfig,
+  BracketSchedulePlan,
   ApiResponse,
   PaginatedResponse,
 } from "../../types";
@@ -22,6 +26,82 @@ export interface ReviewScoreRequest {
  * 管理员-成绩录入API
  */
 export const adminProgressAPI = {
+  /**
+   * 获取使用对阵图的项目的对阵；未启用或尚未创建时 data 为空
+   */
+  getBracket: async (
+    competitionId: number,
+  ): Promise<ApiResponse<BracketDetail | null>> => {
+    return await callApi(() =>
+      api.get(`/admin/progress/${competitionId}/bracket`),
+    );
+  },
+
+  /**
+   * 录入对阵比分；全部完赛时后端自动生成名次并完赛
+   */
+  updateBracketMatch: async (
+    competitionId: number,
+    matchId: number,
+    data: UpdateBracketMatchRequest,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.put(
+        `/admin/progress/${competitionId}/bracket/matches/${matchId}`,
+        data,
+      ),
+    );
+  },
+
+  /**
+   * 预览比赛项目对阵的自动排期（不保存）
+   */
+  previewBracketSchedule: async (
+    competitionId: number,
+    data: BracketScheduleConfig,
+  ): Promise<ApiResponse<BracketSchedulePlan>> => {
+    return await callApi(() =>
+      api.post(
+        `/admin/progress/${competitionId}/bracket/schedule/preview`,
+        data,
+      ),
+    );
+  },
+
+  /**
+   * 为比赛项目对阵自动排期并保存
+   */
+  applyBracketSchedule: async (
+    competitionId: number,
+    data: BracketScheduleConfig,
+  ): Promise<ApiResponse<BracketSchedulePlan>> => {
+    return await callApi(() =>
+      api.post(`/admin/progress/${competitionId}/bracket/schedule`, data),
+    );
+  },
+
+  /**
+   * 清除比赛项目对阵中未完赛比赛的排期
+   */
+  clearBracketSchedule: async (
+    competitionId: number,
+  ): Promise<ApiResponse<{ cleared: number }>> => {
+    return await callApi(() =>
+      api.delete(`/admin/progress/${competitionId}/bracket/schedule`),
+    );
+  },
+
+  /**
+   * 按当前对阵结果生成名次并完赛（退回后未改动比分时使用）
+   */
+  completeFromBracket: async (
+    competitionId: number,
+  ): Promise<ApiResponse<void>> => {
+    return await callApi(() =>
+      api.post(`/admin/progress/${competitionId}/bracket/complete`),
+    );
+  },
+
   /**
    * 赛事进程状态流转（body.status 为目标状态，后端校验流转合法性）
    */

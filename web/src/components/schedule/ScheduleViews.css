@@ -1,0 +1,1013 @@
+/* 排期视图：列表 / 日历 / 甘特图。管理端与公开端均为暗色背景 */
+.sv-root {
+  --sv-surface: rgba(33, 33, 33, 0.86);
+  --sv-surface-hover: rgba(48, 48, 48, 0.92);
+  --sv-line: rgba(255, 255, 255, 0.12);
+  --sv-line-strong: rgba(255, 255, 255, 0.28);
+  --sv-text: #fff;
+  --sv-muted: rgba(220, 232, 246, 0.72);
+  --sv-primary: #42a5f5;
+  --sv-done: rgba(102, 187, 106, 0.32);
+  --sv-done-border: rgba(129, 199, 132, 0.7);
+  --sv-conflict: #ff6e6e;
+  --sv-live: rgba(230, 102, 82, 0.6);
+  --sv-live-border: #ff8a75;
+  --sv-review: rgba(127, 106, 203, 0.5);
+  --sv-review-border: #a593e0;
+  --sv-focus: rgba(255, 222, 142, 0.9);
+  --sv-select: #ffde8e;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  color: var(--sv-text);
+}
+
+.sv-root.is-admin {
+  --sv-surface: rgba(255, 255, 255, 0.04);
+  --sv-surface-hover: rgba(255, 255, 255, 0.08);
+}
+
+/* 带侧栏：宽屏左右两栏，主视图占满剩余宽度 */
+.sv-root.has-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 16px;
+}
+
+.sv-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 1199px) {
+  .sv-root.has-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==== 视图切换 ==== */
+
+.sv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.sv-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: thin solid var(--sv-line-strong);
+  border-radius: 9999px;
+}
+
+.sv-switch-btn {
+  min-width: 64px;
+  height: 28px;
+  padding: 0 14px;
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.sv-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sv-switch-btn.is-active {
+  color: #0b1220;
+  background: var(--sv-primary);
+}
+
+.sv-hint {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--sv-muted);
+}
+
+.sv-nav-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  background: transparent;
+  border: thin solid var(--sv-line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sv-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sv-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sv-root button:focus-visible,
+.sv-gantt-scroll:focus-visible {
+  outline: 2px solid var(--sv-focus);
+  outline-offset: 2px;
+}
+
+/* ==== 日历 ==== */
+
+.sv-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.sv-cal-title {
+  min-width: 120px;
+  margin: 0;
+  color: var(--sv-text);
+  font-size: 18px;
+  font-weight: normal;
+  text-align: center;
+}
+
+.sv-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.sv-cal-week {
+  padding: 4px 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--sv-muted);
+}
+
+.sv-cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 112px;
+  padding: 6px;
+  background: var(--sv-surface);
+  border: thin solid var(--sv-line);
+  border-radius: 4px;
+}
+
+.sv-cal-cell.is-outside {
+  opacity: 0.4;
+}
+
+.sv-cal-cell.is-today {
+  border-color: var(--sv-primary);
+}
+
+.sv-cal-date {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  padding: 0 2px;
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  text-align: left;
+}
+
+button.sv-cal-date {
+  cursor: pointer;
+}
+
+button.sv-cal-date:hover .sv-cal-count {
+  text-decoration: underline;
+}
+
+.sv-cal-date.is-plain {
+  color: var(--sv-muted);
+}
+
+.sv-cal-count {
+  font-size: 12px;
+  color: var(--sv-primary);
+}
+
+.sv-cal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.sv-cal-item,
+.sv-cal-more {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: left;
+  background: rgba(66, 165, 245, 0.16);
+  border: 0;
+  border-left: 3px solid var(--sv-primary);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.sv-cal-item:hover {
+  background: rgba(66, 165, 245, 0.28);
+}
+
+.sv-cal-item.is-pending {
+  background: transparent;
+  border-left-style: dashed;
+  border-left-color: var(--sv-muted);
+}
+
+.sv-cal-item.is-completed {
+  background: var(--sv-done);
+  border-left-color: var(--sv-done-border);
+}
+
+.sv-cal-item.is-conflict {
+  border-left-color: var(--sv-conflict);
+}
+
+.sv-cal-item.is-related,
+.sv-cal-item.is-open {
+  box-shadow: inset 0 0 0 1px var(--sv-select);
+}
+
+.sv-cal-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-cal-teams {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-cal-more {
+  color: var(--sv-muted);
+  background: transparent;
+  border-left-color: transparent;
+}
+
+.sv-cal-more:hover {
+  color: var(--sv-text);
+}
+
+/* ==== 甘特图 ==== */
+
+.sv-gantt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sv-gantt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sv-day-chips {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+
+.sv-day-chip {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  background: transparent;
+  border: thin solid var(--sv-line-strong);
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.sv-day-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sv-day-chip.is-active {
+  color: var(--sv-primary);
+  border-color: var(--sv-primary);
+}
+
+.sv-gantt-scroll {
+  overflow-x: auto;
+  border: thin solid var(--sv-line);
+  border-radius: 4px;
+  background: var(--sv-surface);
+  scrollbar-width: thin;
+}
+
+.sv-gantt-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.sv-gantt-row {
+  display: flex;
+  border-top: thin solid var(--sv-line);
+}
+
+.sv-gantt-row.is-axis {
+  border-top: 0;
+}
+
+.sv-gantt-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  width: 112px;
+  padding: 0 10px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #1b2433;
+  border-right: thin solid var(--sv-line);
+}
+
+.sv-root.is-public .sv-gantt-label {
+  background: #262626;
+}
+
+.sv-gantt-row.is-axis .sv-gantt-label {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-gantt-track {
+  position: relative;
+  flex: none;
+  min-height: 28px;
+}
+
+.sv-gantt-hour {
+  position: absolute;
+  top: 6px;
+  font-size: 12px;
+  color: var(--sv-muted);
+  font-variant-numeric: tabular-nums;
+  transform: translateX(4px);
+  white-space: nowrap;
+}
+
+.sv-gantt-grid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--sv-line);
+}
+
+.sv-gantt-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2px;
+  background: var(--sv-conflict);
+}
+
+.sv-bar {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 44px;
+  padding: 2px 6px;
+  overflow: hidden;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  background: rgba(33, 150, 243, 0.55);
+  border: thin solid rgba(100, 181, 246, 0.9);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.sv-bar:hover {
+  filter: brightness(1.2);
+}
+
+.sv-bar.is-pending {
+  background: rgba(255, 255, 255, 0.06);
+  border-style: dashed;
+  border-color: var(--sv-muted);
+}
+
+.sv-bar.is-completed {
+  background: var(--sv-done);
+  border-color: var(--sv-done-border);
+}
+
+.sv-bar.is-conflict {
+  border: 2px solid var(--sv-conflict);
+}
+
+.sv-bar.is-related,
+.sv-bar.is-open {
+  box-shadow: 0 0 0 2px var(--sv-select);
+}
+
+.sv-bar-time,
+.sv-bar-teams {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-bar-time {
+  font-size: 11px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-bar-teams {
+  font-size: 13px;
+}
+
+.sv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--sv-muted);
+  list-style: none;
+}
+
+.sv-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sv-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(33, 150, 243, 0.55);
+  border: thin solid rgba(100, 181, 246, 0.9);
+}
+
+.sv-swatch.is-pending {
+  background: rgba(255, 255, 255, 0.06);
+  border-style: dashed;
+  border-color: var(--sv-muted);
+}
+
+.sv-swatch.is-completed {
+  background: var(--sv-done);
+  border-color: var(--sv-done-border);
+}
+
+.sv-swatch.is-conflict {
+  background: transparent;
+  border: 2px solid var(--sv-conflict);
+}
+
+/* 窄屏：日历只显示日期与场次数，点击查看当天甘特图 */
+@media (max-width: 600px) {
+  .sv-cal-grid {
+    gap: 2px;
+  }
+
+  .sv-cal-cell {
+    min-height: 56px;
+    padding: 4px 2px;
+  }
+
+  .sv-cal-date {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 13px;
+  }
+
+  .sv-cal-count {
+    font-size: 11px;
+  }
+
+  .sv-cal-list {
+    display: none;
+  }
+
+  .sv-gantt-label {
+    width: 80px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  .sv-cal-cell.has-matches {
+    background: rgba(66, 165, 245, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-switch-btn,
+  .sv-bar {
+    transition: none;
+  }
+}
+
+/* ==== 进行中 / 成绩审核中 / 不可点击 ==== */
+
+.sv-bar.is-live,
+.sv-swatch.is-live {
+  background: var(--sv-live);
+  border-color: var(--sv-live-border);
+}
+
+.sv-bar.is-review,
+.sv-swatch.is-review {
+  background: var(--sv-review);
+  border-color: var(--sv-review-border);
+}
+
+.sv-cal-item.is-live {
+  background: rgba(230, 102, 82, 0.22);
+  border-left-color: var(--sv-live-border);
+}
+
+.sv-cal-item.is-review {
+  background: rgba(127, 106, 203, 0.22);
+  border-left-color: var(--sv-review-border);
+}
+
+.sv-bar.is-static,
+.sv-cal-item.is-static {
+  cursor: default;
+}
+
+.sv-bar.is-static:hover {
+  filter: none;
+}
+
+.sv-swatch.is-now {
+  width: 2px;
+  height: 12px;
+  background: var(--sv-conflict);
+  border: 0;
+}
+
+.sv-group-by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sv-group-label {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+/* ==== 内置列表 ==== */
+
+.sv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sv-list-day {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  color: var(--sv-text);
+  font-size: 18px;
+  font-weight: normal;
+}
+
+.sv-list-count {
+  font-size: 13px;
+  color: var(--sv-muted);
+}
+
+.sv-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sv-list-item {
+  display: grid;
+  grid-template-columns: 112px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 14px;
+  color: var(--sv-text);
+  font: inherit;
+  text-align: left;
+  background: var(--sv-surface);
+  border: thin solid var(--sv-line);
+  border-left: 3px solid rgba(100, 181, 246, 0.9);
+  border-radius: 4px;
+}
+
+button.sv-list-item {
+  cursor: pointer;
+}
+
+button.sv-list-item:hover {
+  background: var(--sv-surface-hover);
+}
+
+.sv-list-item.is-live {
+  border-left-color: var(--sv-live-border);
+}
+
+.sv-list-item.is-review {
+  border-left-color: var(--sv-review-border);
+}
+
+.sv-list-item.is-completed {
+  border-left-color: var(--sv-done-border);
+}
+
+.sv-list-item.is-pending {
+  border-left-style: dashed;
+  border-left-color: var(--sv-muted);
+}
+
+.sv-list-time {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-list-end {
+  font-size: 13px;
+  color: var(--sv-muted);
+}
+
+.sv-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sv-list-title,
+.sv-list-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-list-title {
+  font-size: 16px;
+}
+
+.sv-list-meta {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-list-status {
+  font-size: 12px;
+  color: var(--sv-muted);
+  white-space: nowrap;
+}
+
+.sv-list-status.is-live {
+  color: var(--sv-live-border);
+}
+
+.sv-list-status.is-scheduled {
+  color: var(--sv-primary);
+}
+
+@media (max-width: 600px) {
+  .sv-list-item {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "time status"
+      "main main";
+    gap: 4px 10px;
+    padding: 8px 12px;
+  }
+
+  .sv-list-time {
+    grid-area: time;
+    font-size: 17px;
+  }
+
+  .sv-list-main {
+    grid-area: main;
+  }
+
+  .sv-list-status {
+    grid-area: status;
+    justify-self: end;
+  }
+}
+
+/* ==== 半点刻度 ==== */
+
+.sv-gantt-hour.is-half {
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.sv-gantt-grid.is-half {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ==== 侧栏概览 ==== */
+
+.sv-summary {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 1199px) {
+  .sv-summary {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+}
+
+.sv-sum-card {
+  padding: 12px 14px;
+  background: var(--sv-surface);
+  border: thin solid var(--sv-line);
+  border-radius: 4px;
+}
+
+.sv-sum-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--sv-text);
+  font-size: 15px;
+  font-weight: normal;
+}
+
+.sv-sum-count {
+  margin-left: auto;
+  min-width: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  color: var(--sv-text);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+
+.sv-sum-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sv-primary);
+}
+
+.sv-sum-dot.is-live {
+  background: var(--sv-live-border);
+  box-shadow: 0 0 0 3px rgba(255, 138, 117, 0.25);
+}
+
+.sv-sum-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sv-muted);
+}
+
+.sv-sum-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sv-sum-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  color: var(--sv-text);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid rgba(100, 181, 246, 0.9);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.sv-sum-item:hover {
+  background: var(--sv-surface-hover);
+}
+
+.sv-sum-item.is-live {
+  border-left-color: var(--sv-live-border);
+}
+
+.sv-sum-item.is-pending {
+  border-left-style: dashed;
+  border-left-color: var(--sv-muted);
+}
+
+.sv-sum-item.is-static {
+  cursor: default;
+}
+
+.sv-sum-time {
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-sum-date {
+  font-size: 11px;
+  color: var(--sv-muted);
+}
+
+.sv-sum-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sv-sum-title,
+.sv-sum-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-sum-title {
+  font-size: 14px;
+}
+
+.sv-sum-meta {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-sum-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.sv-sum-stats div {
+  padding: 6px 0;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+
+.sv-sum-stats dt {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-sum-stats dd {
+  margin: 0;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-sum-range {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--sv-muted);
+}
+
+.sv-sum-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sv-sum-projects li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.sv-sum-project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-sum-progress {
+  height: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.sv-sum-progress span {
+  display: block;
+  height: 100%;
+  background: var(--sv-done-border);
+}
+
+.sv-sum-project-count {
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-muted);
+}
+
+/* 泳道拉高时的第三行与放大文字 */
+.sv-bar-meta {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+@media (min-width: 1200px) {
+  .sv-root.is-public .sv-bar-teams {
+    font-size: 14px;
+  }
+
+  .sv-root.is-public .sv-bar-time {
+    font-size: 12px;
+  }
+}

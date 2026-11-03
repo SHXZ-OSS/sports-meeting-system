@@ -745,7 +745,9 @@ const Settings: React.FC = () => {
 
             <Divider style={{ margin: "8px 0 16px" }} />
             <Typography.Text strong>发送测试通知</Typography.Text>
-            <div style={{ color: "rgba(0, 0, 0, 0.45)", margin: "4px 0 12px" }}>
+            <div
+              style={{ color: "var(--sm-text-muted)", margin: "4px 0 12px" }}
+            >
               使用当前已保存的钉钉配置，向指定用户发送一条测试消息；修改上方配置后请先保存。
             </div>
             <Space.Compact style={{ width: "100%", maxWidth: 420 }}>

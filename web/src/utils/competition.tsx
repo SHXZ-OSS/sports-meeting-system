@@ -119,3 +119,11 @@ export const getCompetitionTypeTag = (competitionType: string) => {
   const config = typeMap[competitionType as keyof typeof typeMap];
   return <Tag color={config?.color}>{config?.text || competitionType}</Tag>;
 };
+
+// 成绩展示文本：对阵图项目的 score 即名次，显示为「第 N 名」，否则为「数值 单位」
+export const formatScoreText = (
+  score: number | string,
+  unit?: string,
+  bracketEnabled?: boolean,
+): string =>
+  bracketEnabled ? `第 ${score} 名` : `${score}${unit ? ` ${unit}` : ""}`;

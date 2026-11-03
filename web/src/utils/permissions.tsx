@@ -46,6 +46,11 @@ export const PERMISSION_OPTIONS: PermissionItem[] = [
     label: "报名管理",
     description: "管理学生报名信息",
   },
+  {
+    value: PERMISSIONS.BRACKET_MANAGEMENT,
+    label: "对阵图管理",
+    description: "创建对阵表、录入比赛结果",
+  },
 ];
 
 // 获取权限标签

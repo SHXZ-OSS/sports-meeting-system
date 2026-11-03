@@ -1,5 +1,5 @@
 import { BrowserRouter } from "react-router-dom";
-import { ConfigProvider, theme, App as AntdApp } from "antd";
+import { ConfigProvider, App as AntdApp } from "antd";
 import {
   StyleProvider,
   legacyLogicalPropertiesTransformer,
@@ -9,6 +9,7 @@ import zhCN from "antd/locale/zh_CN";
 import { AuthProvider } from "./contexts/AuthContext";
 import { WebsiteProvider } from "./contexts/WebsiteContext";
 import AppRouter from "./router/AppRouter";
+import { appTheme } from "./theme/tokens";
 import "./App.css";
 
 // 打印项目信息：D
@@ -41,51 +42,7 @@ const App: React.FC = () => {
       hashPriority="high"
       transformers={[legacyLogicalPropertiesTransformer, autoPrefixTransformer]}
     >
-      <ConfigProvider
-        locale={zhCN}
-        theme={{
-          algorithm: theme.defaultAlgorithm,
-          token: {
-            borderRadius: 8,
-            fontFamily:
-              "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-            colorTextHeading: "#262626",
-          },
-          components: {
-            Layout: {
-              colorBgHeader: "#ffffff",
-            },
-            Card: {
-              headerBg: "#fafafa",
-            },
-            Table: {
-              headerBg: "#fafafa",
-              headerColor: "#262626",
-              headerSplitColor: "#f0f0f0",
-              rowHoverBg: "#f5f5f5",
-            },
-            Form: {
-              labelColor: "#262626",
-            },
-            Typography: {
-              colorTextHeading: "#262626",
-            },
-            Empty: {
-              colorTextDescription: "#999999",
-            },
-            Descriptions: {
-              labelColor: "#595959",
-            },
-            Alert: {
-              marginXS: 16,
-            },
-            Button: {
-              borderRadius: 6,
-              controlHeight: 36,
-            },
-          },
-        }}
-      >
+      <ConfigProvider locale={zhCN} theme={appTheme}>
         <AntdApp>
           <BrowserRouter>
             <WebsiteProvider>

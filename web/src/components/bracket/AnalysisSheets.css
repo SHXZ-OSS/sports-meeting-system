@@ -1,0 +1,373 @@
+/*
+ * 分析弹层：RM Schedule v-bottom-sheet + AnalyzeTeam / AnalyzeMatch。
+ * Vuetify 暗色主题：v-card surface #212121、全宽、直角；v-chip info 标签做分区标题；
+ * v-table 行高 52px，分隔线 rgba(255,255,255,.12)
+ */
+
+.ant-drawer.as-drawer .ant-drawer-mask {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.ant-drawer.as-drawer .ant-drawer-section {
+  max-height: calc(100vh - 48px);
+  border-radius: 0;
+  background: #212121;
+  box-shadow:
+    0 -2px 4px -1px rgba(0, 0, 0, 0.2),
+    0 -4px 5px 0 rgba(0, 0, 0, 0.14),
+    0 -1px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+.ant-drawer.as-drawer .ant-drawer-body {
+  position: relative;
+  padding: 0;
+  color: #fff;
+  font-family: "MyFont", var(--sm-display-font), sans-serif;
+}
+
+/* RM 底部弹层没有关闭按钮；保留一个低调的图标按钮便于键盘 / 读屏用户 */
+.as-close {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.as-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.as-close:focus-visible {
+  outline: 2px solid rgba(255, 222, 142, 0.9);
+  outline-offset: 2px;
+}
+
+/* v-card class="pa-2 pt-4" */
+.as-card {
+  width: 100%;
+  padding: 16px 8px 8px;
+}
+
+/* ==== TeamHeader：100px 圆形校徽 + h3 校名 / h4 队名 / h6 排名 ==== */
+
+.as-header {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 8px 16px;
+}
+
+.as-header.is-right {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.as-avatar {
+  flex: none;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: cover;
+}
+
+.as-header-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: center;
+  margin: 0 16px;
+}
+
+.as-header.is-right .as-header-text {
+  align-items: flex-end;
+  margin: 0 16px 0 4px;
+}
+
+.as-header-name {
+  margin: 0;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: normal;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.as-header-sub {
+  margin: 0;
+  color: #fff;
+  font-size: 1.375rem;
+  font-weight: normal;
+  line-height: 1.4;
+}
+
+.as-header-rank {
+  margin: 2px 0 0;
+  color: #fff;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+/* 分析比赛：红左蓝右，中间为轮次与比分 */
+.as-versus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding-right: 40px;
+}
+
+.as-versus-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  text-align: center;
+}
+
+.as-versus-order {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.as-versus-score {
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==== 网格：v-card-text + v-row / v-col md="6" cols="12" ==== */
+
+.as-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 8px;
+  padding: 0 16px 16px;
+}
+
+@media (min-width: 960px) {
+  .as-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 32px;
+  }
+
+  .as-section.is-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.as-section {
+  min-width: 0;
+}
+
+/*
+ * v-chip color="info" variant="flat" label + <h3>。
+ * Vuetify info #2196F3 上白字对比度仅 3.1:1，这里用 #1976D2（4.6:1）
+ */
+.as-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  color: #fff;
+  font-size: 1.17em;
+  font-weight: normal;
+  line-height: 1;
+  border-radius: 4px;
+  background: #1976d2;
+}
+
+/* ==== v-table（density default） ==== */
+
+.as-table-scroll {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.as-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #fff;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.as-table th,
+.as-table td {
+  height: 52px;
+  padding: 4px 16px;
+  font-weight: normal;
+  line-height: 1.5;
+  text-align: left;
+  border-bottom: thin solid rgba(255, 255, 255, 0.12);
+}
+
+.as-table thead th {
+  height: 56px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.as-table.is-center th,
+.as-table.is-center td {
+  text-align: center;
+}
+
+.as-table.is-center .is-start {
+  text-align: left;
+}
+
+.as-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* RM MatchRecord：败方灰色（darkgrey，7.6:1） */
+.as-table .is-loser,
+.as-table .is-loser .as-sub {
+  color: darkgrey;
+}
+
+.as-sub {
+  color: #fff;
+}
+
+.as-score {
+  white-space: nowrap;
+}
+
+.as-muted {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.as-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+
+.as-empty {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ECharts title.subtext：白色小字，位于雷达图左上 */
+.as-subtext {
+  margin-top: 12px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.as-subtext p {
+  margin: 0;
+}
+
+.as-note {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.as-note p {
+  margin: 0 0 4px;
+  line-height: 1.6;
+}
+
+.as-section .radar-chart {
+  margin-top: 4px;
+}
+
+/* v-alert variant="tonal" */
+.as-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 16px;
+  color: #64b5f6;
+  border-radius: 4px;
+  background: rgba(33, 150, 243, 0.14);
+}
+
+.as-alert.is-error {
+  margin: 8px 16px;
+  color: #ff8a80;
+  background: rgba(244, 67, 54, 0.14);
+}
+
+@media (max-width: 599px) {
+  .as-card {
+    padding: 12px 0 4px;
+  }
+
+  .as-header {
+    padding: 8px 12px;
+  }
+
+  .as-header-text {
+    margin: 0 12px;
+  }
+
+  .as-header-name {
+    font-size: 1.375rem;
+  }
+
+  .as-header-sub {
+    font-size: 1.25rem;
+  }
+
+  .as-versus {
+    grid-template-columns: minmax(0, 1fr);
+    padding-right: 0;
+  }
+
+  .as-versus > .as-header:first-child {
+    padding-right: 52px;
+  }
+
+  .as-versus-meta {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .as-grid {
+    gap: 24px;
+    padding: 0 16px 12px;
+  }
+
+  .as-table th,
+  .as-table td {
+    padding: 4px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .as-close {
+    transition: none;
+  }
+}

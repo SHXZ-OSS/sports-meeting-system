@@ -9,6 +9,7 @@ const (
 	PermissionScoreAndProgress                      // 成绩与赛事进程管理 (16)
 	PermissionScoreReview                           // 成绩审核 (32)
 	PermissionRegistrationManagement                // 报名管理 (64)
+	PermissionBracketManagement                     // 对阵图管理 (128)
 )
 
 // PermissionInfo 权限信息结构
@@ -26,7 +27,8 @@ func GetAllPermissions() int {
 		PermissionWebsiteManagement |
 		PermissionScoreAndProgress |
 		PermissionScoreReview |
-		PermissionRegistrationManagement
+		PermissionRegistrationManagement |
+		PermissionBracketManagement
 }
 
 // HasPermission 检查是否有指定权限

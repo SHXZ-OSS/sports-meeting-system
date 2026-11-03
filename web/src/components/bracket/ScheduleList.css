@@ -1,0 +1,183 @@
+/* 赛程列表：沿用 RM Schedule 暗色卡片（#212121 / 红蓝双方配色） */
+.sl-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1080px;
+}
+
+.sl-day-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: normal;
+  text-shadow: 0 0 2px #000, 2px 2px 4px #000;
+}
+
+.sl-day-count {
+  font-size: 13px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.sl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sl-item {
+  display: grid;
+  grid-template-columns: 64px minmax(140px, 220px) 1fr 64px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 14px;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  background: rgba(33, 33, 33, 0.86);
+  border: thin solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.sl-item:hover,
+.sl-item.is-open {
+  background: rgba(48, 48, 48, 0.92);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.sl-item:focus-visible {
+  outline: 2px solid rgba(255, 222, 142, 0.9);
+  outline-offset: 2px;
+}
+
+.sl-item.is-related {
+  border-color: #ffde8e;
+  box-shadow: inset 3px 0 0 #ffde8e;
+}
+
+.sl-time {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.sl-venue {
+  color: #fff;
+}
+
+.sl-round,
+.sl-venue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.sl-team {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-team.is-red {
+  text-align: right;
+  color: #ff8a80;
+}
+
+.sl-team.is-blue {
+  color: #82b1ff;
+}
+
+.sl-team.is-loser {
+  opacity: 0.55;
+}
+
+.sl-team.is-selected {
+  color: #ffde8e;
+}
+
+.sl-score {
+  min-width: 48px;
+  text-align: center;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-item:not(.is-done) .sl-score {
+  font-size: 13px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.sl-status {
+  justify-self: end;
+  font-size: 12px;
+  color: rgba(220, 232, 246, 0.72);
+}
+
+.sl-status.is-scheduled {
+  color: #42a5f5;
+}
+
+/* 窄屏：时间与信息一行，对阵一行 */
+@media (max-width: 600px) {
+  .sl-item {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "time meta status"
+      "teams teams teams";
+    gap: 6px 10px;
+    padding: 8px 12px;
+  }
+
+  .sl-time {
+    grid-area: time;
+    font-size: 17px;
+  }
+
+  .sl-meta {
+    grid-area: meta;
+  }
+
+  .sl-status {
+    grid-area: status;
+  }
+
+  .sl-teams {
+    grid-area: teams;
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-item {
+    transition: none;
+  }
+}

@@ -103,7 +103,11 @@ const BatchResults: React.FC<BatchResultsProps> = ({
 
         {results.length === 0 && (
           <div
-            style={{ textAlign: "center", padding: "32px 0", color: "#999" }}
+            style={{
+              textAlign: "center",
+              padding: "32px 0",
+              color: "var(--sm-text-muted)",
+            }}
           >
             暂无{operationType}结果
           </div>

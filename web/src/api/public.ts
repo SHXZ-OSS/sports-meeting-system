@@ -6,6 +6,9 @@ import {
   Statistics,
   ApiResponse,
   Registration,
+  Bracket,
+  BracketDetail,
+  PublicScheduleItem,
 } from "../types";
 
 /**
@@ -129,5 +132,26 @@ export const publicAPI = {
     return await callApi(() =>
       publicApi.get(`/points/students/${studentId}/details`),
     );
+  },
+
+  /**
+   * 获取已公开的对阵表列表
+   */
+  getBrackets: async (): Promise<ApiResponse<Bracket[]>> => {
+    return await callApi(() => publicApi.get("/brackets"));
+  },
+
+  /**
+   * 当前届次赛程：项目时段与已排期的对阵比赛（首页日历与甘特图）
+   */
+  getSchedule: async (): Promise<ApiResponse<PublicScheduleItem[]>> => {
+    return await callApi(() => publicApi.get("/schedule"));
+  },
+
+  /**
+   * 获取已公开对阵表的完整数据
+   */
+  getBracket: async (id: number): Promise<ApiResponse<BracketDetail>> => {
+    return await callApi(() => publicApi.get(`/brackets/${id}`));
   },
 };

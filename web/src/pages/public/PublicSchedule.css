@@ -1,0 +1,16 @@
+/* 公开赛程页：与对阵图页相同的页面留白 */
+.ps-content {
+  padding: 16px;
+  color: #fff;
+}
+
+.ps-state {
+  padding: 48px 0;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .ps-content {
+    padding: 12px 16px;
+  }
+}

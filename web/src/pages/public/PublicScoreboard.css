@@ -1,3 +1,18 @@
+/* 背景：RM Schedule 的赛场静态图（Situation.vue 的 .background-image，opacity 0.5） */
+.public-scoreboard__bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.public-scoreboard__bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+}
+
 /* 成绩动画期间：看板与所有弹层淡出；弹层只隐藏，不关闭、不卸载。 */
 .ph-shell {
   transition: opacity 0.9s ease;
@@ -13,9 +28,6 @@
     visibility 0s linear 0s;
 }
 body.score-animation-active .ph-shell {
-  opacity: 0;
-}
-body.score-animation-active .stadium-scene::after {
   opacity: 0;
 }
 body.score-animation-active .sd-overlay,
@@ -40,8 +52,8 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: center;
   padding: clamp(16px, 4vw, 56px);
   overflow: hidden;
-  color: #fff;
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  color: var(--sm-text);
+  font-family: "MyFont", sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -58,7 +70,7 @@ body.score-animation-active .ant-modal-wrap {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: #000;
+  background: rgba(6, 19, 33, 0.9);
   opacity: 0;
   pointer-events: none;
   transition: opacity 1.2s ease;
@@ -76,14 +88,22 @@ body.score-animation-active .ant-modal-wrap {
   margin: 0 auto;
   text-align: center;
 }
+/* 比赛名：RM 轮次标题横幅（title_bg.png + 3px 3px 6px 黑色投影） */
 .score-reveal__title {
-  font-size: clamp(28px, 3.4vw, 50px);
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 820px);
+  min-height: clamp(64px, 6.4vw, 92px);
+  margin: 0 auto;
+  padding: 4px clamp(32px, 4vw, 64px) 0;
+  box-sizing: border-box;
+  font-family: "MyFont", sans-serif;
+  font-size: clamp(28px, 3.2vw, 46px);
+  font-weight: normal;
   line-height: 1.1;
-  text-shadow:
-    0 2px 28px rgba(0, 0, 0, 0.6),
-    0 1px 2px rgba(0, 0, 0, 0.35);
+  text-shadow: 3px 3px 6px #000;
+  background: var(--sm-banner);
 }
 .score-reveal__title p {
   margin: 0;
@@ -93,10 +113,21 @@ body.score-animation-active .ant-modal-wrap {
   width: min(100%, 820px);
   margin: clamp(22px, 3vw, 38px) auto 0;
   padding: clamp(20px, 2.6vw, 34px) clamp(24px, 3.6vw, 48px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: clamp(14px, 1.6vw, 20px);
-  background: rgba(255, 255, 255, 0.035);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(154, 196, 230, 0.26);
+  border-left: 4px solid rgba(132, 187, 230, 0.68);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(162, 205, 240, 0.1) 0%,
+      rgba(22, 50, 78, 0.03) 42%
+    ),
+    rgba(4, 12, 28, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 80px rgba(0, 5, 16, 0.4);
+  backdrop-filter: blur(22px) saturate(1.28);
+  -webkit-backdrop-filter: blur(22px) saturate(1.28);
   text-align: left;
 }
 .score-card__row {
@@ -108,7 +139,7 @@ body.score-animation-active .ant-modal-wrap {
 .score-card__row--secondary {
   margin-top: clamp(14px, 2vw, 20px);
   padding-top: clamp(12px, 1.6vw, 18px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 .score-card__row--single {
   grid-template-columns: minmax(0, 1fr);
@@ -122,10 +153,10 @@ body.score-animation-active .ant-modal-wrap {
 .score-card__label {
   display: block;
   margin-bottom: clamp(4px, 0.7vw, 8px);
-  color: rgba(255, 255, 255, 0.46);
-  font-size: clamp(10px, 0.8vw, 12px);
-  font-weight: 500;
-  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(12px, 0.9vw, 14px);
+  font-weight: normal;
+  letter-spacing: 0.12em;
 }
 .score-card__value {
   display: flex;
@@ -146,21 +177,21 @@ body.score-animation-active .ant-modal-wrap {
 .score-card__value--rank {
   min-height: clamp(48px, 5.6vw, 82px);
   font-size: clamp(44px, 5.2vw, 78px);
-  font-weight: 600;
+  font-weight: normal;
   letter-spacing: -0.01em;
   line-height: 1;
 }
 .score-card__value--result {
   min-height: clamp(36px, 4.4vw, 60px);
   font-size: clamp(32px, 3.8vw, 56px);
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: -0.01em;
   line-height: 1.05;
 }
 .score-card__value--meta {
   min-height: clamp(28px, 2.8vw, 40px);
   font-size: clamp(20px, 2.2vw, 32px);
-  font-weight: 500;
+  font-weight: normal;
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
@@ -170,8 +201,8 @@ body.score-animation-active .ant-modal-wrap {
   left: 50%;
   z-index: 4;
   transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.42);
-  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
   letter-spacing: 0.1em;
   white-space: nowrap;
   pointer-events: none;
@@ -210,14 +241,14 @@ body.score-animation-active .ant-modal-wrap {
   animation: score-hint-out 0.3s ease forwards;
 }
 
-/* 成绩总览层：demo 的结果公布卡片，背景是拉远后的体育场总览。 */
+/* 成绩总览层：RM 的横幅标题 + school_bg 队伍行，背景是赛场静态图。 */
 .score-overview {
   position: fixed;
   inset: 0;
   z-index: 5;
   display: flex;
   overflow: hidden;
-  color: #10284a;
+  color: var(--sm-text);
   text-shadow: none;
 }
 .score-overview,
@@ -230,12 +261,9 @@ body.score-animation-active .ant-modal-wrap {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    rgba(251, 253, 255, 0.94) 40%,
-    rgba(245, 251, 255, 0.72) 72%,
-    rgba(245, 251, 255, 0.3) 100%
-  );
+  background: rgba(6, 19, 33, 0.82);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   opacity: 0;
   animation: score-overview-veil-in 0.9s ease 0.3s forwards;
 }
@@ -258,50 +286,75 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: center;
   gap: 16px;
   margin-bottom: 14px;
-  color: #258fe7;
-  font-size: clamp(12px, 0.9vw, 15px);
+  color: #64b5f6;
+  font-size: clamp(13px, 1vw, 16px);
   letter-spacing: 0.24em;
 }
 .score-overview__kicker span {
   width: 42px;
   height: 1px;
-  background: #9dcaf2;
+  background: currentColor;
 }
+/* 比赛名：RM 轮次标题横幅 */
 .score-overview__content h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(60px, 6vw, 84px);
   margin: 0;
-  color: #10284a;
-  font-size: clamp(30px, 3.5vw, 52px);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  padding: 4px clamp(32px, 4vw, 64px) 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: clamp(28px, 3.2vw, 46px);
+  font-weight: normal;
   line-height: 1.15;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 3px 3px 6px #000;
+  background: var(--sm-banner);
 }
 .score-overview__table {
   min-height: 0;
   margin-top: clamp(18px, 3vh, 32px);
 }
+.score-overview__table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* 成绩行：RM 的 school_bg 队伍行 */
 .score-overview__row {
   display: grid;
-  grid-template-columns: clamp(36px, 3.4vw, 52px) minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: clamp(12px, 1.6vw, 20px);
-  padding: clamp(9px, 1.3vh, 15px) clamp(6px, 1.4vw, 14px);
-  border-bottom: 1px dashed rgba(97, 131, 171, 0.22);
+  gap: clamp(12px, 1.4vw, 18px);
+  min-height: clamp(48px, 6vh, 62px);
+  padding: 0 clamp(28px, 3vw, 44px) 0 clamp(16px, 1.6vw, 24px);
+  background: url("../../assets/rm/school_bg.png") center / 100% 100% no-repeat;
   opacity: 0;
   animation: score-overview-row-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(0.6s + var(--row-index, 0) * 0.06s);
 }
-.score-overview__row:last-child {
-  border-bottom: 0;
-}
+/* RM 比分徽标：灰底白字，前三名金底深色字 */
 .score-overview__rank {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: clamp(22px, 2vw, 30px);
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  min-width: clamp(32px, 2.6vw, 40px);
+  height: clamp(28px, 2.3vw, 34px);
+  padding: 0 6px;
+  box-sizing: border-box;
+  background: #616161;
+  color: #fff;
+  font-family: "MyFont", sans-serif;
+  font-size: clamp(18px, 1.6vw, 24px);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
   line-height: 1;
-  text-align: center;
+}
+.score-overview__rank[data-podium="true"] {
+  background: #ffa500;
+  color: #1a1408;
 }
 .score-overview__who {
   min-width: 0;
@@ -314,30 +367,30 @@ body.score-animation-active .ant-modal-wrap {
 }
 .score-overview__name strong {
   overflow: hidden;
-  color: #10284a;
+  color: var(--sm-text);
   font-size: clamp(19px, 1.8vw, 28px);
-  font-weight: 600;
+  font-weight: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .score-overview__name small {
-  color: #5d748c;
+  color: #9d9f9f;
   font-size: clamp(12px, 1vw, 15px);
   white-space: nowrap;
 }
 .score-overview__result {
-  color: #10284a;
+  color: var(--sm-text);
   font-size: clamp(20px, 1.85vw, 30px);
-  font-weight: 500;
+  font-weight: normal;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
 .score-overview__unit {
   margin-left: 3px;
-  color: #5d748c;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.62em;
-  font-weight: 500;
+  font-weight: normal;
 }
 .score-overview__footer {
   display: flex;
@@ -345,29 +398,32 @@ body.score-animation-active .ant-modal-wrap {
   justify-content: space-between;
   gap: 16px;
   margin-top: clamp(14px, 2.2vh, 24px);
-  color: #5d748c;
-  font-size: clamp(11px, 0.9vw, 13px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(12px, 0.95vw, 14px);
 }
 .score-overview__footer > div {
   display: flex;
   align-items: center;
 }
+/* Vuetify 文字按钮（v-btn variant="text"），primary 提亮色 */
 .score-overview__footer button {
   margin-left: 8px;
-  padding: 8px;
+  padding: 8px 12px;
   border: 0;
+  border-radius: 4px;
   background: none;
-  color: #356282;
+  color: #64b5f6;
   font: inherit;
+  letter-spacing: 0.06em;
   cursor: pointer;
 }
 .score-overview__footer button:hover {
-  color: #1f7fe8;
+  background: rgba(100, 181, 246, 0.08);
 }
 .score-overview__timer {
-  height: 2px;
+  height: 4px;
   margin-top: 10px;
-  background: #66b3ef;
+  background: #2196f3;
   transform-origin: left;
   transition:
     transform 1s linear,
@@ -413,13 +469,22 @@ body.score-animation-active .ant-modal-wrap {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
+  .score-overview__content h2 {
+    min-height: 52px;
+    padding: 2px 28px 0;
+  }
+  .score-overview__table {
+    gap: 5px;
+  }
   .score-overview__row {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
     gap: 10px;
-    padding: 14px 2px;
+    min-height: 48px;
+    padding: 0 24px 0 12px;
   }
   .score-overview__rank {
-    font-size: 20px;
+    min-width: 30px;
+    height: 26px;
+    font-size: 18px;
   }
   .score-overview__name {
     gap: 6px;
@@ -443,7 +508,7 @@ body.score-animation-active .ant-modal-wrap {
     flex: 0 0 auto;
     margin-top: 8px;
     padding-top: 10px;
-    border-top: 1px solid rgba(97, 131, 171, 0.16);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
     gap: 8px;
     font-size: 12px;
   }
@@ -513,7 +578,9 @@ body.score-animation-active .ant-modal-wrap {
     padding: 16px;
   }
   .score-reveal__title {
-    font-size: clamp(26px, 7.5vw, 34px);
+    min-height: 56px;
+    padding: 2px 28px 0;
+    font-size: clamp(24px, 7vw, 32px);
   }
   .score-card {
     margin-top: 20px;
@@ -550,7 +617,7 @@ body.score-animation-active .ant-modal-wrap {
   }
 }
 
-/* 无 3D 体育场时的降级揭晓：立即黑场，跳过镜头等待与光线动画。 */
+/* 静态赛场背景下的揭晓：立即压暗，跳过镜头等待与光线动画。 */
 .score-animation.is-static .score-animation__blackout {
   opacity: 1;
   animation: none;

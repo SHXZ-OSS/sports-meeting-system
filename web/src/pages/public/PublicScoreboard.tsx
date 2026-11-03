@@ -11,24 +11,25 @@ import { Layout, message } from "antd";
 import confetti from "canvas-confetti";
 import FadeContent from "../../components/FadeContent";
 import BlurText from "../../components/BlurText";
-import LightRays from "../../components/LightRays";
-import StadiumScene, { type StadiumShot } from "../../components/StadiumScene";
 import PublicHomeBoard from "../../components/PublicHomeBoard";
 import ScoreboardDialogs from "../../components/ScoreboardDialogs";
 import LoginDialog from "../../components/LoginDialog";
+import PublicTopBar from "../../components/public/PublicTopBar";
+import type { ParticipantPick } from "../../components/public/PublicSearchDialog";
+import { TeamAnalysisSheet } from "../../components/bracket/AnalysisSheets";
 import ScoreboardSettingsModal from "../../components/ScoreboardSettingsModal";
 import type { ScoreboardVoiceOption } from "../../components/ScoreboardSettingsModal";
 import { publicAPI } from "../../api/public";
-import { Competition, PointDetail, Score, Registration } from "../../types";
-import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
 import {
-  getRankingColor,
-  getScoreboardRankingColor,
-  isClassScoredType,
-} from "../../utils/competition";
-import { useAuth } from "../../contexts/AuthContext";
-import { useWebsite } from "../../contexts/WebsiteContext";
-import { shouldEnableBackgroundEffects } from "../../utils/performance";
+  Bracket,
+  BracketDetail,
+  Competition,
+  PointDetail,
+  Score,
+  Registration,
+} from "../../types";
+import { handleResp, handleRespWithoutNotify } from "../../utils/handleResp";
+import { getRankingColor, isClassScoredType } from "../../utils/competition";
 import {
   buildAnimationStepAnnouncement,
   buildCompetitionAnnouncementIntro,
@@ -37,6 +38,7 @@ import {
   shouldAnnounceScore,
 } from "../../utils/scoreboardSettings";
 import type { ScoreboardSettings } from "../../utils/scoreboardSettings";
+import arenaBackground from "../../assets/background/stadium.jpg";
 import "./PublicScoreboard.css";
 
 interface SpeakTextOptions {
@@ -66,10 +68,6 @@ const OVERVIEW_MAX_ROWS = 8;
 type AnimationPhase = "reveal" | "overview" | "closing";
 
 const PublicScoreboard: React.FC = () => {
-  // 背景特效控制
-  const [enableBackgroundEffects, setEnableBackgroundEffects] = useState(false);
-  const [backgroundEffectsReady, setBackgroundEffectsReady] = useState(false);
-  const [stadiumTooSlow, setStadiumTooSlow] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [scoreboardSettings, setScoreboardSettings] =
     useState<ScoreboardSettings>(getScoreboardSettings);
@@ -82,9 +80,8 @@ const PublicScoreboard: React.FC = () => {
   const clickCountRef = useRef(0);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSavedSettingsRef = useRef(false);
-  // 实际是否启用 3D：检测通过且运行时没有被判定为过慢。
-  const backgroundEffectsActive = enableBackgroundEffects && !stadiumTooSlow;
 
+  // 隐藏入口：在“关于”弹窗中连续点击校徽 5 次打开看板设置
   const handleTitleClick = useCallback(() => {
     clickCountRef.current += 1;
 
@@ -96,14 +93,33 @@ const PublicScoreboard: React.FC = () => {
       setSettingsModalOpen(true);
       clickCountRef.current = 0;
       clickTimerRef.current = null;
-      return;
+      return true;
     }
 
     clickTimerRef.current = setTimeout(() => {
       clickCountRef.current = 0;
       clickTimerRef.current = null;
     }, 2000);
+    return false;
   }, []);
+
+  // 已公开的对阵图：顶栏“页面”选择与队伍搜索
+  const [brackets, setBrackets] = useState<Bracket[]>([]);
+  useEffect(() => {
+    publicAPI
+      .getBrackets()
+      .then((resp) => handleRespWithoutNotify(resp, setBrackets));
+  }, []);
+
+  // 首页的队伍分析：通过搜索挑选的队伍
+  const [analysisPick, setAnalysisPick] = useState<{
+    detail: BracketDetail;
+    participantId: number;
+  } | null>(null);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const analysisName = analysisPick?.detail.participants.find(
+    (p) => p.id === analysisPick.participantId,
+  )?.name;
 
   useEffect(() => {
     return () => {
@@ -121,43 +137,6 @@ const PublicScoreboard: React.FC = () => {
 
     saveScoreboardSettings(scoreboardSettings);
   }, [scoreboardSettings]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const applyResult = (shouldEnable: boolean) => {
-      if (cancelled) return;
-      setEnableBackgroundEffects(shouldEnable);
-      setBackgroundEffectsReady(true);
-    };
-
-    shouldEnableBackgroundEffects(
-      scoreboardSettings.backgroundEffectsPreference,
-    )
-      .then(applyResult)
-      .catch(() => applyResult(false));
-
-    return () => {
-      cancelled = true;
-    };
-  }, [scoreboardSettings.backgroundEffectsPreference]);
-
-  // 切换设置时允许重新尝试，避免运行时降级永久锁死。
-  useEffect(() => {
-    setStadiumTooSlow(false);
-  }, [scoreboardSettings.backgroundEffectsPreference]);
-
-  const handleStadiumPerformanceIssue = useCallback(() => {
-    // “总是开启”是显式覆盖，不自动降级。
-    if (scoreboardSettings.backgroundEffectsPreference === "enabled") return;
-    console.warn("体育场背景动画持续掉帧，已自动降级。");
-    setStadiumTooSlow(true);
-  }, [scoreboardSettings.backgroundEffectsPreference]);
-
-  const handleStadiumUnavailable = useCallback(() => {
-    console.warn("WebGL 不可用，已降级为无 3D 看板。");
-    setEnableBackgroundEffects(false);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -197,7 +176,21 @@ const PublicScoreboard: React.FC = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, isAdmin } = useAuth();
+
+  // 搜索“选中”：跳转到对应对阵图并选中该队伍
+  const handlePickParticipant = useCallback(
+    (pick: ParticipantPick) => {
+      navigate(`/brackets/${pick.bracketId}`, { state: { pick } });
+    },
+    [navigate],
+  );
+  const handleAnalyzeParticipant = useCallback(
+    (detail: BracketDetail, participantId: number) => {
+      setAnalysisPick({ detail, participantId });
+      setAnalysisOpen(true);
+    },
+    [],
+  );
   const [loginModalOpen, setLoginModalOpen] = useState(
     () =>
       Boolean((location.state as { openLogin?: boolean } | null)?.openLogin) ||
@@ -224,15 +217,6 @@ const PublicScoreboard: React.FC = () => {
     }
   }, [location.search, location.state, navigate]);
 
-  // 已登录时首页按钮直接进入对应后台，不再重复弹出登录框。
-  const handleAccountClick = useCallback(() => {
-    if (!isAuthenticated) {
-      setLoginModalOpen(true);
-      return;
-    }
-    navigate(isAdmin ? "/admin" : "/student");
-  }, [isAdmin, isAuthenticated, navigate]);
-
   const [lastNotifiedCompetitionId, setLastNotifiedCompetitionId] = useState<
     number | null
   >(null);
@@ -250,9 +234,6 @@ const PublicScoreboard: React.FC = () => {
     typeof setTimeout
   > | null>(null);
   const [isManualReplay, setIsManualReplay] = useState(false); // 标记是否是手动重播
-
-  // 当前运动会届次名称
-  const { event_name: eventName } = useWebsite();
 
   const stopAnnouncement = useCallback(() => {
     speechRequestIdRef.current += 1;
@@ -705,8 +686,6 @@ const PublicScoreboard: React.FC = () => {
 
   // 处理动画队列
   useEffect(() => {
-    // 等性能检测结束再决定走 3D 还是静态降级，避免中途切换。
-    if (!backgroundEffectsReady) return;
     if (!isProcessingAnimation && animationTaskQueue.length > 0) {
       const nextTask = animationTaskQueue[0];
       setIsProcessingAnimation(true);
@@ -727,7 +706,7 @@ const PublicScoreboard: React.FC = () => {
       // 从队列中移除当前任务
       setAnimationTaskQueue((prev) => prev.slice(1));
     }
-  }, [animationTaskQueue, isProcessingAnimation, backgroundEffectsReady]);
+  }, [animationTaskQueue, isProcessingAnimation]);
 
   // 结束动画（复用此函数处理动画结束逻辑）
   const endAnimation = () => {
@@ -1053,7 +1032,6 @@ const PublicScoreboard: React.FC = () => {
   // 成绩动画：镜头推向主席台，结果表快速展开；开启播报时按名次依次播报。
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animationRevealed, setAnimationRevealed] = useState(false);
-  const [lightRaysColor, setLightRaysColor] = useState("#FFD700");
   const isClassCompetition = isClassScoredType(
     animatingCompetition?.competition_type,
   );
@@ -1065,14 +1043,6 @@ const PublicScoreboard: React.FC = () => {
         (right.ranking ?? Number.MAX_SAFE_INTEGER),
     )
     .slice(0, OVERVIEW_MAX_ROWS);
-  // 逐条揭晓停在主席台；成绩总览时拉到全场，收尾再回到环绕。
-  const stadiumShot: StadiumShot =
-    showAnimation && animationPhase === "reveal"
-      ? "podium"
-      : showAnimation && animationPhase === "overview"
-        ? "overview"
-        : "ambient";
-
   // 音效预加载
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -1107,18 +1077,15 @@ const PublicScoreboard: React.FC = () => {
     return () => document.body.classList.remove("score-animation-active");
   }, [showAnimation, animationPhase]);
 
-  // 有体育场时等镜头到位并淡到纯黑；没有体育场时立即开始逐条揭晓。
+  // 静态赛场背景：动画开始即黑场，立即进入逐条揭晓。
   useEffect(() => {
     if (!showAnimation) {
       setAnimationRevealed(false);
       return;
     }
-    const timer = setTimeout(
-      () => setAnimationRevealed(true),
-      backgroundEffectsActive ? 4400 : 0,
-    );
+    const timer = setTimeout(() => setAnimationRevealed(true), 0);
     return () => clearTimeout(timer);
-  }, [showAnimation, backgroundEffectsActive]);
+  }, [showAnimation]);
 
   // 逐条展示：比赛名 → 每位选手的 名次 / 成绩 / 班级 / 姓名。
   useEffect(() => {
@@ -1139,7 +1106,6 @@ const PublicScoreboard: React.FC = () => {
           speakText(buildCompetitionAnnouncementIntro(animatingCompetition));
         }
       }
-      setLightRaysColor(getRankingColor(animationQueue[0]?.ranking || 0));
       const timer = setTimeout(() => setCurrentIndex(1), 1400);
       return () => clearTimeout(timer);
     }
@@ -1155,7 +1121,6 @@ const PublicScoreboard: React.FC = () => {
     }
 
     const score = animationQueue[scoreIndex];
-    setLightRaysColor(getRankingColor(score.ranking || 0));
 
     if (shouldAnnounceScore(scoreboardSettings, score)) {
       const key = `${animatingCompetition.id}-${score.id}-${stepInScore}`;
@@ -1238,33 +1203,30 @@ const PublicScoreboard: React.FC = () => {
       className="public-scoreboard"
       style={{
         minHeight: "100vh",
-        background: "#f7fbff",
+        background: "var(--sm-bg)",
         overflow: "hidden",
       }}
     >
-      {/* 背景动画：沿跑道环绕的体育场场景 */}
-      {backgroundEffectsActive && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 0,
-            pointerEvents: "none",
-          }}
-        >
-          <StadiumScene
-            key={scoreboardSettings.backgroundEffectsPreference}
-            eventName={eventName}
-            shot={stadiumShot}
-            onPerformanceIssue={handleStadiumPerformanceIssue}
-            onUnavailable={handleStadiumUnavailable}
-          />
-        </div>
-      )}
+      {/* 背景：1:1 自适应赛场图，居中铺满，半透明（同 RM 的 Situation.vue） */}
+      <div className="public-scoreboard__bg" aria-hidden="true">
+        <img src={arenaBackground} alt="" />
+      </div>
 
       {/* 首页三栏看板 */}
       <PublicHomeBoard
-        eventName={eventName}
+        topBar={
+          <PublicTopBar
+            brackets={brackets}
+            analyzeLabel={
+              analysisName ? `分析队伍 ${analysisName}` : "请先通过搜索选择队伍"
+            }
+            onAnalyze={analysisPick ? () => setAnalysisOpen(true) : undefined}
+            onPickParticipant={handlePickParticipant}
+            onAnalyzeParticipant={handleAnalyzeParticipant}
+            onLogin={() => setLoginModalOpen(true)}
+            onSecretClick={handleTitleClick}
+          />
+        }
         topClasses={stats.topClasses}
         topStudents={stats.topStudents}
         completedCount={stats.completedCount}
@@ -1276,10 +1238,16 @@ const PublicScoreboard: React.FC = () => {
         onViewCompetition={handleViewCompetitionDetail}
         onOpenCompleted={handleViewCompletedCompetitions}
         onOpenPending={handleViewPendingCompetitions}
-        onTitleClick={handleTitleClick}
-        isLoggedIn={isAuthenticated}
-        onAccountClick={handleAccountClick}
       />
+
+      {analysisPick && (
+        <TeamAnalysisSheet
+          detail={analysisPick.detail}
+          participantId={analysisPick.participantId}
+          open={analysisOpen}
+          onClose={() => setAnalysisOpen(false)}
+        />
+      )}
 
       <ScoreboardSettingsModal
         open={settingsModalOpen}
@@ -1296,9 +1264,7 @@ const PublicScoreboard: React.FC = () => {
         <div
           className={`score-animation${
             animationPhase !== "reveal" ? " is-overview" : ""
-          }${animationPhase === "closing" ? " is-closing" : ""}${
-            backgroundEffectsActive ? "" : " is-static"
-          }`}
+          }${animationPhase === "closing" ? " is-closing" : ""} is-static`}
           onMouseDown={handleLongPressStart}
           onMouseUp={handleLongPressEnd}
           onMouseLeave={handleLongPressEnd}
@@ -1306,26 +1272,11 @@ const PublicScoreboard: React.FC = () => {
           onTouchEnd={handleLongPressEnd}
         >
           <div className="score-animation__blackout" aria-hidden="true" />
-          {backgroundEffectsActive && (
-            <div className="score-animation__rays" aria-hidden="true">
-              <LightRays
-                raysOrigin="top-center"
-                raysColor={lightRaysColor}
-                lightSpread={2.6}
-                rayLength={3.6}
-                saturation={1.5}
-                followMouse={false}
-                mouseInfluence={0.1}
-                fadeDistance={1.5}
-                noiseAmount={0.1}
-              />
-            </div>
-          )}
           <FadeContent
             blur
             duration={900}
             easing="ease-out"
-            delay={backgroundEffectsActive ? 4400 : 0}
+            delay={0}
             initialOpacity={0}
             className="score-animation__fade"
           >
@@ -1387,7 +1338,11 @@ const PublicScoreboard: React.FC = () => {
                             {score && stepInScore >= 1 && (
                               <BlurText
                                 key={`${score.id}-result`}
-                                text={`${score.score} ${animatingCompetition.unit}`}
+                                text={
+                                  animatingCompetition.bracket_enabled
+                                    ? `第 ${score.score} 名`
+                                    : `${score.score} ${animatingCompetition.unit}`
+                                }
                                 delay={45}
                                 animateBy="letters"
                                 direction="top"
@@ -1459,8 +1414,11 @@ const PublicScoreboard: React.FC = () => {
                   aria-label={`${animatingCompetition.name}比赛成绩`}
                 >
                   {overviewRows.map((score, index) => {
-                    const color =
-                      getScoreboardRankingColor(score.ranking) ?? "#7186a0";
+                    // 前三名用 RM 的金色徽标，其余灰色
+                    const podium =
+                      score.ranking !== undefined &&
+                      score.ranking >= 1 &&
+                      score.ranking <= 3;
                     return (
                       <div
                         className="score-overview__row"
@@ -1470,7 +1428,7 @@ const PublicScoreboard: React.FC = () => {
                       >
                         <span
                           className="score-overview__rank"
-                          style={{ color }}
+                          data-podium={podium ? "true" : undefined}
                         >
                           {score.ranking ?? "—"}
                         </span>
@@ -1487,10 +1445,16 @@ const PublicScoreboard: React.FC = () => {
                           </div>
                         </div>
                         <span className="score-overview__result">
-                          {score.score}
-                          <span className="score-overview__unit">
-                            {animatingCompetition.unit}
-                          </span>
+                          {animatingCompetition.bracket_enabled ? (
+                            `第 ${score.score} 名`
+                          ) : (
+                            <>
+                              {score.score}
+                              <span className="score-overview__unit">
+                                {animatingCompetition.unit}
+                              </span>
+                            </>
+                          )}
                         </span>
                       </div>
                     );

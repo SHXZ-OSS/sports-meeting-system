@@ -5,8 +5,6 @@ import type {
   Competition,
   StudentPointsSummary,
 } from "../types";
-import { getScoreboardRankingColor } from "../utils/competition";
-import { useIsMobile } from "../utils/mobile";
 import "./PublicHomeBoard.css";
 
 const UPCOMING_WINDOW_MS = 60 * 60 * 1000;
@@ -25,23 +23,31 @@ const getBarPercent = (points: number, maxPoints: number) => {
   return Math.max(4, Math.min(100, (points / maxPoints) * 100));
 };
 
-const getRankColor = (rank: number) =>
-  getScoreboardRankingColor(rank) ?? "var(--ph-blue)";
+// 名次分档：冠军金色、亚季军奖牌色、其余中性色，具体颜色由 CSS 决定
+const getRankTier = (rank: number) => {
+  if (rank === 1) return "gold";
+  if (rank === 2) return "silver";
+  if (rank === 3) return "bronze";
+  return "rest";
+};
 
+// RM Schedule 队伍行：比分徽标 + 白色圆形校徽 + 单行名称
 function RankBadge({ rank }: { rank: number }) {
   return (
-    <span
-      className="ph-rank-badge"
-      style={{ background: getRankColor(rank) }}
-      aria-hidden="true"
-    >
-      {rank}
-    </span>
+    <>
+      <span className="ph-rank-badge" aria-hidden="true">
+        {rank}
+      </span>
+      <span className="ph-avatar" aria-hidden="true">
+        <img src="/school-emblem.svg" alt="" />
+      </span>
+    </>
   );
 }
 
 interface PublicHomeBoardProps {
-  eventName?: string;
+  // 共用的 RM 顶栏（PublicTopBar）
+  topBar: React.ReactNode;
   topClasses: ClassPointsSummary[];
   topStudents: StudentPointsSummary[];
   completedCount: number;
@@ -53,13 +59,10 @@ interface PublicHomeBoardProps {
   onViewCompetition: (competition: Competition) => void;
   onOpenCompleted: () => void;
   onOpenPending: () => void;
-  onTitleClick: () => void;
-  isLoggedIn: boolean;
-  onAccountClick: () => void;
 }
 
 export default function PublicHomeBoard({
-  eventName,
+  topBar,
   topClasses,
   topStudents,
   completedCount,
@@ -71,15 +74,11 @@ export default function PublicHomeBoard({
   onViewCompetition,
   onOpenCompleted,
   onOpenPending,
-  onTitleClick,
-  isLoggedIn,
-  onAccountClick,
 }: PublicHomeBoardProps) {
   const totalCount = completedCount + pendingCount;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const maxClassPoints = topClasses[0]?.total_points || 1;
   const maxStudentPoints = topStudents[0]?.total_points || 1;
-  const isMobile = useIsMobile();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -107,36 +106,7 @@ export default function PublicHomeBoard({
 
   return (
     <div className="ph-shell">
-      <header className="ph-header">
-        <div className="ph-brand" onClick={onTitleClick} role="presentation">
-          <img className="ph-emblem" src="/school-emblem.svg" alt="行知校徽" />
-          <span className="ph-school">上海市行知中学</span>
-          <span className="ph-divider" aria-hidden="true" />
-          <h1>{eventName?.trim() || "运动会"}</h1>
-        </div>
-        <div className="ph-side">
-          <button
-            type="button"
-            className={`ph-login${isMobile ? " ph-login--compact" : ""}`}
-            onClick={onAccountClick}
-            title={isLoggedIn ? "进入系统" : "登录"}
-            aria-label={isLoggedIn ? "进入系统" : "登录"}
-          >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              {isLoggedIn ? (
-                <path d="M10 10a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 10 10Zm-6 6.4c0-2.5 2.7-4.2 6-4.2s6 1.7 6 4.2" />
-              ) : (
-                <path d="M11.5 4.5 17 10l-5.5 5.5M17 10H3" />
-              )}
-            </svg>
-            {!isMobile && (
-              <span className="ph-login-label">
-                {isLoggedIn ? "进入系统" : "登录"}
-              </span>
-            )}
-          </button>
-        </div>
-      </header>
+      {topBar}
 
       <main className="ph-layout">
         <div className="ph-pair">
@@ -145,16 +115,21 @@ export default function PublicHomeBoard({
             aria-labelledby="ph-class-title"
           >
             <header className="ph-heading">
-              <h2 id="ph-class-title">班级分数榜</h2>
-              <span className="ph-heading-note">TOP 10</span>
+              <h2 id="ph-class-title">
+                班级分数榜
+                <span className="ph-heading-note">TOP 10</span>
+              </h2>
             </header>
             {topClasses.length > 0 ? (
               <ol className="ph-rank-list" aria-label="班级分数榜前十名">
                 {topClasses.slice(0, 10).map((entry, index) => {
                   const rank = entry.rank || index + 1;
-                  const color = getRankColor(rank);
                   return (
-                    <li className="ph-rank-row" key={entry.class_id}>
+                    <li
+                      className="ph-rank-row"
+                      key={entry.class_id}
+                      data-tier={getRankTier(rank)}
+                    >
                       <RankBadge rank={rank} />
                       <div className="ph-rank-body">
                         <div className="ph-rank-line">
@@ -167,7 +142,7 @@ export default function PublicHomeBoard({
                           >
                             {entry.class_name}
                           </button>
-                          <span className="ph-points" style={{ color }}>
+                          <span className="ph-points">
                             {formatPoints(entry.total_points)}
                             <span className="ph-points-unit">分</span>
                           </span>
@@ -179,7 +154,6 @@ export default function PublicHomeBoard({
                                 entry.total_points,
                                 maxClassPoints,
                               )}%`,
-                              background: color,
                             }}
                           />
                         </div>
@@ -198,16 +172,21 @@ export default function PublicHomeBoard({
             aria-labelledby="ph-student-title"
           >
             <header className="ph-heading">
-              <h2 id="ph-student-title">个人分数榜</h2>
-              <span className="ph-heading-note">TOP 10</span>
+              <h2 id="ph-student-title">
+                个人分数榜
+                <span className="ph-heading-note">TOP 10</span>
+              </h2>
             </header>
             {topStudents.length > 0 ? (
               <ol className="ph-rank-list" aria-label="个人分数榜前十名">
                 {topStudents.slice(0, 10).map((entry, index) => {
                   const rank = entry.rank || index + 1;
-                  const color = getRankColor(rank);
                   return (
-                    <li className="ph-rank-row" key={entry.student_id}>
+                    <li
+                      className="ph-rank-row"
+                      key={entry.student_id}
+                      data-tier={getRankTier(rank)}
+                    >
                       <RankBadge rank={rank} />
                       <div className="ph-rank-body">
                         <div className="ph-rank-line">
@@ -228,7 +207,7 @@ export default function PublicHomeBoard({
                               {entry.class_name}
                             </span>
                           </span>
-                          <span className="ph-points" style={{ color }}>
+                          <span className="ph-points">
                             {formatPoints(entry.total_points)}
                             <span className="ph-points-unit">分</span>
                           </span>
@@ -240,7 +219,6 @@ export default function PublicHomeBoard({
                                 entry.total_points,
                                 maxStudentPoints,
                               )}%`,
-                              background: color,
                             }}
                           />
                         </div>

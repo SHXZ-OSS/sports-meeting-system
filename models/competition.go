@@ -228,7 +228,7 @@ func AdminCreateCompetition(
 	startTime, endTime *time.Time,
 	allowConcurrent bool,
 	customFields []types.CompetitionCustomField,
-) error {
+) (*types.Competition, error) {
 	// 获取数据库连接和验证器
 	db := database.GetDB()
 	validator := utils.NewCompetitionValidator(db)
@@ -249,7 +249,7 @@ func AdminCreateCompetition(
 		endTime,
 		true,
 	); err != nil {
-		return err
+		return nil, err
 	}
 
 	// 获取当前选中的 EventID
@@ -283,12 +283,16 @@ func AdminCreateCompetition(
 	}
 
 	// 使用事务插入比赛数据
-	return db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(competition).Error; err != nil {
 			return err
 		}
 		return createCustomFields(tx, competition.ID, customFields)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return competition, nil
 }
 
 // validateCustomFields 校验报名自定义字段定义
@@ -709,9 +713,20 @@ func DeleteCompetition(id int) error {
 			return err
 		}
 
+		// 删除关联的对阵表（外键为 SET NULL，不删会遗留为独立对阵表）
+		if err := DeleteBracketsByCompetition(tx, id); err != nil {
+			return err
+		}
+
 		// 删除比赛项目
 		return tx.Delete(&types.Competition{}, id).Error
 	})
+}
+
+// SetCompetitionBracketEnabled 更新比赛项目的对阵图开关
+func SetCompetitionBracketEnabled(id int, enabled bool) error {
+	return database.GetDB().Model(&types.Competition{}).Where("id = ?", id).
+		Update("bracket_enabled", enabled).Error
 }
 
 // 获取最新完成的比赛

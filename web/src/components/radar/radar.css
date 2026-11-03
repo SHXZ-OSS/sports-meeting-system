@@ -1,0 +1,173 @@
+/* ==== 实力雷达（参照 RM Schedule 机器人数据雷达图） ==== */
+
+.radar-chart {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  font-family: var(--sm-display-font);
+}
+
+.radar-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* ECharts 暗色雷达：交替灰色环带、浅灰分割线与轴线 */
+.radar-band {
+  fill: rgba(255, 255, 255, 0.06);
+}
+
+.radar-band.is-alt {
+  fill: rgba(255, 255, 255, 0.16);
+}
+
+.radar-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.32);
+  stroke-width: 1;
+}
+
+.radar-spoke {
+  stroke: rgba(255, 255, 255, 0.32);
+  stroke-width: 1;
+}
+
+.radar-axis-label {
+  fill: #cfcfcf;
+  font-size: 13px;
+}
+
+.radar-series circle {
+  cursor: default;
+}
+
+/* legend：圆角色块 + 白字 */
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.radar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.radar-legend-swatch {
+  width: 25px;
+  height: 14px;
+  border: 0 solid;
+  border-radius: 4px;
+}
+
+.radar-legend-swatch.is-dashed {
+  border-width: 2px;
+  border-style: dashed;
+  background: transparent !important;
+}
+
+/* ==== 维度表头 / 数值标注（分析弹层使用） ==== */
+
+.radar-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.radar-th:focus-visible {
+  outline: 2px solid rgba(140, 180, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.radar-th-icon {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.radar-empty {
+  color: var(--sm-text-muted);
+}
+
+.radar-manual-tag {
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--sm-gold);
+  border: 1px solid rgba(255, 200, 87, 0.5);
+  border-radius: 2px;
+  vertical-align: 1px;
+}
+
+.radar-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ==== 管理端：比赛统计录入 ==== */
+
+.radar-stats {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--sm-line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.radar-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.radar-stats-head {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sm-text-secondary);
+  text-align: center;
+}
+
+.radar-stats-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.radar-stats-errors {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--sm-red);
+}
+
+.radar-stats-row {
+  display: contents;
+}
+
+.radar-stats-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-bottom: 8px;
+}
+
+.radar-stats-sub {
+  font-size: 12px;
+}

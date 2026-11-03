@@ -283,6 +283,11 @@ func DeleteStudent(id int) error {
 			return err
 		}
 
+		// 移除学生在对阵表中的参赛方记录（已生成的对阵中该签位将按轮空推导）
+		if err := tx.Where("student_id = ?", id).Delete(&types.BracketParticipant{}).Error; err != nil {
+			return err
+		}
+
 		// 删除学生
 		return tx.Delete(&types.Student{}, id).Error
 	})

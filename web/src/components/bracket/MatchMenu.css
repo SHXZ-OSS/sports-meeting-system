@@ -1,0 +1,265 @@
+/* ==== 比赛菜单：照搬 RM Schedule MatchMenu 的 .bracket-glass-menu ==== */
+
+.bracket-glass-menu {
+  position: fixed;
+  z-index: 1050;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  color: rgba(242, 248, 255, 0.96);
+  font-family: var(--sm-display-font);
+  border: 1px solid rgba(210, 232, 250, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(172, 211, 240, 0.075),
+      rgba(24, 53, 79, 0.025)
+    ),
+    rgba(7, 20, 36, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 0 1px rgba(180, 218, 246, 0.035),
+    0 18px 48px rgba(0, 5, 16, 0.42),
+    0 4px 14px rgba(0, 8, 24, 0.28);
+  backdrop-filter: blur(28px) saturate(1.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55);
+  animation: bgm-in 180ms ease-out;
+}
+
+.bracket-glass-menu:focus {
+  outline: none;
+}
+
+@keyframes bgm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.bracket-menu-close {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: rgba(226, 240, 251, 0.82);
+  font-size: 13px;
+  border: 1px solid rgba(218, 237, 251, 0.1);
+  border-radius: 50%;
+  background: rgba(205, 229, 247, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 120ms ease;
+}
+
+.bracket-menu-close:hover {
+  color: #fff;
+  background: rgba(218, 237, 251, 0.14);
+}
+
+.bracket-menu-close:active {
+  transform: scale(0.92);
+}
+
+.bracket-menu-close:focus-visible,
+.bgm-item:focus-visible {
+  outline: 2px solid rgba(255, 222, 142, 0.9);
+  outline-offset: 2px;
+}
+
+/* v-card-item：prepend 图标 + 标题 / 副标题 */
+.bgm-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 52px 12px 18px;
+}
+
+.bgm-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  fill: rgba(194, 224, 247, 0.86);
+}
+
+.bgm-titles {
+  min-width: 0;
+}
+
+.bgm-title {
+  font-size: 0.98rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.bgm-subtitle,
+.bgm-status {
+  margin-top: 3px;
+  color: rgba(211, 227, 241, 0.7);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.bgm-status {
+  margin-top: 1px;
+  font-size: 0.8rem;
+}
+
+/* v-list */
+.bgm-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.bgm-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 2px 0;
+  padding: 0 16px;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition:
+    background-color 160ms ease,
+    transform 120ms ease;
+}
+
+.bgm-item:hover:not(:disabled) {
+  background: rgba(180, 218, 246, 0.1);
+}
+
+.bgm-item:active:not(:disabled) {
+  background: rgba(180, 218, 246, 0.16);
+  transform: scale(0.985);
+}
+
+.bgm-item:disabled {
+  opacity: 0.36;
+  cursor: default;
+}
+
+/*
+ * 桌面端（RM MatchGraph 的 v-menu）：Vuetify 暗色主题 v-card（surface #212121），
+ * 无毛玻璃、无关闭按钮；列表项为 48px 高的 v-list-item
+ */
+.bracket-glass-menu.is-plain {
+  width: auto;
+  min-width: 300px;
+  max-width: min(400px, calc(100vw - 16px));
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  background: #212121;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation-duration: 120ms;
+}
+
+.is-plain .bgm-head {
+  gap: 12px;
+  padding: 16px 16px 10px;
+}
+
+.is-plain .bgm-icon {
+  margin-top: 6px;
+  fill: #fff;
+}
+
+.is-plain .bgm-title {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  letter-spacing: 0.0125em;
+}
+
+.is-plain .bgm-subtitle,
+.is-plain .bgm-status {
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.875rem;
+}
+
+.is-plain .bgm-list {
+  padding: 8px 0;
+}
+
+.is-plain .bgm-item {
+  min-height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 0;
+}
+
+.is-plain .bgm-item:hover:not(:disabled),
+.is-plain .bgm-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.is-plain .bgm-item:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: none;
+}
+
+.is-plain .bgm-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.is-plain .bgm-item:disabled {
+  opacity: 0.38;
+}
+
+/* 移动端毛玻璃：标题为 font-weight-black 的比赛状态 */
+.is-glass .bgm-title {
+  font-size: 1.1rem;
+}
+
+.is-glass .bgm-head {
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-glass-menu {
+    animation: none;
+  }
+
+  .bracket-menu-close,
+  .bgm-item {
+    transition: none;
+  }
+
+  .bracket-menu-close:active,
+  .bgm-item:active:not(:disabled) {
+    transform: none;
+  }
+}

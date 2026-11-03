@@ -3,13 +3,19 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import type { Competition, PointDetail, Registration, Score } from "../types";
-import {
-  getGenderText,
-  getScoreboardRankingColor,
-  isClassScoredType,
-} from "../utils/competition";
+import { getGenderText, isClassScoredType } from "../utils/competition";
 import CompetitionDescription from "./CompetitionDescription";
 import "./ScoreboardDialogs.css";
+
+// 深色弹层上的金银铜色：取自 RM Schedule 的奖牌色（BracketMatchCard / BracketTeamRow）
+const DARK_RANKING_COLORS: Record<number, string> = {
+  1: "#ffd56a",
+  2: "#d2dceb",
+  3: "#e0a878",
+};
+
+const getDarkRankingColor = (ranking?: number) =>
+  ranking ? DARK_RANKING_COLORS[ranking] : undefined;
 
 export interface StudentModalState {
   id: number;
@@ -95,19 +101,18 @@ const formatClock = (value?: string) => {
   return date.isValid() ? date.format("HH:mm") : "待定";
 };
 
+// RM 比分徽标：前三名金色，其余灰色
+const isPodium = (ranking?: number) =>
+  ranking !== undefined && ranking >= 1 && ranking <= 3;
+
 function RankChip({ ranking }: { ranking?: number }) {
   if (!ranking) {
     return <span className="sd-rank-chip sd-rank-chip--empty">—</span>;
   }
-  const color = getScoreboardRankingColor(ranking);
   return (
     <span
       className="sd-rank-chip"
-      style={
-        color
-          ? { color, background: `${color}14`, borderColor: `${color}33` }
-          : undefined
-      }
+      data-podium={isPodium(ranking) ? "true" : undefined}
     >
       第 {ranking} 名
     </span>
@@ -517,7 +522,7 @@ function StudentScoresDialog({
                   entry.score.unit ||
                   ""
                 : "";
-              const rankColor = getScoreboardRankingColor(entry.ranking);
+              const rankColor = getDarkRankingColor(entry.ranking);
               return (
                 <li className="sd-entry" key={entry.key}>
                   <div className="sd-entry-top">
@@ -540,7 +545,9 @@ function StudentScoresDialog({
                   <div className="sd-entry-meta">
                     {entry.score && (
                       <span>
-                        {formatScore(entry.score.score)} {unit}
+                        {entry.score.bracket_enabled
+                          ? `第 ${entry.score.score} 名`
+                          : `${formatScore(entry.score.score)} ${unit}`}
                       </span>
                     )}
                     <RankChip ranking={entry.ranking} />
@@ -594,7 +601,7 @@ function ClassPointsDialog({
           <ul className="sd-entries">
             {details.map((detail) => {
               const isRanking = detail.point_type === "ranking";
-              const rankColor = getScoreboardRankingColor(detail.ranking);
+              const rankColor = getDarkRankingColor(detail.ranking);
               return (
                 <li className="sd-entry" key={detail.id}>
                   <div className="sd-entry-top">
@@ -606,7 +613,7 @@ function ClassPointsDialog({
                       style={{
                         color: isRanking
                           ? (rankColor ?? "var(--sd-blue)")
-                          : "#3a8f5f",
+                          : "var(--sm-win)",
                       }}
                     >
                       {formatSignedPoints(detail.points)}
@@ -763,12 +770,12 @@ function CompetitionDetailDialog({
         ) : (
           <ul className="sd-results">
             {modal.scores.map((score) => {
-              const rankColor = getScoreboardRankingColor(score.ranking);
+              const rankColor = getDarkRankingColor(score.ranking);
               return (
                 <li className="sd-result" key={score.id}>
                   <span
                     className="sd-result-rank"
-                    style={rankColor ? { color: rankColor } : undefined}
+                    data-podium={isPodium(score.ranking) ? "true" : undefined}
                   >
                     {score.ranking || "—"}
                   </span>
@@ -799,7 +806,9 @@ function CompetitionDetailDialog({
                     </div>
                     <div className="sd-result-meta">
                       <span>
-                        {formatScore(score.score)} {competition.unit}
+                        {competition.bracket_enabled
+                          ? `第 ${score.score} 名`
+                          : `${formatScore(score.score)} ${competition.unit}`}
                       </span>
                     </div>
                   </div>
